@@ -221,7 +221,7 @@ export function buildWorld() {
   const lhRock = sph(3, '#b9b5ad', 1.3, 0.35, 1.3); add(lh, lhRock, 0, 0.2, 0);
   obstacles.push({ x: LM.lighthouse.x, z: LM.lighthouse.z, r: 2.4 });
   const lhLabel = makeLabel('とうだい', '#e8455a'); lhLabel.position.set(LM.lighthouse.x, 13.4, LM.lighthouse.z); g.add(lhLabel);
-  // かぜりんの じんじゃ
+  // ふうりんの じんじゃ
   const sh = new THREE.Group(); sh.position.set(LM.shrine.x, 0, LM.shrine.z); g.add(sh);
   for (const sx of [-1.6, 1.6]) { const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 4, 10), mat('#d9452f')); pil.position.set(sx, 2, 0); sh.add(pil); }
   const kasagi = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.35, 0.5), mat('#2a2a2f')); kasagi.position.set(0, 4.15, 0); sh.add(kasagi);
@@ -238,7 +238,7 @@ export function buildWorld() {
   const rope = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.05, 0.05), mat('#6b5a4a')); rope.position.set(0, 3.2, -3.4); sh.add(rope);
   for (const sx of [-2.6, 2.6]) { add(sh, sph(0.5, '#b9b5ad', 0.8, 1.2, 0.8), sx, 0.5, -2.2); }
   obstacles.push({ x: LM.shrine.x - 1.6, z: LM.shrine.z, r: 0.4 }, { x: LM.shrine.x + 1.6, z: LM.shrine.z, r: 0.4 }, { x: LM.shrine.x, z: LM.shrine.z - 5, r: 1.3 });
-  const shLabel = makeLabel('かぜりんの じんじゃ', '#d9452f'); shLabel.position.set(LM.shrine.x, 5.6, LM.shrine.z); g.add(shLabel);
+  const shLabel = makeLabel('ふうりんの じんじゃ', '#d9452f'); shLabel.position.set(LM.shrine.x, 5.6, LM.shrine.z); g.add(shLabel);
   // うみのいえ
   const hu = new THREE.Group(); hu.position.set(LM.hut.x, 0, LM.hut.z); g.add(hu);
   box3(hu, 4.6, 0.2, 3.4, '#c8935a', 0, 0.1, 0);

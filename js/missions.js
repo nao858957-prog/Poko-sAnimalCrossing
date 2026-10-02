@@ -16,7 +16,7 @@ export const ITEMS = {
 export const PLACES = {
   beach: { name: 'うみべ', x: 0, z: 41 },
   lighthouse: { name: 'とうだい', x: 24, z: -33 },
-  shrine: { name: 'かぜりんの じんじゃ', x: -31, z: 8 },
+  shrine: { name: 'ふうりんの じんじゃ', x: -31, z: 8 },
   hut: { name: 'うみの いえ', x: 12, z: 40 },
   grove: { name: 'たけやぶの ひみつきち', x: -20, z: -13 },
   lake: { name: 'みずうみ', x: 25, z: 17 },
@@ -125,10 +125,10 @@ export const QUESTS = [
     ask: 'チュリリ！ そらから おおきな とうだいを みつけたんだ！ ほくとうの うみのそばだよ。いって みてきて！',
     hint: 'ほくとうの とうだいまで いってみよう', thanks: 'どうだった？ おおきかったでしょ！ ぼく、あそこから みる ゆうやけが だいすきなんだ！ チュリ！',
     diary: 'ハルに すすめられて とうだいへ いった。おおきくて、きれいだった。', reward: { flowers: 7, friend: 4 } },
-  { id: 'haru2', giver: 'haru', lv: 2, after: 'haru1', title: 'かぜりんの じんじゃ', type: 'visit', where: 'shrine', r: 5,
-    ask: 'にしの はずれに、かぜりんが なる じんじゃが あるんだって！ ふしぎな おとが するらしいよ。いってみて！',
+  { id: 'haru2', giver: 'haru', lv: 2, after: 'haru1', title: 'ふうりんの じんじゃ', type: 'visit', where: 'shrine', r: 5,
+    ask: 'にしの はずれに、ふうりんが なる じんじゃが あるんだって！ ふしぎな おとが するらしいよ。いってみて！',
     hint: 'にしの はずれの じんじゃまで いってみよう', thanks: 'きいた？ ちりーん…って！ すごく ふしぎだよね！ ぼくも こんど いっしょに いきたいな！',
-    diary: 'かぜりんの じんじゃへ いった。ふしぎで すずしい おとが きこえた。', reward: { flowers: 8, friend: 5 } },
+    diary: 'ふうりんの じんじゃへ いった。ふしぎで すずしい おとが きこえた。', reward: { flowers: 8, friend: 5 } },
   { id: 'haru3', giver: 'haru', lv: 4, after: 'haru2', title: 'ぼくの すづくり', type: 'collect', item: 'sasa', n: 4,
     ask: '{n}、ぼくね、ポコの おうちの ちかくに、あたらしい すを つくろうと おもうんだ。たまに かえってくる ばしょ、ほしいから。ささを 4ほん、てつだって くれる？',
     hint: 'ささは にしの たけやぶに あるよ', thanks: 'ありがとう！ これで ぼくの おうちが できるよ。…ぼくね、ひとりで とおくまで いけるように なったのは、ポコや みんなが かえる ばしょを くれたからなんだ。{n}も、そのひとり。チュリ。',
@@ -199,7 +199,7 @@ export const QUESTS = [
   { id: 'pon6', giver: 'pon', lv: 4, needs: 'rod', title: 'みせの かんばんむすめ', type: 'catch', n: 1, minRarity: 4,
     ask: '{n}さん、とっておきのお願いだぽん。お店の看板になるような、大物を釣ってきてほしいぽん…！ 夜の海や、金の竿が頼りになるぽん。',
     hint: 'めずらしい さかな（★★★★）を つろう。よるが ねらいめ', thanks: 'ぽ、ぽんっ！？ これは…！ 看板どころか、お店の宝物だぽん！ {n}さん、あなたは釣りの名人だぽん！',
-    diary: 'ポンの おみせの ために だいもの（★★★★）を つりあげた。', reward: { flowers: 30, friend: 7 } },
+    diary: 'ポンの おみせの ために おおもの（★★★★）を つりあげた。', reward: { flowers: 30, friend: 7 } },
 ];
 export const QUEST_BY_ID = Object.fromEntries(QUESTS.map(q => [q.id, q]));
 

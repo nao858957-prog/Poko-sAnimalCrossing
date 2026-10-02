@@ -3,7 +3,7 @@
 export const RODS = [
   { id: 1, emoji: '🎣', name: 'きの つりざお', price: 8, color: '#b98a5a', wait: [3, 8], window: 1.9, bonus: 0, desc: 'はじめての つりざお。のんびり まとう' },
   { id: 2, emoji: '🎣', name: 'ぎんの つりざお', price: 25, color: '#c9d2dc', wait: [2, 6], window: 2.3, bonus: 1, desc: 'よく かかる。めずらしい さかなも' },
-  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 60, color: '#ffcf3a', wait: [1.5, 4.5], window: 2.8, bonus: 2, desc: 'すぐ かかる！ だいものも ねらえる' },
+  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 60, color: '#ffcf3a', wait: [1.5, 4.5], window: 2.8, bonus: 2, desc: 'すぐ かかる！ おおものも ねらえる' },
 ];
 export const SPOTS = { pond: 'ため池', lake: 'みずうみ', sea: 'うみ' };
 
@@ -37,14 +37,14 @@ export const FISH = [
   { id: 'hirame', name: 'ヒラメ', emoji: '🐟', loc: ['sea'], r: 3, price: 15, size: [35, 70], line: 'ひらひら…こうきゅう さかな！' },
   { id: 'tai', name: 'たい', emoji: '🐟', loc: ['sea'], r: 3, price: 16, size: [30, 70], line: 'めでたい！ おいわいの さかな。' },
   { id: 'hikarika', name: 'ひかる イカ', emoji: '🦑', loc: ['sea'], r: 4, price: 38, size: [20, 45], time: 'night', line: 'よるのうみで ぴかぴか ひかっている…！ ゆめみたい。' },
-  { id: 'maguro', name: 'マグロ', emoji: '🐟', loc: ['sea'], r: 4, price: 45, size: [80, 150], line: 'とんでもない だいもの…！ うでが ぷるぷる！' },
+  { id: 'maguro', name: 'マグロ', emoji: '🐟', loc: ['sea'], r: 4, price: 45, size: [80, 150], line: 'とんでもない おおもの…！ うでが ぷるぷる！' },
   { id: 'kujira', name: 'ちいさな クジラ', emoji: '🐋', loc: ['sea'], r: 4, price: 60, size: [200, 400], line: 'ふしぎ…！ やさしい めで こっちを みている。そっと かえしてあげよう？' },
 ];
 export const FISH_BY_ID = Object.fromEntries(FISH.map(f => [f.id, f]));
 const JUNK = [
-  { id: 'boots', name: 'ながぐつ', emoji: '👢', line: 'ながぐつが かかった…！ だれの かな？' },
-  { id: 'can', name: 'からっぽの かんづめ', emoji: '🥫', line: 'かんづめだ…。 うみを きれいに できた！' },
-  { id: 'bottle', name: 'ボトル', emoji: '🍾', line: 'なかに てがみが…？ ざんねん、からっぽ。' },
+  { id: 'boots', name: 'ながぐつ', emoji: '👢', line: 'ながぐつが かかった…！ だれかの わすれものかな？' },
+  { id: 'can', name: 'からっぽの かんづめ', emoji: '🥫', line: 'かんづめだ…。 ごみを ひろえて えらいね！' },
+  { id: 'bottle', name: 'ボトル', emoji: '🍾', line: 'ボトルが かかった…。 なかは からっぽだった。' },
 ];
 
 const isNightH = h => h >= 19 || h < 5;

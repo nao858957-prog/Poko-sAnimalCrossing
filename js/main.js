@@ -956,8 +956,9 @@ function showCatch() {
   bobber.visible = false; fishLine.visible = false;
   let html;
   if (c.junk) {
-    html = `<div class="cc-e">${c.emoji}</div><h3>${c.name}</h3><p>${c.line}</p><p class="cc-s">…さかなじゃ なかったよ。うみに かえしたよ。</p>`;
-    sfx('tap');
+    S.flowers += 1; $('flowerCount').textContent = '🌼 ' + S.flowers;
+    html = `<div class="cc-e">${c.emoji}</div><h3>${c.name}</h3><p>${c.line}</p><p class="cc-s">ちゃんと もちかえって、ごみばこに すてたよ。<br>うみが きれいに なったね！ ごほうびに 🌼 +1</p>`;
+    sfx('pick');
   } else {
     const isNew = !S.dex[c.id];
     S.fish[c.id] = (S.fish[c.id] || 0) + 1; S.fishTotal++;

@@ -1,7 +1,7 @@
 {
   "name": "ポコのちいさなしま",
   "short_name": "ポコのしま",
-  "description": "ポコたちとふれあう、やさしい3Dのおさんぽゲーム（ファンメイド）",
+  "description": "ポコたちとふれあう、やさしい3Dのおさんぽゲーム",
   "lang": "ja",
   "start_url": "./index.html",
   "display": "fullscreen",
