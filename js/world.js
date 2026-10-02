@@ -1,6 +1,6 @@
 // ポコたちの島 (three.js)
 import * as THREE from 'three';
-import { sph, add, mat } from './models.js';
+import { sph, add, mat, makeLabel } from './models.js';
 
 function rng(seed) {
   let s = seed;
@@ -67,6 +67,7 @@ export function buildWorld() {
     if (Math.abs(z + 2) < 1.8 && Math.abs(x) < 16) return false;
     if (Math.hypot(x, z + 15) < 6) return false;
     if (Math.hypot(x - 9, z - 9) < 5) return false;
+    if (Math.hypot(x + 9, z - 11) < 7) return false;
     return true;
   };
   let placed = 0, tries = 0;
@@ -180,6 +181,25 @@ export function buildWorld() {
   add(g, sph(0.6, '#cfcabf', 1.2, 0.8, 1), 0, 0.2, 31.5);
   obstacles.push({ x: -7, z: 28, r: 0.3 }, { x: 8, z: 28, r: 0.9 });
 
+  // ---- おみせ (たべもの・きせかえ) ----
+  const shop = new THREE.Group(); shop.position.set(-9, 0, 9.4); g.add(shop);
+  const sw = new THREE.Mesh(new THREE.BoxGeometry(5.6, 3, 4), mat('#ffe3ea')); sw.position.y = 1.5; shop.add(sw);
+  const sr = new THREE.Mesh(new THREE.ConeGeometry(4.6, 1.8, 4), mat('#e8795a')); sr.rotation.y = Math.PI / 4; sr.position.y = 3.9; sr.scale.set(1.0, 1, 0.76); shop.add(sr);
+  for (let i = 0; i < 7; i++) {
+    const st = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.12, 1.5), mat(i % 2 ? '#ffffff' : '#e8455a'));
+    st.position.set(-2.4 + i * 0.8, 2.55, 2.55); st.rotation.x = 0.42; shop.add(st);
+  }
+  const sdoor = new THREE.Mesh(new THREE.BoxGeometry(1.2, 2.0, 0.12), mat('#8a5a36')); sdoor.position.set(-1.4, 1.0, 2.04); shop.add(sdoor);
+  const swin = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.1, 0.1), new THREE.MeshLambertMaterial({ color: '#cfeeff' })); swin.position.set(1.3, 1.5, 2.04); shop.add(swin);
+  const counter = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.15, 0.7), mat('#c8935a')); counter.position.set(1.3, 0.9, 2.5); shop.add(counter);
+  add(shop, sph(0.28, '#ffd0d8', 1, 0.8, 1), 0.8, 1.15, 2.5); add(shop, sph(0.28, '#f4e2b0', 1, 0.8, 1), 1.5, 1.15, 2.5); add(shop, sph(0.2, '#ff7a5c'), 2.0, 1.1, 2.5);
+  for (const [x, c] of [[-2.4, '#ff7a5c'], [-3.0, '#ffd84d']]) { const cr = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.5, 0.8), mat('#c8935a')); cr.position.set(x - 0.3, 0.25, 2.6); shop.add(cr); for (let k = 0; k < 4; k++) add(shop, sph(0.15, c), x - 0.3 + (k % 2) * 0.3 - 0.15, 0.6, 2.6 + (k > 1 ? 0.2 : -0.2)); }
+  const rack = new THREE.Mesh(new THREE.BoxGeometry(0.05, 1.4, 0.05), mat('#6b5a4a')); rack.position.set(3.2, 0.7, 2.4); shop.add(rack);
+  add(shop, sph(0.2, '#e8455a', 1, 0.7, 1), 3.2, 1.45, 2.4); add(shop, sph(0.2, '#ffd21f', 1, 0.7, 1), 3.2, 1.1, 2.4);
+  const shopLabel = makeLabel('🛍 おみせ', '#e8795a'); shopLabel.position.set(-9, 5.6, 9.4); g.add(shopLabel);
+  shopLabel.visible = false;
+  const sp0 = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2), mat('#ead7a4')); sp0.rotation.x = -Math.PI / 2; sp0.position.set(-4.5, 0.017, 12.6); g.add(sp0);
+  obstacles.push({ x: -10.8, z: 9.4, r: 1.7 }, { x: -9.0, z: 9.4, r: 1.7 }, { x: -7.2, z: 9.4, r: 1.7 });
   // ---- 季節の飾り ----
   const decor = { tanabata: new THREE.Group(), obon: new THREE.Group(), newyear: new THREE.Group() };
   for (const d of Object.values(decor)) { d.visible = false; g.add(d); }
@@ -308,7 +328,7 @@ export function buildWorld() {
     }
   }
 
-  return { group: g, obstacles, flowers, update, applyTime, setSeason, door: { x: 0, z: -12.9 } };
+  return { group: g, obstacles, flowers, update, applyTime, setSeason, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

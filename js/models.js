@@ -456,6 +456,8 @@ export function makeAvatar(a) {
       add(head, sph(0.22, hc, 0.9, 1.7, 0.9), sd * 0.66, -0.02, -0.05);
       add(head, sph(0.07, '#e8455a'), sd * 0.62, 0.34, -0.05);
     }
+  } else if (hs === 'hat' && a.hat) {
+    cap(0.66);
   } else if (hs === 'hat') {
     cap(0.66);
     const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.95, 0.04, 24), mat('#e9cf8a'));
@@ -467,6 +469,44 @@ export function makeAvatar(a) {
     const band = new THREE.Mesh(new THREE.CylinderGeometry(0.53, 0.53, 0.09, 20), mat('#e8455a'));
     band.position.set(0, 0.72, 0);
     head.add(band);
+  }
+  // ---- おみせで買った きせかえ ----
+  const H = a.hat;
+  if (H === 'knit') {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat('#e8455a'));
+    k.scale.set(0.7, 0.58, 0.7); k.position.set(0, 0.66, -0.02); k.rotation.x = -0.1; head.add(k);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.08, 8, 22), mat('#fff4e0')); band.rotation.x = Math.PI / 2 - 0.1; band.position.set(0, 0.66, -0.02); head.add(band);
+    add(head, sph(0.15, '#fff4e0'), 0, 1.28, -0.08);
+  } else if (H === 'ribbon') {
+    for (const sd of [-1, 1]) { const w = sph(0.22, '#ff7aa8', 1.4, 0.9, 0.5); add(head, w, sd * 0.26, 0.98, 0.1); w.rotation.z = sd * 0.5; }
+    add(head, sph(0.1, '#e8457a'), 0, 0.98, 0.14);
+  } else if (H === 'sunflower') {
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.98, 0.98, 0.04, 24), mat('#f2d070')); brim.position.set(0, 0.7, 0); head.add(brim);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.54, 0.34, 20), mat('#f2d070')); top.position.set(0, 0.87, 0); head.add(top);
+    for (let i = 0; i < 9; i++) { const an = (i / 9) * Math.PI * 2; add(head, sph(0.1, '#ffd21f', 1, 1.5, 0.4), 0.45 + Math.cos(an) * 0.15, 0.9 + Math.sin(an) * 0.15, 0.4).rotation.z = an - Math.PI / 2; }
+    add(head, sph(0.1, '#7a4a20', 1, 1, 0.6), 0.45, 0.9, 0.42);
+  } else if (H === 'pandaear') {
+    for (const sd of [-1, 1]) add(head, sph(0.24, '#2a2a2f', 1, 1, 0.7), sd * 0.5, 0.93, -0.05);
+    const hb = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 24, Math.PI), mat('#2a2a2f')); hb.position.set(0, 0.5, 0); hb.rotation.z = 0.0; head.add(hb);
+  } else if (H === 'crown') {
+    const cr = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 0.26, 16, 1, true), new THREE.MeshLambertMaterial({ color: '#ffcf3a', side: THREE.DoubleSide, emissive: '#6a4a00' })); cr.position.set(0, 0.98, 0); head.add(cr);
+    for (let i = 0; i < 5; i++) { const an = (i / 5) * Math.PI * 2; const c = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), mat('#ffcf3a')); c.position.set(Math.cos(an) * 0.4, 1.2, Math.sin(an) * 0.4); head.add(c); add(head, sph(0.04, '#ff5c7a'), Math.cos(an) * 0.4, 1.32, Math.sin(an) * 0.4); }
+  }
+  if (a.neck === 'redscarf' || a.neck === 'bluescarf') {
+    const col = a.neck === 'redscarf' ? '#e8455a' : '#6fb8e8';
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.11, 8, 20), mat(col)); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.46, 0.02); body.add(t);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.55, 0.06), mat(col)); tail.position.set(0.2, cy + 0.15, 0.44); tail.rotation.z = 0.12; body.add(tail);
+  }
+  if (a.body === 'apron') {
+    const ap = '#4f7fc4';
+    const bib = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.05), mat(ap)); bib.position.set(0, cy + 0.12, 0.44); body.add(bib);
+    const sk = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.32, 0.05), mat(ap)); sk.position.set(0, cy - 0.28, 0.5); body.add(sk);
+    for (const sd of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.04), mat(ap)); st.position.set(sd * 0.2, cy + 0.42, 0.35); st.rotation.x = -0.5; body.add(st); }
+  } else if (a.body === 'cape') {
+    const cp = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.0, 0.05), mat('#5a4a9a')); cp.position.set(0, cy - 0.05, -0.5); cp.rotation.x = 0.1; body.add(cp);
+    add(body, sph(0.12, '#ffd21f', 1, 1, 0.3), 0, cy + 0.1, -0.54);
+    add(body, sph(0.06, '#ffd21f'), -0.25, cy - 0.2, -0.54); add(body, sph(0.06, '#ffd21f'), 0.25, cy - 0.3, -0.54);
+    for (const sd of [-1, 1]) add(body, sph(0.07, '#ffd21f'), sd * 0.3, cy + 0.42, 0.3);
   }
   root.scale.setScalar(1.05);
   shadowBlob(P, 0.7);

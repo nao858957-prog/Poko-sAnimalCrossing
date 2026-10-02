@@ -4,6 +4,7 @@ import { buildWorld, buildInterior, ISLAND_R, HOMES } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, duck } from './audio.js';
+import { FOODS, CLOTHES } from './shop.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -12,7 +13,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto' }, playSec: 0, created: false };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto' }, playSec: 0, created: false, owned: [] };
 }
 function loadSave() {
   try {
@@ -166,6 +167,7 @@ function clockText(h) {
 // ---------- 入力 ----------
 const keys = {};
 window.addEventListener('keydown', e => {
+  touchIdle();
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   keys[e.key.toLowerCase()] = true;
   if (e.key === 'Enter' || e.key === ' ') { if (mode === 'play' && nearNpc) openChat(nearNpc); }
@@ -183,17 +185,19 @@ function joyMove(e) {
   joy.x = dx / max; joy.y = dy / max;
   knob.style.transform = `translate(${dx}px,${dy}px)`;
 }
-joyEl.addEventListener('pointerdown', e => { joy.active = true; joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId); joyMove(e); moveTarget = null; initAudio(); e.preventDefault(); });
+joyEl.addEventListener('pointerdown', e => { touchIdle(); joy.active = true; joy.id = e.pointerId; joyEl.setPointerCapture(e.pointerId); joyMove(e); moveTarget = null; initAudio(); e.preventDefault(); });
 joyEl.addEventListener('pointermove', e => { if (joy.active && e.pointerId === joy.id) joyMove(e); });
 const joyEnd = e => { if (e.pointerId !== joy.id) return; joy.active = false; joy.x = joy.y = 0; knob.style.transform = ''; };
 joyEl.addEventListener('pointerup', joyEnd);
 joyEl.addEventListener('pointercancel', joyEnd);
 
+let idle = 0, sleeping = false, sleepT = 0, sleepFx = 0;
+function touchIdle() { idle = 0; if (sleeping) wakeUp(); }
 let yaw = 0;
 const rot = { l: false, r: false };
 for (const [id, k] of [['rotL', 'l'], ['rotR', 'r']]) {
   const b = $(id);
-  b.addEventListener('pointerdown', e => { rot[k] = true; b.setPointerCapture(e.pointerId); e.preventDefault(); });
+  b.addEventListener('pointerdown', e => { touchIdle(); rot[k] = true; b.setPointerCapture(e.pointerId); e.preventDefault(); });
   b.addEventListener('pointerup', () => { rot[k] = false; });
   b.addEventListener('pointercancel', () => { rot[k] = false; });
 }
@@ -205,7 +209,7 @@ let moveTarget = null, talkOnArrive = null;
 const marker = new THREE.Mesh(new THREE.RingGeometry(0.35, 0.55, 24), new THREE.MeshBasicMaterial({ color: 0xff8fa3, transparent: true, opacity: 0.9, side: THREE.DoubleSide }));
 marker.rotation.x = -Math.PI / 2; marker.position.y = 0.06; marker.visible = false; world.group.add(marker);
 let ptr = null;
-canvas.addEventListener('pointerdown', e => { initAudio(); ptr = { x: e.clientX, y: e.clientY, lx: e.clientX, moved: 0, id: e.pointerId }; });
+canvas.addEventListener('pointerdown', e => { touchIdle(); initAudio(); ptr = { x: e.clientX, y: e.clientY, lx: e.clientX, moved: 0, id: e.pointerId }; });
 canvas.addEventListener('pointermove', e => {
   if (!ptr || e.pointerId !== ptr.id) return;
   ptr.moved += Math.abs(e.clientX - ptr.lx);
@@ -326,6 +330,123 @@ function applyEvent() {
   world.setSeason(currentEvent());
 }
 
+// ---------- ねる（ポコが となりに きて いっしょに ごろん）----------
+function startSleep() {
+  if (mode !== 'play' || sleeping) return;
+  sleeping = true; sleepT = 0; sleepFx = 0; moveTarget = null; marker.visible = false; talkOnArrive = null;
+  for (const id of ['poko', 'mei']) { npcs[id].joined = false; npcs[id].target = null; }
+  toast('ぐっすり… 💤<br>ポコが きてくれるかな？', 3000);
+  $('btnWake').classList.remove('hidden');
+}
+function wakeUp() {
+  if (!sleeping) return;
+  const joined = ['poko', 'mei'].filter(id => npcs[id].joined);
+  sleeping = false; idle = 0;
+  $('btnWake').classList.add('hidden');
+  player.lie = 0;
+  for (const id of ['poko', 'mei']) { npcs[id].pose = 'stand'; npcs[id].joined = false; }
+  if (sleepT > 4) {
+    for (const id of joined) S.friend[id] = Math.min(60, (S.friend[id] || 0) + 2);
+    if (joined.length) {
+      sfx('heart');
+      const line = joined.includes('poko') ? 'ポコ「ふわぁ…おはようなの…」' : 'メイ「…ね、ねてないわよ！」';
+      toast(line + '<br>' + joined.map(id => CHARS[id].name).join('と') + 'と なかよし ♥ +2', 3600);
+      for (const id of joined) { tmp.copy(npcs[id].root.position); tmp.y += 1.6; spawnFx(world.group, 'heart', tmp, 0.9); }
+    } else toast('おはよう！ ☀', 1600);
+  }
+  save();
+}
+$('btnWake').onclick = () => { touchIdle(); };
+
+// ---------- おみせ ----------
+let shopTab = 'food', shopBusy = false;
+function refreshPlayerModel() {
+  const p = player.root.position.clone(), ry = player.root.rotation.y;
+  world.group.remove(player.root);
+  player = makeAvatar(S.avatar);
+  player.root.position.copy(p); player.root.rotation.y = ry;
+  world.group.add(player.root);
+}
+function openShop() {
+  if (mode !== 'play') return;
+  if (sleeping) wakeUp();
+  mode = 'shop'; shopTab = 'food';
+  moveTarget = null; marker.visible = false; talkOnArrive = null;
+  $('hud').classList.add('hidden'); $('btnTalk').classList.add('hidden');
+  $('shop').classList.remove('hidden');
+  $('shopMsg').textContent = 'いらっしゃい！ おはなで おかいもの できるよ 🌼';
+  sfx('open'); rebuildPreview(); renderShop();
+}
+function closeShop() {
+  if (mode !== 'shop') return;
+  mode = 'play'; doorCool = 1.5;
+  $('shop').classList.add('hidden'); $('hud').classList.remove('hidden');
+  refreshPlayerModel();
+  player.root.position.set(world.shopDoor.x + 0.6, 0, world.shopDoor.z + 1.8);
+  player.root.rotation.y = Math.PI;
+  $('flowerCount').textContent = '🌼 ' + S.flowers;
+  camera.clearViewOffset(); shift.x = shift.y = 0;
+  save();
+}
+const SLOT_KEY = { hat: 'hat', neck: 'neck', body: 'body' };
+function renderShop() {
+  $('shopFlowers').textContent = '🌼 ' + S.flowers;
+  for (const b of document.querySelectorAll('#shop .tabs button')) b.classList.toggle('on', b.dataset.tab === shopTab);
+  const box = $('shopList'); box.innerHTML = '';
+  if (shopTab === 'food') {
+    for (const f of FOODS) {
+      const d = document.createElement('div'); d.className = 'item';
+      const can = S.flowers >= f.price;
+      d.innerHTML = `<span class="e">${f.emoji}</span><div class="n">${f.name}<small>🌼 ${f.price}</small></div>`;
+      const b = document.createElement('button'); b.textContent = 'たべる'; if (!can) b.classList.add('dis');
+      b.onclick = () => eatFood(f);
+      d.appendChild(b); box.appendChild(d);
+    }
+  } else {
+    for (const c of CLOTHES) {
+      const d = document.createElement('div'); d.className = 'item';
+      const own = S.owned.includes(c.id), worn = S.avatar[SLOT_KEY[c.slot]] === c.id;
+      d.innerHTML = `<span class="e">${c.emoji}</span><div class="n">${c.name}<small>${own ? 'もっている' : '🌼 ' + c.price}</small></div>`;
+      const b = document.createElement('button');
+      if (!own) { b.textContent = 'かう'; if (S.flowers < c.price) b.classList.add('dis'); }
+      else if (worn) { b.textContent = 'ぬぐ'; b.classList.add('on'); }
+      else b.textContent = 'きる';
+      b.onclick = () => clothesAction(c);
+      d.appendChild(b); box.appendChild(d);
+    }
+    const none = document.createElement('div'); none.className = 'item';
+    none.innerHTML = '<span class="e">✨</span><div class="n">ぜんぶ ぬぐ</div>';
+    const nb = document.createElement('button'); nb.textContent = 'ぬぐ';
+    nb.onclick = () => { S.avatar.hat = S.avatar.neck = S.avatar.body = null; sfx('tap'); rebuildPreview(); renderShop(); };
+    none.appendChild(nb); box.appendChild(none);
+  }
+}
+function eatFood(f) {
+  if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないよ… 🌼を あつめてきてね'; sfx('tap'); return; }
+  S.flowers -= f.price; sfx('pick');
+  // いっしょに たべる ともだち
+  const pals = ORDER.filter(i => i !== 'haru');
+  const pal = pals[Math.floor(Math.random() * pals.length)];
+  S.friend[pal] = Math.min(60, (S.friend[pal] || 0) + 2);
+  $('shopMsg').textContent = `${f.emoji} ${f.line}　${CHARS[pal].name}も ひとくち！ ♥`;
+  if (prevAvatar) { prevAvatar.cheer = 1.6; for (let i = 0; i < 3; i++) { tmp.set((Math.random() - 0.5) * 1.6, 3.4 + Math.random(), 0.5); spawnFx(prevScene, 'heart', tmp, 0.7); } }
+  speak(f.line, 1.3);
+  save(); renderShop();
+}
+function clothesAction(c) {
+  const key = SLOT_KEY[c.slot];
+  if (!S.owned.includes(c.id)) {
+    if (S.flowers < c.price) { $('shopMsg').textContent = 'おはなが たりないよ… 🌼を あつめてきてね'; sfx('tap'); return; }
+    S.flowers -= c.price; S.owned.push(c.id); S.avatar[key] = c.id; sfx('heart');
+    $('shopMsg').textContent = `${c.emoji} ${c.name}を かったよ！ とっても にあってる！`;
+  } else if (S.avatar[key] === c.id) { S.avatar[key] = null; sfx('tap'); $('shopMsg').textContent = `${c.name}を ぬいだよ`; }
+  else { S.avatar[key] = c.id; sfx('pick'); $('shopMsg').textContent = `${c.emoji} ${c.name}を きたよ！`; }
+  if (prevAvatar) prevAvatar.cheer = 1.2;
+  rebuildPreview(); save(); renderShop();
+}
+for (const b of document.querySelectorAll('#shop .tabs button')) b.onclick = () => { shopTab = b.dataset.tab; sfx('tap'); renderShop(); };
+$('shopBack').onclick = () => { sfx('tap'); closeShop(); };
+
 // ---------- ゲーム状態 ----------
 let mode = 'title'; // title creator play chat menu theater
 let nearNpc = null;
@@ -335,6 +456,12 @@ let haruTimer = 0;
 const tmp = new THREE.Vector3();
 
 function updatePlayer(dt) {
+  if (sleeping) {
+    sleepT += dt; sleepFx -= dt;
+    animate(player, dt, { t: clock, walk: false, pose: 'sleep' });
+    if (sleepFx <= 0) { sleepFx = 2.2; tmp.copy(player.root.position); tmp.y += 1.8; spawnFx(world.group, 'zzz', tmp, 0.8); }
+    return;
+  }
   let ix = 0, iz = 0;
   if (keys['a'] || keys['arrowleft']) ix -= 1;
   if (keys['d'] || keys['arrowright']) ix += 1;
@@ -345,6 +472,7 @@ function updatePlayer(dt) {
   let moving = false, speed = 5.2;
   const pos = player.root.position;
   if (mag > 0.12 && mode === 'play') {
+    idle = 0;
     moveTarget = null; talkOnArrive = null; marker.visible = false;
     // カメラ向き基準
     const sy = Math.sin(yaw), cy = Math.cos(yaw);
@@ -374,7 +502,12 @@ function updatePlayer(dt) {
     if (place === 'out' && Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 1.25) enterHouse();
     else if (place === 'in' && pos.z > interior.exit.z && Math.abs(pos.x - OFF) < 1.7) exitHouse();
   }
-  if (place === 'out') doorLabel.visible = Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 14;
+  if (place === 'out') {
+    doorLabel.visible = Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 14;
+    world.shopLabel.visible = Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 14;
+    if (mode === 'play' && doorCool <= 0 && Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 1.3) openShop();
+  }
+  if (moving) idle = 0;
   animate(player, dt, { t: clock, walk: moving, speed: 1 });
   marker.scale.setScalar(1 + Math.sin(clock * 6) * 0.1);
   // おはな
@@ -401,6 +534,27 @@ function updateNpcs(dt) {
     const talking = chatNpc === id;
     let moving = false;
     const dp = Math.hypot(ppos.x - pos.x, ppos.z - pos.z);
+    const buddy = sleeping && (id === 'poko' || id === 'mei') && mode === 'play' && P.root.visible;
+    if (!buddy && P.pose === 'sleep' && id !== 'haru') P.pose = 'stand';
+    if (buddy) {
+      const side = id === 'poko' ? 1 : -1, delay = id === 'poko' ? 2.5 : 8;
+      if (sleepT > delay) {
+        const ry = player.root.rotation.y, off = side * (id === 'poko' ? 1.15 : 1.35);
+        const tx = ppos.x + Math.sin(ry) * off, tz = ppos.z + Math.cos(ry) * off;
+        const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz);
+        if (d > 0.25) {
+          const sp = Math.min(d, 3.4 * dt); pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 10); moving = true; P.pose = 'stand';
+        } else {
+          P.pose = 'sleep'; P.lieDir = 1; P.root.rotation.y += (ry - P.root.rotation.y) * Math.min(1, dt * 6);
+          P.sleepFx = (P.sleepFx || 0) - dt;
+          if (P.sleepFx <= 0) { P.sleepFx = 2.8 + Math.random(); tmp.copy(pos); tmp.y += 1.4; spawnFx(world.group, Math.random() < 0.5 ? 'zzz' : 'heart', tmp, 0.7); }
+          if (!P.joined) { P.joined = true; P.sleepFx = 0.5; toast(id === 'poko' ? 'ポコが となりに きたよ 🐼💤' : 'メイも きたよ…「べ、べつに ねむいだけよ」', 2600); sfx('recv'); }
+        }
+      }
+      animate(P, dt, { t: clock, walk: moving, speed: 0.9, pose: P.pose || 'stand' });
+      if (!P.joinedEver) P.joinedEver = false;
+      continue;
+    }
     if (id === 'haru') { updateHaru(dt, P); }
     else if (talking || (mode === 'play' && dp < 2.6)) {
       faceDir(P, ppos.x - pos.x, ppos.z - pos.z, dt, 8);
@@ -462,9 +616,11 @@ const camPos = new THREE.Vector3(), camLook = new THREE.Vector3();
 let titleAngle = 0;
 function updateCamera(dt) {
   const aspect = camera.aspect;
-  if (mode === 'title' || mode === 'creator') {
+  if (mode === 'title' || mode === 'creator' || mode === 'shop') {
+    if (mode === 'shop') { camera.position.set(0, 2.4, camera.aspect < 0.8 ? 13 : 9.5); camera.lookAt(0, 1.2, 0); applyViewShift(dt); return; }
     if (mode === 'creator') {
-      camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, camera.aspect < 0.8 ? -0.9 : 1.2, 0); return;
+      const land = $('creator').getBoundingClientRect().width < innerWidth * 0.9;
+      camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, camera.aspect < 0.8 && !land ? -0.9 : 1.2, 0); applyViewShift(dt); return;
     }
     titleAngle += dt * 0.12;
     const cx = Math.sin(titleAngle) * 26, cz = -2 + Math.cos(titleAngle) * 26;
@@ -505,9 +661,12 @@ const shift = { x: 0, y: 0 };
 function applyViewShift(dt) {
   const W = innerWidth, H = innerHeight;
   let tx = 0, ty = 0;
-  if (mode === 'chat') {
-    const r = $('chat').getBoundingClientRect();
+  if (mode === 'chat' || mode === 'shop') {
+    const r = $(mode).getBoundingClientRect();
     if (r.width < W * 0.9) tx = r.width / 2; else ty = r.height / 2;
+  } else if (mode === 'creator') {
+    const r = $('creator').getBoundingClientRect();
+    if (r.width < W * 0.9) tx = r.width / 2;
   }
   shift.x += (tx - shift.x) * Math.min(1, dt * 6); shift.y += (ty - shift.y) * Math.min(1, dt * 6);
   if (Math.abs(shift.x) + Math.abs(shift.y) > 0.5) camera.setViewOffset(W, H, shift.x, shift.y, W, H);
@@ -578,6 +737,7 @@ function renderChips(id) {
 }
 function openChat(id) {
   if (mode !== 'play') return;
+  if (sleeping) wakeUp();
   chooseChatSide(id);
   mode = 'chat'; chatNpc = id;
   initAudio(); sfx('open');
@@ -734,7 +894,7 @@ function enterPlay() {
   $('hint').classList.remove('fade');
   setTimeout(() => $('hint').classList.add('fade'), 9000);
   camPos.copy(camera.position); camLook.set(player.root.position.x, 1, player.root.position.z);
-  yaw = 0;
+  yaw = 0; idle = 0; sleeping = false; $('btnWake').classList.add('hidden');
   save();
 }
 function showTitle() {
@@ -776,6 +936,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'theater') { renderTheaterList(); showPanel('theaterList'); }
+  else if (act === 'sleep') { $('menu').classList.add('hidden'); mode = 'play'; startSleep(); }
   else if (act === 'avatar') { $('menu').classList.add('hidden'); startCreator(true); }
   else if (act === 'save') { save(); $('menu').classList.add('hidden'); showTitle(); toast('ほぞん したよ！ また あそんでね 🐼', 2800); }
   else if (act === 'reset') { if (confirm('ほんとうに はじめから やりなおしますか？\n（いままでの きろくは きえます）')) { localStorage.removeItem(SAVE_KEY); S = freshState(); applySettings(); $('menu').classList.add('hidden'); startCreator(false); } }
@@ -867,9 +1028,11 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   clock += dt;
-  if (mode === 'creator') {
+  if (mode === 'creator' || mode === 'shop') {
     prevAvatar.root.rotation.y = Math.sin(clock * 0.9) * 0.6;
-    animate(prevAvatar, dt, { t: clock, walk: false, wave: true });
+    if (prevAvatar.cheer > 0) prevAvatar.cheer -= dt;
+    animate(prevAvatar, dt, { t: clock, walk: false, wave: mode === 'creator', cheer: prevAvatar.cheer > 0, hop: prevAvatar.cheer > 0 });
+    updateFx(dt);
     updateCamera(dt);
     renderer.render(prevScene, camera);
   } else if (mode === 'theater') {
@@ -894,7 +1057,8 @@ function frame(now) {
     updateNpcs(dt);
     if (rot.l) yaw -= dt * 1.8;
     if (rot.r) yaw += dt * 1.8;
-    if (mode === 'play') $('btnTalk').classList.toggle('hidden', !nearNpc);
+    if (mode === 'play' && !sleeping) { idle += dt; if (idle > ((gameHour() >= 20 || gameHour() < 5) ? 15 : 30)) startSleep(); }
+    if (mode === 'play') $('btnTalk').classList.toggle('hidden', !nearNpc || sleeping);
     if (mode === 'play' && nearNpc) $('btnTalk').textContent = `💬 ${CHARS[nearNpc].name}と はなす`;
     updateFx(dt);
     updateCamera(dt);
@@ -917,4 +1081,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { portraits, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

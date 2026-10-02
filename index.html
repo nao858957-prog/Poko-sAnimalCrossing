@@ -48,6 +48,7 @@
   <div id="joy"><div id="joyKnob"></div></div>
   <div id="rotBtns"><button id="rotL" class="round">◀</button><button id="rotR" class="round">▶</button></div>
   <button id="btnTalk" class="talk hidden">💬 はなす</button>
+  <button id="btnWake" class="talk wake hidden">☀ おきる</button>
   <div id="hint">ゆびで うごかそう！ おはなを あつめて ともだちに あげよう</div>
 </section>
 <div id="toast" class="hidden"></div>
@@ -68,6 +69,15 @@
   </div>
 </section>
 
+<!-- おみせ -->
+<section id="shop" class="hidden">
+  <header><h2>🛍 おみせ</h2><span id="shopFlowers">🌼 0</span></header>
+  <div class="tabs"><button data-tab="food" class="on">🍰 たべもの</button><button data-tab="cloth">👕 きせかえ</button></div>
+  <div id="shopMsg">おはなで おかいもの できるよ</div>
+  <div id="shopList"></div>
+  <button id="shopBack" class="big">おみせを でる</button>
+</section>
+
 <!-- メニュー -->
 <section id="menu" class="screen modal hidden">
   <div class="panel">
@@ -75,6 +85,7 @@
     <button class="big" data-act="resume">▶ ゲームに もどる</button>
     <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
     <button class="big" data-act="notebook">💕 ともだちノート</button>
+    <button class="big" data-act="sleep">💤 ねる（おひるね）</button>
     <button class="big" data-act="avatar">👤 すがたを かえる</button>
     <button class="big" data-act="settings">⚙ せってい</button>
     <button class="big" data-act="save">💾 セーブして おわる</button>
