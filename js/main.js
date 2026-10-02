@@ -3,8 +3,9 @@ import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx,
 import { buildWorld, buildInterior, ISLAND_R, HOMES } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
-import { initAudio, setBgm, setVoice, sfx, speak, duck } from './audio.js';
+import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
+import { QUESTS, QUEST_BY_ID, ITEMS, PLACES } from './missions.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -13,7 +14,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto' }, playSec: 0, created: false, owned: [] };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {} };
 }
 function loadSave() {
   try {
@@ -36,7 +37,7 @@ const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog('#9bdcff', 55, 130);
+scene.fog = new THREE.Fog('#9bdcff', 75, 190);
 const camera = new THREE.PerspectiveCamera(50, 1, 0.5, 400);
 const hemi = new THREE.HemisphereLight(0xffffff, 0x8fbf70, 1.4);
 const sun = new THREE.DirectionalLight(0xffffff, 1.4);
@@ -347,6 +348,7 @@ function wakeUp() {
   for (const id of ['poko', 'mei']) { npcs[id].pose = 'stand'; npcs[id].joined = false; }
   if (sleepT > 4) {
     for (const id of joined) S.friend[id] = Math.min(60, (S.friend[id] || 0) + 2);
+    if (joined.includes('poko')) questEvent('nap');
     if (joined.length) {
       sfx('heart');
       const line = joined.includes('poko') ? 'ポコ「ふわぁ…おはようなの…」' : 'メイ「…ね、ねてないわよ！」';
@@ -357,6 +359,14 @@ function wakeUp() {
   save();
 }
 $('btnWake').onclick = () => { touchIdle(); };
+function refreshSoundBtn() { $('btnSound').textContent = S.settings.sound === false ? '🔇' : '🔊'; }
+$('btnSound').onclick = () => {
+  initAudio();
+  S.settings.sound = S.settings.sound === false;
+  setSound(S.settings.sound); refreshSoundBtn(); save();
+  if (S.settings.sound) setTimeout(() => sfx('heart'), 150);
+  toast(S.settings.sound ? '🔊 おとを だすよ<br><small>きこえない ときは スマホの マナーモードや おんりょうを かくにんしてね</small>' : '🔇 おとを けしたよ', 3600);
+};
 
 // ---------- おみせ ----------
 let shopTab = 'food', shopBusy = false, enterKind = null;
@@ -425,7 +435,7 @@ function renderShop() {
 }
 function eatFood(f) {
   if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
-  S.flowers -= f.price; sfx('pick');
+  S.flowers -= f.price; sfx('pick'); questEvent('buy', f.id);
   // いっしょに たべる ともだち
   const pals = ORDER.filter(i => i !== 'haru');
   const pal = pals[Math.floor(Math.random() * pals.length)];
@@ -444,6 +454,7 @@ function clothesAction(c) {
   } else if (S.avatar[key] === c.id) { S.avatar[key] = null; sfx('tap'); $('shopMsg').textContent = `${c.name}を ぬいだよ`; }
   else { S.avatar[key] = c.id; sfx('pick'); $('shopMsg').textContent = `${c.emoji} ${c.name}を きたよ！`; }
   if (prevAvatar) prevAvatar.cheer = 1.2;
+  if (S.avatar.hat) questEvent('wear');
   rebuildPreview(); save(); renderShop();
 }
 for (const b of document.querySelectorAll('#shop .tabs button')) b.onclick = () => { shopTab = b.dataset.tab; sfx('tap'); renderShop(); };
@@ -471,7 +482,7 @@ function updatePlayer(dt) {
   if (keys['s'] || keys['arrowdown']) iz += 1;
   if (joy.active) { ix = joy.x; iz = joy.y; }
   const mag = Math.min(1, Math.hypot(ix, iz));
-  let moving = false, speed = 5.2;
+  let moving = false, speed = 6.6;
   const pos = player.root.position;
   if (mag > 0.12 && mode === 'play') {
     idle = 0;
@@ -512,12 +523,28 @@ function updatePlayer(dt) {
   if (moving) idle = 0;
   animate(player, dt, { t: clock, walk: moving, speed: 1 });
   marker.scale.setScalar(1 + Math.sin(clock * 6) * 0.1);
+  // あつめもの / おねがいの ばしょ
+  if (place === 'out') {
+    for (const it of world.items) {
+      if (it.mesh.visible && Math.hypot(pos.x - it.x, pos.z - it.z) < 1.2) {
+        it.mesh.visible = false; it.back = 150;
+        S.inv[it.kind] = (S.inv[it.kind] || 0) + 1;
+        sfx('pick'); tmp.set(it.x, 1.2, it.z); spawnFx(world.group, 'star', tmp, 0.7);
+        const def = ITEMS[it.kind];
+        toast(`${def.emoji} ${def.name}を ひろったよ！（${S.inv[it.kind]}こ）`, 1600);
+        updateQuestHud();
+        if (QUESTS.some(q => qStatus(q) === 'ready' && q.type === 'collect' && q.item === it.kind)) { refreshMarkers(); }
+        save();
+      }
+    }
+    checkVisits(pos);
+  }
   // おはな
   if (place === 'out') for (const f of world.flowers) {
     if (f.mesh.visible && Math.hypot(pos.x - f.x, pos.z - f.z) < 1.1) {
       f.mesh.visible = false; f.back = 50;
       S.flowers++; $('flowerCount').textContent = '🌼 ' + S.flowers;
-      sfx('pick');
+      sfx('pick'); if (QUESTS.some(q => q.item === 'flower')) refreshMarkers();
       tmp.set(f.x, 1.2, f.z); spawnFx(world.group, 'star', tmp, 0.7);
       if (S.flowers === 1) toast('おはなを ひろったよ！<br>ともだちに あげると よろこぶよ 🌼');
     }
@@ -578,6 +605,7 @@ function updateNpcs(dt) {
     }
     animate(P, dt, { t: clock, walk: moving, speed: 0.6, pose: id === 'haru' ? P.pose : 'stand', hop: talking && P.hop > 0 });
     if (P.hop > 0) P.hop -= dt;
+    if (P.marks) for (const s of Object.values(P.marks)) if (s.visible) s.position.y = (P.headY + P.hr) * P.scale + 1.9 + Math.sin(clock * 3) * 0.12;
     const lim = id === prevNear ? 4.9 : 4.2;
     if (dp < Math.min(nd, lim) + (id === prevNear ? 0.6 : 0) && P.root.visible && mode === 'play') { nd = dp; nearNpc = id; }
   }
@@ -625,8 +653,8 @@ function updateCamera(dt) {
       camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, camera.aspect < 0.8 && !land ? -0.9 : 1.2, 0); applyViewShift(dt); return;
     }
     titleAngle += dt * 0.12;
-    const cx = Math.sin(titleAngle) * 26, cz = -2 + Math.cos(titleAngle) * 26;
-    camera.position.set(cx, 17, cz); camera.lookAt(0, 0.5, -6); return;
+    const cx = Math.sin(titleAngle) * 40, cz = Math.cos(titleAngle) * 40;
+    camera.position.set(cx, 26, cz); camera.lookAt(0, 0.5, 0); return;
   }
   const pp = player.root.position;
   let desired, look;
@@ -730,13 +758,223 @@ function logPush(id, from, text) {
 function renderChips(id) {
   const box = $('chips');
   box.innerHTML = '';
-  for (const [key, label] of chipsFor(id)) {
+  const chipList = chipsFor(id);
+  if (hasQuestTalk(id)) chipList.unshift(['q', 'おねがい ある？']);
+  for (const [key, label] of chipList) {
     const b = document.createElement('button');
     b.textContent = label;
     b.onclick = () => send(label);
     box.appendChild(b);
   }
 }
+// ---------- おねがい (ミッション) ----------
+function qState(q) { return S.quests[q.id] || null; }
+function qProgress(q) {
+  const st = qState(q) || {};
+  if (q.type === 'collect') return { have: Math.min(q.n, q.item === 'flower' ? S.flowers : (S.inv[q.item] || 0)), need: q.n };
+  if (q.type === 'talk') return { have: (st.talked || []).length, need: q.who.length };
+  return { have: st.p ? 1 : 0, need: 1 };
+}
+function qStatus(q) {
+  const st = qState(q);
+  if (st && st.s === 'done') return 'done';
+  if (st) { const p = qProgress(q); return p.have >= p.need ? 'ready' : 'active'; }
+  if (level(S.friend[q.giver] || 0) < q.lv) return 'locked';
+  if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
+  return 'available';
+}
+const questsOf = (id, status) => QUESTS.filter(q => q.giver === id && qStatus(q) === status);
+function fillN(t) { return t.replace(/\{n\}/g, S.avatar.name || 'あなた'); }
+
+function makeMark(ch, bg) {
+  const c = document.createElement('canvas'); c.width = c.height = 96;
+  const g = c.getContext('2d');
+  g.fillStyle = bg; g.strokeStyle = '#fff'; g.lineWidth = 8;
+  g.beginPath(); g.arc(48, 48, 36, 0, 7); g.fill(); g.stroke();
+  g.fillStyle = '#fff'; g.font = 'bold 56px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(ch, 48, 52);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false, transparent: true }));
+  s.scale.set(1.3, 1.3, 1); s.renderOrder = 12; s.visible = false;
+  return s;
+}
+const MARKS = { avail: makeMark('!', '#ff8a3d'), ready: makeMark('？', '#3dbb6a'), target: makeMark('▼', '#4f9fe0') };
+function initMarks() {
+  for (const id of ORDER) {
+    const P = npcs[id];
+    P.marks = {};
+    for (const [k, base] of Object.entries(MARKS)) {
+      const s = base.clone(); s.material = base.material;
+      s.position.set(0, (P.headY + P.hr) * P.scale + 1.9, 0); P.root.add(s); P.marks[k] = s;
+    }
+  }
+  refreshMarkers();
+}
+function refreshMarkers() {
+  if (!S) return;
+  const targets = new Set();
+  for (const q of QUESTS) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'talk') for (const w of q.who) if (!(st.talked || []).includes(w)) targets.add(w); }
+  for (const id of ORDER) {
+    const P = npcs[id]; if (!P.marks) continue;
+    const kind = questsOf(id, 'ready').length ? 'ready' : questsOf(id, 'available').length ? 'avail' : targets.has(id) ? 'target' : null;
+    for (const [k, s] of Object.entries(P.marks)) s.visible = k === kind;
+  }
+  updateQuestHud();
+}
+function updateQuestHud() {
+  const bar = $('questBar');
+  const ready = QUESTS.filter(q => qStatus(q) === 'ready'), active = QUESTS.filter(q => qStatus(q) === 'active');
+  const q = ready[0] || active[0];
+  if (!q) { bar.classList.add('hidden'); return; }
+  bar.classList.remove('hidden');
+  const p = qProgress(q);
+  const more = ready.length + active.length - 1;
+  bar.innerHTML = qStatus(q) === 'ready' ? `✅ ${CHARS[q.giver].name}に おはなしして おねがいを おわらせよう` : `📜 ${q.title}　${p.have}/${p.need}`;
+  if (more > 0) bar.innerHTML += `　<small>ほか ${more}</small>`;
+}
+function questEvent(type, what) {
+  let hit = false;
+  for (const q of QUESTS) {
+    const st = qState(q);
+    if (!st || st.s === 'done' || q.type !== type) continue;
+    if (type === 'buy' && q.what !== what) continue;
+    if (!st.p) { st.p = 1; hit = true; toast(`📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！`, 3200); sfx('heart'); }
+  }
+  if (hit) { refreshMarkers(); save(); }
+}
+function checkVisits(pos) {
+  let hit = false;
+  for (const q of QUESTS) {
+    const st = qState(q);
+    if (!st || st.s === 'done' || q.type !== 'visit' || st.p) continue;
+    const pl = PLACES[q.where];
+    if (Math.hypot(pos.x - pl.x, pos.z - pl.z) < q.r) { st.p = 1; hit = true; toast(`📍 ${pl.name}に ついたよ！<br>${CHARS[q.giver].name}に おしえてあげよう`, 3600); sfx('heart'); }
+  }
+  if (hit) { refreshMarkers(); save(); }
+}
+function addChoices(id, opts) {
+  const d = document.createElement('div'); d.className = 'msg choice';
+  for (const [label, fn, cls] of opts) {
+    const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls;
+    b.onclick = () => { for (const x of d.querySelectorAll('button')) x.disabled = true; sfx('tap'); fn(); };
+    d.appendChild(b);
+  }
+  $('chatLog').appendChild(d); $('chatLog').scrollTop = 1e6;
+}
+function npcSay(id, text) { addMsg(id, 'npc', text); logPush(id, 'npc', text); speak(text, CHARS[id].voice); npcs[id].hop = 0.7; sfx('recv'); }
+function completeQuest(q) {
+  const st = qState(q);
+  if (q.type === 'collect') { if (q.item === 'flower') { S.flowers -= q.n; } else S.inv[q.item] = Math.max(0, (S.inv[q.item] || 0) - q.n); }
+  st.s = 'done';
+  npcSay(q.giver, fillN(q.thanks));
+  S.flowers += q.reward.flowers; $('flowerCount').textContent = '🌼 ' + S.flowers;
+  addMsg(q.giver, 'sys', `🎁 おねがい たっせい！ 🌼 +${q.reward.flowers}　なかよし ♥ +${q.reward.friend}`);
+  sfx('heart');
+  gain(q.giver, q.reward.friend, q.thanks.length);
+  $('chatGift').disabled = S.flowers <= 0;
+  refreshMarkers(); save();
+}
+function askQuest(q) {
+  npcSay(q.giver, fillN(q.ask));
+  setTimeout(() => {
+    if (chatNpc !== q.giver) return;
+    addChoices(q.giver, [
+      ['✅ ひきうける', () => {
+        S.quests[q.id] = { s: 'active', p: 0, talked: [] };
+        addMsg(q.giver, 'sys', `📜 おねがいを ひきうけたよ：${q.title}`);
+        npcSay(q.giver, 'ありがとう！ ' + q.hint + ' ね。おねがいね！');
+        refreshMarkers(); save();
+      }, 'ok'],
+      ['あとで', () => { npcSay(q.giver, 'うん、気が向いたら またおねがいね。'); }, 'later'],
+    ]);
+  }, 900);
+}
+// ともだちの「おねがい」の はなし (ひらくとき/「おねがい」ボタン)
+function questTalk(id, manual) {
+  const rd = questsOf(id, 'ready')[0];
+  if (rd) { completeQuest(rd); return true; }
+  const av = questsOf(id, 'available')[0];
+  if (av) { askQuest(av); return true; }
+  const ac = questsOf(id, 'active')[0];
+  if (ac && manual) { const p = qProgress(ac); npcSay(id, `「${ac.title}」は ${p.have}/${p.need} だよ。${ac.hint}。むりしないでね。`); return true; }
+  if (manual) { npcSay(id, 'いまは だいじょうぶ！ ありがとう。また こんど おねがいするかも。'); return true; }
+  return false;
+}
+function hasQuestTalk(id) { return questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length; }
+
+// おねがいノート / マップ
+const DIRS = ['きた', 'ほくとう', 'ひがし', 'なんとう', 'みなみ', 'なんせい', 'にし', 'ほくせい'];
+function dirText(x, z) {
+  const p = player.root.position;
+  const px = place === 'in' ? 0 : p.x, pz = place === 'in' ? -12 : p.z;
+  const dx = x - px, dz = z - pz;
+  if (Math.hypot(dx, dz) < 6) return 'すぐ ちかく';
+  const a = Math.atan2(dx, -dz); // 北=0, 東=90°
+  const i = Math.round(((a + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
+  return `${DIRS[i]}の ほう（${Math.round(Math.hypot(dx, dz))}m）`;
+}
+function giverPos(id) { const p = npcs[id].root.position; return place === 'in' && p.x > 300 ? [0, -14] : [p.x, p.z]; }
+function renderQuests() {
+  const box = $('qList'); box.innerHTML = '';
+  const inv = Object.entries(ITEMS).filter(([k]) => k !== 'flower').map(([k, v]) => `${v.emoji}${S.inv[k] || 0}`).join('　');
+  $('qInv').textContent = 'もちもの：' + inv + `　🌼${S.flowers}`;
+  const sec = (title, list, fn) => {
+    if (!list.length) return;
+    const h = document.createElement('h3'); h.textContent = title; box.appendChild(h);
+    for (const q of list) box.appendChild(fn(q));
+  };
+  const card = (q, body, cls = '') => {
+    const d = document.createElement('div'); d.className = 'qcard ' + cls;
+    d.innerHTML = `<img src="${portraits[q.giver]}" alt=""><div><b>${q.title}</b><small>${CHARS[q.giver].name}からの おねがい</small>${body}</div>`;
+    return d;
+  };
+  sec('✅ おわらせよう', QUESTS.filter(q => qStatus(q) === 'ready'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に おはなししよう（${dirText(gx, gz)}）</p>`, 'ready'); });
+  sec('📜 すすんでいる', QUESTS.filter(q => qStatus(q) === 'active'), q => {
+    const p = qProgress(q); let where = '';
+    if (q.type === 'visit') where = `<p>めざす：${PLACES[q.where].name}（${dirText(PLACES[q.where].x, PLACES[q.where].z)}）</p>`;
+    return card(q, `<p>${q.hint}</p>${where}<p class="pg">${p.have}/${p.need}</p>`);
+  });
+  sec('❗ ともだちが よんでいるよ', QUESTS.filter(q => qStatus(q) === 'available'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に はなしかけよう（${dirText(gx, gz)}）</p>`, 'avail'); });
+  const done = QUESTS.filter(q => qStatus(q) === 'done');
+  sec(`🏅 おわった（${done.length}/${QUESTS.length}）`, done, q => card(q, '', 'done'));
+  if (!box.children.length) box.innerHTML = '<p class="fine2">まだ おねがいは ないよ。ともだちに はなしかけてみよう（！マークの こ）</p>';
+}
+let mapTimer = 0;
+function drawMap() {
+  const cv = $('mapCv'), g = cv.getContext('2d');
+  const W = cv.width, R = ISLAND_R + 6, k = W / 2 / R, cx = W / 2;
+  const X = x => cx + x * k, Z = z => cx + z * k;
+  g.clearRect(0, 0, W, W);
+  g.fillStyle = '#7fc8f0'; g.fillRect(0, 0, W, W);
+  g.fillStyle = '#f4e2b0'; g.beginPath(); g.arc(cx, cx, (ISLAND_R + 2) * k, 0, 7); g.fill();
+  g.fillStyle = '#8fd36e'; g.beginPath(); g.arc(cx, cx, 39 * k, 0, 7); g.fill();
+  g.fillStyle = '#ead7a4'; g.fillRect(X(-1.5), Z(-12), 3 * k, 52 * k); g.fillRect(X(-32), Z(-3.2), 64 * k, 2.4 * k);
+  g.fillStyle = '#7ccdf2'; for (const [x, z, r] of [[9, 9, 3.5], [25, 17, 6.2]]) { g.beginPath(); g.arc(X(x), Z(z), r * k, 0, 7); g.fill(); }
+  g.font = `bold ${Math.round(W * 0.034)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
+  const lab = (x, z, e, t) => { g.fillText(e, X(x), Z(z)); g.fillStyle = '#5a4636'; g.fillText(t, X(x), Z(z) + 15); };
+  g.fillStyle = '#5a4636';
+  lab(0, -16, '🏠', 'セイママの いえ'); lab(-9, 9.4, '🛍', 'おみせ'); lab(24, -33, '🗼', 'とうだい'); lab(-31, 8, '⛩', 'じんじゃ');
+  lab(12, 40, '🏖', 'うみの いえ'); lab(-19, -13, '🎋', 'たけやぶ'); lab(-14, -1, '🌼', 'おはなばたけ'); lab(25, 17, '', 'みずうみ'); lab(0, -30, '🍄', 'もり');
+  // おねがいの もくてき地
+  const t = performance.now() / 300;
+  for (const q of QUESTS) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && !st.p) { const pl = PLACES[q.where]; g.fillStyle = '#ff8a3d'; g.beginPath(); g.arc(X(pl.x), Z(pl.z), (7 + Math.sin(t) * 2), 0, 7); g.fill(); } }
+  // なかま
+  for (const id of ORDER) {
+    const [x, z] = place === 'in' && ['sei', 'poko', 'mei'].includes(id) ? [0, -14] : [npcs[id].root.position.x, npcs[id].root.position.z];
+    if (Math.abs(x) > 300) continue;
+    g.fillStyle = CHARS[id].color; g.strokeStyle = '#fff'; g.lineWidth = 2;
+    g.beginPath(); g.arc(X(x), Z(z), 6, 0, 7); g.fill(); g.stroke();
+    const st = questsOf(id, 'ready').length ? '？' : questsOf(id, 'available').length ? '！' : '';
+    if (st) { g.fillStyle = st === '！' ? '#ff8a3d' : '#3dbb6a'; g.fillText(st, X(x), Z(z) - 14); }
+  }
+  // じぶん
+  const p = player.root.position, px = place === 'in' ? 0 : p.x, pz = place === 'in' ? -14 : p.z;
+  g.save(); g.translate(X(px), Z(pz)); g.rotate(-player.root.rotation.y + Math.PI);
+  g.fillStyle = '#e8455a'; g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -11); g.lineTo(8, 8); g.lineTo(-8, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
+}
+function openMap() { $('map').classList.remove('hidden'); drawMap(); clearInterval(mapTimer); mapTimer = setInterval(() => { if ($('map').classList.contains('hidden')) clearInterval(mapTimer); else drawMap(); }, 300); }
+$('questBar').onclick = () => { if (mode === 'play') { mode = 'menu'; renderQuests(); showPanel('quests'); $('menu').classList.remove('hidden'); } };
+const NPC_POS_DUMMY = 0; void NPC_POS_DUMMY;
+
 function openChat(id) {
   if (mode !== 'play') return;
   if (sleeping) wakeUp();
@@ -760,6 +998,18 @@ function openChat(id) {
   const line = openLine(id, ctx);
   S.firstDone[id] = true;
   setTimeout(() => { if (chatNpc !== id) return; addMsg(id, 'npc', line); logPush(id, 'npc', line); speak(line, c.voice); npcs[id].hop = 0.8; sfx('recv'); }, 250);
+  // おねがい: とどけものの へんじ → たっせい/あたらしい おねがい
+  let d = 1500 + Math.min(2400, line.length * 70);
+  for (const q of QUESTS) {
+    const st = qState(q);
+    if (st && st.s === 'active' && q.type === 'talk' && q.who.includes(id) && !(st.talked || []).includes(id)) {
+      st.talked = [...(st.talked || []), id];
+      const dl = q.deliver && q.deliver[id];
+      setTimeout(() => { if (chatNpc !== id) return; if (dl) npcSay(id, fillN(dl)); addMsg(id, 'sys', `📜 ${q.title}：${st.talked.length}/${q.who.length}`); refreshMarkers(); save(); }, d);
+      d += 2400;
+    }
+  }
+  setTimeout(() => { if (chatNpc === id && !waiting) questTalk(id, false); }, d);
   renderChips(id);
   $('chatGift').disabled = S.flowers <= 0;
   $('chat').classList.remove('hidden');
@@ -768,6 +1018,7 @@ function openChat(id) {
 function updateHearts(id) { $('chatHearts').textContent = hearts(level(S.friend[id] || 0)); }
 function closeChat() {
   if (mode !== 'chat') return;
+  clearTimeout(lvTimer); lvPending = null;
   mode = 'play'; chatNpc = null;
   $('chat').classList.add('hidden');
   $('hud').classList.remove('hidden');
@@ -775,20 +1026,29 @@ function closeChat() {
   document.activeElement && document.activeElement.blur && document.activeElement.blur();
   save();
 }
-function gain(id, n) {
+// なかよしレベルが上がったとき：
+//  ・「レベルアップ」の表示はすぐ出す
+//  ・お礼のことばは、いまの返事を読み終えるころに、別の吹き出しで届ける
+//    (しゃべっている途中で会話が切れないように、新しい発言があれば次の返事のあとに回す)
+let lvTimer = 0, lvPending = null;
+function scheduleLvup(ms) { clearTimeout(lvTimer); if (lvPending) lvTimer = setTimeout(flushLvup, ms); }
+function flushLvup() {
+  if (!lvPending) return;
+  if (mode !== 'chat' || chatNpc !== lvPending.id || waiting) { return; }
+  const { id, ctx } = lvPending; lvPending = null;
+  const t = lvupLine(id, ctx);
+  addMsg(id, 'npc', t); logPush(id, 'npc', t); speak(t, CHARS[id].voice); sfx('recv');
+}
+function gain(id, n, readLen = 20) {
   const before = level(S.friend[id] || 0);
   S.friend[id] = Math.min(60, (S.friend[id] || 0) + n);
   const after = level(S.friend[id]);
   updateHearts(id);
   if (after > before) {
     sfx('heart');
-    const ctx = ctxFor(id);
-    setTimeout(() => {
-      if (chatNpc !== id) return;
-      addMsg(id, 'sys', `💕 ${CHARS[id].name}との なかよしレベルが ${after} に あがったよ！`);
-      const t = lvupLine(id, ctx);
-      addMsg(id, 'npc', t); logPush(id, 'npc', t); speak(t, CHARS[id].voice);
-    }, 1500);
+    addMsg(id, 'sys', `💕 ${CHARS[id].name}との なかよしレベルが ${after} に あがったよ！`);
+    lvPending = { id, ctx: ctxFor(id) };
+    scheduleLvup(2500 + readLen * 150);
     for (let i = 0; i < 5; i++) setTimeout(() => { tmp.copy(npcs[id].root.position); tmp.y += 3; tmp.x += (Math.random() - 0.5) * 1.5; spawnFx(world.group, 'heart', tmp, 0.9); }, i * 150);
   }
 }
@@ -797,13 +1057,14 @@ function send(text) {
   text = (text || '').trim();
   const id = chatNpc;
   if (!text || !id || waiting) return;
-  waiting = true;
+  waiting = true; clearTimeout(lvTimer); stopSpeak();
   $('chatInput').value = '';
   addMsg(id, 'me', text); logPush(id, 'me', text);
   sfx('send');
   const typing = addMsg(id, 'npc', '…', 'typing');
   const ctx = ctxFor(id);
   let r = reply(id, text, ctx);
+  if (/(おねがい|ミッション|たのみ|お願い|依頼|てつだ|手伝)/.test(text)) r = { text: '__quest__', key: 'quest' };
   if (r.key === 'story' || r.key === 'story-locked') {
     const rr = story(id, ctx);
     r = rr;
@@ -812,13 +1073,15 @@ function send(text) {
   setTimeout(() => {
     typing.remove();
     if (chatNpc !== id) { waiting = false; return; }
+    if (r.key === 'quest') { waiting = false; questTalk(id, true); renderChips(id); return; }
     addMsg(id, 'npc', r.text); logPush(id, 'npc', r.text);
     speak(r.text, CHARS[id].voice); sfx('recv');
     npcs[id].hop = 0.7;
-    gain(id, r.key === 'fb' ? 1 : 2);
+    gain(id, r.key === 'fb' ? 1 : 2, r.text.length);
     if (r.key === 'shop') setTimeout(() => { if (mode === 'chat') { closeChat(); openShop(); } }, 1400);
     if (Math.random() < 0.4) renderChips(id);
     waiting = false;
+    if (lvPending) scheduleLvup(2500 + r.text.length * 150);
     save();
   }, 650 + Math.min(900, r.text.length * 12));
 }
@@ -833,7 +1096,7 @@ $('chatGift').onclick = () => {
   addMsg(id, 'sys', `🌼 ${CHARS[id].name}に おはなを あげたよ！`);
   sfx('pick');
   const t = giftLine(id, ctxFor(id));
-  setTimeout(() => { addMsg(id, 'npc', t); logPush(id, 'npc', t); speak(t, CHARS[id].voice); sfx('recv'); npcs[id].hop = 1.2; gain(id, 5); save(); }, 700);
+  setTimeout(() => { addMsg(id, 'npc', t); logPush(id, 'npc', t); speak(t, CHARS[id].voice); sfx('recv'); npcs[id].hop = 1.2; gain(id, 5, t.length); save(); }, 700);
 };
 $('btnTalk').onclick = () => { if (nearNpc) openChat(nearNpc); };
 
@@ -897,7 +1160,7 @@ function enterPlay() {
   $('hint').classList.remove('fade');
   setTimeout(() => $('hint').classList.add('fade'), 9000);
   camPos.copy(camera.position); camLook.set(player.root.position.x, 1, player.root.position.z);
-  yaw = 0; idle = 0; sleeping = false; $('btnWake').classList.add('hidden');
+  refreshMarkers(); yaw = 0; idle = 0; sleeping = false; $('btnWake').classList.add('hidden');
   save();
 }
 function showTitle() {
@@ -928,7 +1191,7 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -936,6 +1199,8 @@ document.body.addEventListener('click', e => {
   const act = b.dataset.act;
   if (act === 'resume') { $('menu').classList.add('hidden'); mode = 'play'; }
   else if (act === 'back') showPanel('menu');
+  else if (act === 'quests') { renderQuests(); showPanel('quests'); }
+  else if (act === 'map') { showPanel('map'); openMap(); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'theater') { renderTheaterList(); showPanel('theaterList'); }
@@ -972,6 +1237,7 @@ function seg(id, cur, onPick) {
     b.onclick = () => { onPick(b.dataset.v); for (const x of box.children) x.classList.toggle('on', x === b); sfx('tap'); };
   }
 }
+$('btnSoundTest').onclick = () => { initAudio(); setTimeout(() => { sfx('heart'); toast(isAudioRunning() ? '🔊 きこえたかな？ きこえない ときは マナーモードを オフにしてね' : '🔇 おとの じゅんびが まだ… もういちど タップしてね', 3600); }, 200); };
 function renderSettings() {
   seg('setSize', S.settings.size, v => { S.settings.size = parseFloat(v); applySettings(); save(); });
   seg('setBgm', S.settings.bgm ? 1 : 0, v => { S.settings.bgm = v === '1'; applySettings(); save(); });
@@ -981,7 +1247,7 @@ function renderSettings() {
 }
 function applySettings() {
   document.documentElement.style.setProperty('--fs', S.settings.size);
-  setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent();
+  setSound(S.settings.sound !== false); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
 }
 
 // ---------- シアター ----------
@@ -1091,10 +1357,11 @@ window.addEventListener('beforeunload', save);
 // 起動
 S = loadSave() || freshState();
 if (S.created) { applySettings(); buildPlayer(); } else { applySettings(); }
+initMarks();
 showTitle();
 $('btnContinue').classList.toggle('hidden', !loadSave());
 if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); player.root.position.set(0, 0, 6); world.group.add(player.root); player.root.visible = false; }
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

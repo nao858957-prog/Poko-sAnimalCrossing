@@ -25,7 +25,7 @@
     <button id="btnContinue" class="big primary">▶ つづきから あそぶ</button>
     <button id="btnNew" class="big">✿ はじめから あそぶ</button>
   </div>
-  <p class="fine">ファンメイドの非公式ゲームです。<br>やめても だいじょうぶ。じどうで ほぞんされます。</p>
+  <p class="fine">ファンメイドの非公式ゲームです。<br>やめても だいじょうぶ。じどうで ほぞんされます。<br>🔊 おとが でない ときは、マナーモードを オフにして おんりょうを あげてね</p>
 </section>
 
 <!-- アバターづくり -->
@@ -45,11 +45,13 @@
 <section id="hud" class="hidden">
   <button id="btnMenu" class="hud-btn">☰ メニュー</button>
   <div id="stat"><span id="clock">☀ 12:00</span><span id="flowerCount">🌼 0</span></div>
+  <button id="btnSound" class="round snd" aria-label="おと">🔊</button>
   <div id="joy"><div id="joyKnob"></div></div>
   <div id="rotBtns"><button id="rotL" class="round">◀</button><button id="rotR" class="round">▶</button></div>
   <button id="btnTalk" class="talk hidden">💬 はなす</button>
   <button id="btnEnter" class="talk enter hidden">🏠 はいる</button>
   <button id="btnWake" class="talk wake hidden">☀ おきる</button>
+  <div id="questBar" class="hidden"></div>
   <div id="hint">ゆびで うごかそう！ おはなを あつめて ともだちに あげよう</div>
 </section>
 <div id="toast" class="hidden"></div>
@@ -84,6 +86,8 @@
   <div class="panel">
     <h2>メニュー</h2>
     <button class="big" data-act="resume">▶ ゲームに もどる</button>
+    <button class="big" data-act="quests">📜 おねがい ノート</button>
+    <button class="big" data-act="map">🗺 マップ</button>
     <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
     <button class="big" data-act="notebook">💕 ともだちノート</button>
     <button class="big" data-act="sleep">💤 ねる（おひるね）</button>
@@ -91,6 +95,24 @@
     <button class="big" data-act="settings">⚙ せってい</button>
     <button class="big" data-act="save">💾 セーブして おわる</button>
     <button class="big danger" data-act="reset">🗑 はじめから やりなおす</button>
+  </div>
+</section>
+
+<section id="quests" class="screen modal hidden">
+  <div class="panel">
+    <h2>📜 おねがい ノート</h2>
+    <div id="qInv" class="qinv"></div>
+    <div id="qList"></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="map" class="screen modal hidden">
+  <div class="panel">
+    <h2>🗺 しまの マップ</h2>
+    <canvas id="mapCv" width="640" height="640"></canvas>
+    <p class="fine2">🔴 じぶん　まるいてん：ともだち　！？：おねがい</p>
+    <button class="big" data-act="back">もどる</button>
   </div>
 </section>
 
@@ -107,6 +129,7 @@
     <h2>せってい</h2>
     <div class="set"><span>もじの おおきさ</span><div class="seg" id="setSize"><button data-v="1">ふつう</button><button data-v="1.18">おおきい</button><button data-v="1.36">とても</button></div></div>
     <div class="set"><span>おんがく</span><div class="seg" id="setBgm"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
+    <div class="set"><span>おとの テスト</span><button class="big" id="btnSoundTest">🔊 ためしに ならす</button></div>
     <div class="set"><span>こえで よみあげ</span><div class="seg" id="setVoice"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
     <div class="set"><span>じかん</span><div class="seg wrap" id="setTime"><button data-v="auto">いま</button><button data-v="9">あさ</button><button data-v="13">ひる</button><button data-v="17.8">ゆうがた</button><button data-v="21">よる</button></div></div>
     <div class="set"><span>きせつの かざり（七夕・お盆・ゆき・お正月）</span><div class="seg wrap" id="setEvent"><button data-v="auto">いま</button><button data-v="none">なし</button><button data-v="tanabata">七夕</button><button data-v="obon">お盆</button><button data-v="snow">ゆき</button><button data-v="newyear">お正月</button></div></div>

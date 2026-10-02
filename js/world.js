@@ -7,12 +7,14 @@ function rng(seed) {
   return () => ((s = (s * 1664525 + 1013904223) % 4294967296) / 4294967296);
 }
 
-export const ISLAND_R = 33;
+export const ISLAND_R = 48;
 export const HOMES = {
   sei: [3.5, -11], poko: [-2, -8.5], mei: [1.5, -8],
   rin: [-14, -1], pa: [13, -3], ku: [15.5, -6.5],
-  nami: [-3, 26], kuro: [3, 27.5], haru: [7, -6.5], pon: [-6.2, 12.7],
+  nami: [-3, 41], kuro: [3, 42.5], haru: [7, -6.5], pon: [-6.2, 12.7],
 };
+
+function box3(parent, w, h, d, color, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); parent.add(m); return m; }
 
 export function buildWorld() {
   const g = new THREE.Group();
@@ -27,21 +29,21 @@ export function buildWorld() {
   const patchMats = [new THREE.MeshLambertMaterial({ color: '#82c862' }), new THREE.MeshLambertMaterial({ color: '#9adc78' })];
   const sand = new THREE.Mesh(new THREE.CircleGeometry(ISLAND_R + 2, 64), sandMat);
   sand.rotation.x = -Math.PI / 2; sand.position.y = -0.02; g.add(sand);
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(26, 64), grassMat);
+  const grass = new THREE.Mesh(new THREE.CircleGeometry(39, 72), grassMat);
   grass.rotation.x = -Math.PI / 2; grass.position.y = 0; g.add(grass);
   // 芝のまだら
-  for (let i = 0; i < 18; i++) {
-    const a = r() * Math.PI * 2, d = r() * 22;
+  for (let i = 0; i < 44; i++) {
+    const a = r() * Math.PI * 2, d = r() * 36;
     const p = new THREE.Mesh(new THREE.CircleGeometry(2 + r() * 3, 18), patchMats[i % 2]);
     p.rotation.x = -Math.PI / 2; p.position.set(Math.cos(a) * d, 0.01, Math.sin(a) * d); g.add(p);
   }
   // 道
-  const path = new THREE.Mesh(new THREE.PlaneGeometry(3, 34), mat('#ead7a4'));
-  path.rotation.x = -Math.PI / 2; path.position.set(0, 0.015, 8); g.add(path);
-  const path2 = new THREE.Mesh(new THREE.PlaneGeometry(30, 2.4), mat('#ead7a4'));
+  const path = new THREE.Mesh(new THREE.PlaneGeometry(3, 54), mat('#ead7a4'));
+  path.rotation.x = -Math.PI / 2; path.position.set(0, 0.015, 15); g.add(path);
+  const path2 = new THREE.Mesh(new THREE.PlaneGeometry(64, 2.4), mat('#ead7a4'));
   path2.rotation.x = -Math.PI / 2; path2.position.set(0, 0.016, -2); g.add(path2);
   // うみ
-  const sea = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), mat('#5ec0ec'));
+  const sea = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), mat('#5ec0ec'));
   sea.rotation.x = -Math.PI / 2; sea.position.y = -0.25; g.add(sea);
   const foam = new THREE.Mesh(new THREE.RingGeometry(ISLAND_R + 1.6, ISLAND_R + 3.4, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
   foam.rotation.x = -Math.PI / 2; foam.position.y = -0.15; g.add(foam);
@@ -68,13 +70,16 @@ export function buildWorld() {
     if (Math.hypot(x, z + 15) < 6) return false;
     if (Math.hypot(x - 9, z - 9) < 5) return false;
     if (Math.hypot(x + 9, z - 11) < 7) return false;
+    if (Math.hypot(x - 25, z - 17) < 9) return false;
+    if (Math.hypot(x + 31, z - 8) < 6) return false;
+    if (Math.abs(x) < 2.2 && z > 0) return false;
     return true;
   };
   let placed = 0, tries = 0;
-  while (placed < 34 && tries++ < 500) {
-    const a = r() * Math.PI * 2, d = 6 + r() * 20;
+  while (placed < 90 && tries++ < 1800) {
+    const a = r() * Math.PI * 2, d = 6 + r() * 30;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.95;
-    if (z > 20 || !keep(x, z) || Math.hypot(x, z) > 25) continue;
+    if (z > 31 || !keep(x, z) || Math.hypot(x, z) > 36) continue;
     if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < 3.2)) continue;
     tree(x, z, 0.85 + r() * 0.5, r() < 0.25); placed++;
   }
@@ -154,32 +159,32 @@ export function buildWorld() {
     const a = r() * Math.PI * 2, d = r() * 7;
     flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8);
   }
-  for (let i = 0; i < 14; i++) {
-    const a = r() * Math.PI * 2, d = 4 + r() * 17;
+  for (let i = 0; i < 40; i++) {
+    const a = r() * Math.PI * 2, d = 4 + r() * 32;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.9;
-    if (z < 22 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z);
+    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z);
   }
   // 草むら
-  for (let i = 0; i < 40; i++) {
-    const a = r() * Math.PI * 2, d = r() * 25;
+  for (let i = 0; i < 100; i++) {
+    const a = r() * Math.PI * 2, d = r() * 36;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (z > 22) continue;
+    if (z > 32) continue;
     add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
   }
   // ビーチ
-  const um = new THREE.Group(); um.position.set(-7, 0, 28);
+  const um = new THREE.Group(); um.position.set(-7, 0, 41);
   const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 2.6, 6), mat('#ffffff')); pole.position.y = 1.3; um.add(pole);
   const top = new THREE.Mesh(new THREE.ConeGeometry(2, 0.8, 12), mat('#ff7a8a')); top.position.y = 2.7; um.add(top);
   const top2 = new THREE.Mesh(new THREE.ConeGeometry(2.02, 0.8, 12, 1, true, 0, 1.05), mat('#ffffff')); top2.position.y = 2.7; um.add(top2);
   g.add(um);
-  const towel = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), mat('#ffd84d')); towel.rotation.x = -Math.PI / 2; towel.position.set(-7, 0.03, 28.8); g.add(towel);
-  add(g, sph(0.9, '#f8d98a', 1.3, 0.7, 1.2), 8, 0.3, 28); // すなのおしろ
-  add(g, sph(0.5, '#f4cf78', 1, 1.4, 1), 8, 0.9, 28);
+  const towel = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.4), mat('#ffd84d')); towel.rotation.x = -Math.PI / 2; towel.position.set(-7, 0.03, 41.8); g.add(towel);
+  add(g, sph(0.9, '#f8d98a', 1.3, 0.7, 1.2), 8, 0.3, 41); // すなのおしろ
+  add(g, sph(0.5, '#f4cf78', 1, 1.4, 1), 8, 0.9, 41);
   for (let i = 0; i < 12; i++) {
-    const a = r() * 6.28; add(g, sph(0.12, i % 2 ? '#ffd0d8' : '#ffffff', 1, 0.5, 1), Math.cos(a) * 10, 0.05, 27 + r() * 5);
+    const a = r() * 6.28; add(g, sph(0.12, i % 2 ? '#ffd0d8' : '#ffffff', 1, 0.5, 1), Math.cos(a) * 16, 0.05, 39 + r() * 7);
   }
-  add(g, sph(0.6, '#cfcabf', 1.2, 0.8, 1), 0, 0.2, 31.5);
-  obstacles.push({ x: -7, z: 28, r: 0.3 }, { x: 8, z: 28, r: 0.9 });
+  add(g, sph(0.6, '#cfcabf', 1.2, 0.8, 1), 0, 0.2, 46);
+  obstacles.push({ x: -7, z: 41, r: 0.3 }, { x: 8, z: 41, r: 0.9 });
 
   // ---- おみせ (たべもの・きせかえ) ----
   const shop = new THREE.Group(); shop.position.set(-9, 0, 9.4); g.add(shop);
@@ -200,6 +205,80 @@ export function buildWorld() {
   shopLabel.visible = false;
   const sp0 = new THREE.Mesh(new THREE.PlaneGeometry(9, 2.2), mat('#ead7a4')); sp0.rotation.x = -Math.PI / 2; sp0.position.set(-4.5, 0.017, 12.6); g.add(sp0);
   obstacles.push({ x: -10.8, z: 9.4, r: 1.7 }, { x: -9.0, z: 9.4, r: 1.7 }, { x: -7.2, z: 9.4, r: 1.7 });
+  // ---- ランドマーク (とうだい・じんじゃ・うみのいえ・みずうみ) ----
+  const LM = { lighthouse: { x: 24, z: -33 }, shrine: { x: -31, z: 8 }, hut: { x: 12, z: 40 }, lake: { x: 25, z: 17 } };
+  // みずうみ
+  const lake = new THREE.Mesh(new THREE.CircleGeometry(6.2, 36), mat('#7ccdf2')); lake.rotation.x = -Math.PI / 2; lake.position.set(LM.lake.x, 0.03, LM.lake.z); g.add(lake);
+  const lakeRim = new THREE.Mesh(new THREE.RingGeometry(6.2, 6.9, 36), mat('#c9c3b0')); lakeRim.rotation.x = -Math.PI / 2; lakeRim.position.set(LM.lake.x, 0.025, LM.lake.z); g.add(lakeRim);
+  for (let i = 0; i < 5; i++) add(g, sph(0.5, '#4fa850', 1, 0.15, 1), LM.lake.x - 2 + i * 1.1, 0.06, LM.lake.z - 1 + (i % 3));
+  obstacles.push({ x: LM.lake.x, z: LM.lake.z, r: 6.2 });
+  // とうだい
+  const lh = new THREE.Group(); lh.position.set(LM.lighthouse.x, 0, LM.lighthouse.z); g.add(lh);
+  for (let i = 0; i < 5; i++) { const seg = new THREE.Mesh(new THREE.CylinderGeometry(1.6 - i * 0.12, 1.72 - i * 0.12, 1.8, 14), mat(i % 2 ? '#e8455a' : '#ffffff')); seg.position.y = 0.9 + i * 1.8; lh.add(seg); }
+  const lhTop = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.2, 0.3, 14), mat('#4a4a52')); lhTop.position.y = 9.1; lh.add(lhTop);
+  const lhLamp = new THREE.Mesh(new THREE.SphereGeometry(0.9, 14, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); lhLamp.position.y = 10; lh.add(lhLamp); lamps.push(lhLamp);
+  const lhRoof = new THREE.Mesh(new THREE.ConeGeometry(1.3, 1.1, 14), mat('#e8455a')); lhRoof.position.y = 11.2; lh.add(lhRoof);
+  const lhRock = sph(3, '#b9b5ad', 1.3, 0.35, 1.3); add(lh, lhRock, 0, 0.2, 0);
+  obstacles.push({ x: LM.lighthouse.x, z: LM.lighthouse.z, r: 2.4 });
+  const lhLabel = makeLabel('とうだい', '#e8455a'); lhLabel.position.set(LM.lighthouse.x, 13.4, LM.lighthouse.z); g.add(lhLabel);
+  // かぜりんの じんじゃ
+  const sh = new THREE.Group(); sh.position.set(LM.shrine.x, 0, LM.shrine.z); g.add(sh);
+  for (const sx of [-1.6, 1.6]) { const pil = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 4, 10), mat('#d9452f')); pil.position.set(sx, 2, 0); sh.add(pil); }
+  const kasagi = new THREE.Mesh(new THREE.BoxGeometry(4.8, 0.35, 0.5), mat('#2a2a2f')); kasagi.position.set(0, 4.15, 0); sh.add(kasagi);
+  const nuki = new THREE.Mesh(new THREE.BoxGeometry(3.6, 0.25, 0.3), mat('#d9452f')); nuki.position.set(0, 3.4, 0); sh.add(nuki);
+  const hokora = new THREE.Mesh(new THREE.BoxGeometry(2, 1.6, 1.8), mat('#c8935a')); hokora.position.set(0, 0.8, -5); sh.add(hokora);
+  const hroof = new THREE.Mesh(new THREE.ConeGeometry(1.9, 1, 4), mat('#6a4a38')); hroof.rotation.y = Math.PI / 4; hroof.position.set(0, 2.1, -5); sh.add(hroof);
+  const chimes = [];
+  for (let i = 0; i < 5; i++) {
+    const c = new THREE.Group(); c.position.set(-2 + i * 1.0, 3.0, -3.4);
+    add(c, sph(0.18, '#bfe8ff', 1, 1, 1), 0, 0, 0);
+    const tan = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.01), mat('#ffd84d')); tan.position.y = -0.4; c.add(tan);
+    sh.add(c); chimes.push(c);
+  }
+  const rope = new THREE.Mesh(new THREE.BoxGeometry(4.2, 0.05, 0.05), mat('#6b5a4a')); rope.position.set(0, 3.2, -3.4); sh.add(rope);
+  for (const sx of [-2.6, 2.6]) { add(sh, sph(0.5, '#b9b5ad', 0.8, 1.2, 0.8), sx, 0.5, -2.2); }
+  obstacles.push({ x: LM.shrine.x - 1.6, z: LM.shrine.z, r: 0.4 }, { x: LM.shrine.x + 1.6, z: LM.shrine.z, r: 0.4 }, { x: LM.shrine.x, z: LM.shrine.z - 5, r: 1.3 });
+  const shLabel = makeLabel('かぜりんの じんじゃ', '#d9452f'); shLabel.position.set(LM.shrine.x, 5.6, LM.shrine.z); g.add(shLabel);
+  // うみのいえ
+  const hu = new THREE.Group(); hu.position.set(LM.hut.x, 0, LM.hut.z); g.add(hu);
+  box3(hu, 4.6, 0.2, 3.4, '#c8935a', 0, 0.1, 0);
+  for (const [x, z] of [[-2, -1.4], [2, -1.4], [-2, 1.4], [2, 1.4]]) box3(hu, 0.2, 2.4, 0.2, '#8a5a36', x, 1.2, z);
+  box3(hu, 4.8, 0.2, 3.6, '#4fb8c9', 0, 2.5, 0);
+  const hr = new THREE.Mesh(new THREE.ConeGeometry(3.6, 1.3, 4), mat('#ffd84d')); hr.rotation.y = Math.PI / 4; hr.position.y = 3.2; hr.scale.set(1, 1, 0.78); hu.add(hr);
+  box3(hu, 2.4, 0.9, 0.4, '#ffffff', 0, 1.0, 1.4);
+  add(hu, sph(0.35, '#ff7a8a', 1, 0.5, 1), -0.5, 1.5, 1.4); add(hu, sph(0.3, '#ffd84d', 1, 0.5, 1), 0.4, 1.5, 1.4);
+  obstacles.push({ x: LM.hut.x, z: LM.hut.z, r: 2.2 });
+  const huLabel = makeLabel('うみの いえ', '#4fb8c9'); huLabel.position.set(LM.hut.x, 5.2, LM.hut.z); g.add(huLabel);
+
+  // ---- あつめもの (おねがいミッション用) ----
+  const items = [];
+  const ITEM_DEF = {
+    shell: () => { const m = new THREE.Group(); add(m, sph(0.26, '#ffd0d8', 1.2, 0.7, 1), 0, 0.15, 0); add(m, sph(0.14, '#ffffff', 1, 0.5, 1), 0, 0.28, 0.05); return m; },
+    sasa: () => { const m = new THREE.Group(); for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 1.0, 6), mat('#8fc860')); c.position.set((i - 1) * 0.13, 0.5, 0); c.rotation.z = (i - 1) * 0.12; m.add(c); } add(m, sph(0.3, '#6cc455', 0.9, 0.3, 0.5), 0, 1.0, 0); return m; },
+    stone: () => { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), new THREE.MeshLambertMaterial({ color: '#7ad7ff', emissive: '#2a6a9a' })); m.position.y = 0.4; const g2 = new THREE.Group(); g2.add(m); return g2; },
+    feather: () => { const m = new THREE.Group(); const f = sph(0.4, '#5ab8ff', 0.25, 1, 0.08); f.rotation.z = 0.5; add(m, f, 0, 0.5, 0); return m; },
+    mushroom: () => { const m = new THREE.Group(); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.35, 8), mat('#fff4e0')); st.position.y = 0.18; m.add(st); add(m, sph(0.28, '#b58cff', 1, 0.7, 1), 0, 0.42, 0); const gl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: '#d9c4ff', transparent: true, opacity: 0.35 })); gl.position.y = 0.42; gl.scale.set(1.4, 1.1, 1.4); m.add(gl); return m; },
+    herb: () => { const m = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = sph(0.1, '#7fe05a', 0.35, 1.8, 0.35); b.rotation.z = (i - 1.5) * 0.35; add(m, b, (i - 1.5) * 0.1, 0.25, 0); } return m; },
+  };
+  function itemSpot(kind, x, z) {
+    const m = ITEM_DEF[kind](); m.position.set(x, 0, z); g.add(m);
+    items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6 });
+  }
+  const free = (x, z, pad = 0.8) => !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
+  function scatter(kind, n, cx, cz, rx, rz, tries = 80) {
+    let k = 0, t = 0;
+    while (k < n && t++ < tries) {
+      const x = cx + (r() - 0.5) * 2 * rx, z = cz + (r() - 0.5) * 2 * rz;
+      if (Math.hypot(x, z) < ISLAND_R - 3 && free(x, z)) { itemSpot(kind, x, z); k++; }
+    }
+  }
+  scatter('shell', 16, 0, 42, 22, 4);
+  scatter('sasa', 12, -20, -13, 6, 7); scatter('sasa', 2, -26, 2, 4, 4);
+  scatter('stone', 3, 14, -6, 6, 5); scatter('stone', 3, 27, 10, 5, 8); scatter('stone', 3, 24, -28, 6, 3); scatter('stone', 2, -8, 6, 3, 3);
+  scatter('feather', 10, 0, 0, 30, 24, 200);
+  scatter('mushroom', 8, 0, -28, 20, 4); scatter('mushroom', 3, -26, -24, 5, 4);
+  scatter('herb', 12, 8, 4, 22, 14, 200);
+
   // ---- 季節の飾り ----
   const decor = { tanabata: new THREE.Group(), obon: new THREE.Group(), newyear: new THREE.Group() };
   for (const d of Object.values(decor)) { d.visible = false; g.add(d); }
@@ -253,7 +332,7 @@ export function buildWorld() {
   for (let i = 0; i < 7; i++) {
     const c = new THREE.Group();
     for (let k = 0; k < 4; k++) add(c, sph(1.4 + r(), '#ffffff', 1.3, 0.7, 1), k * 1.5 - 2, r() * 0.4, r() - 0.5);
-    c.position.set((r() - 0.5) * 160, 18 + r() * 8, (r() - 0.5) * 120);
+    c.position.set((r() - 0.5) * 260, 18 + r() * 8, (r() - 0.5) * 220);
     g.add(c); clouds.push(c);
   }
   // ほし
@@ -306,6 +385,11 @@ export function buildWorld() {
 
   function update(dt, t) {
     foam.material.opacity = 0.45 + Math.sin(t * 1.4) * 0.15;
+    chimes.forEach((c, i) => { c.rotation.z = Math.sin(t * 2 + i * 1.3) * 0.12; });
+    for (const it of items) {
+      if (it.back > 0) { it.back -= dt; if (it.back <= 0) it.mesh.visible = true; }
+      if (it.mesh.visible) { it.mesh.position.y = Math.sin(t * 2 + it.ph) * 0.06 + 0.05; it.mesh.rotation.y = t * 0.8 + it.ph; }
+    }
     if (snowPts.visible) {
       const a = snowGeo.attributes.position;
       for (let i = 0; i < NS; i++) {
@@ -316,7 +400,7 @@ export function buildWorld() {
       a.needsUpdate = true;
     }
     foam.scale.setScalar(1 + Math.sin(t * 1.4) * 0.006);
-    for (const c of clouds) { c.position.x += dt * 0.6; if (c.position.x > 90) c.position.x = -90; }
+    for (const c of clouds) { c.position.x += dt * 0.6; if (c.position.x > 140) c.position.x = -140; }
     for (const b of butter) {
       const u = b.userData; u.ph += dt;
       b.position.set(u.cx + Math.sin(u.ph * 0.5) * 5, 1.2 + Math.sin(u.ph * 1.7) * 0.4, u.cz + Math.cos(u.ph * 0.4) * 4);
@@ -328,7 +412,7 @@ export function buildWorld() {
     }
   }
 
-  return { group: g, obstacles, flowers, update, applyTime, setSeason, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

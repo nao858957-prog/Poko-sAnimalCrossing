@@ -165,3 +165,26 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
 #shopFace { width: 3rem; height: 3rem; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 3px #a8704a; background: #dff4ff; flex: none; }
 #shop header h2 { flex: 1; text-align: left; }
 @media (max-height: 520px) and (orientation: landscape) { .talk.enter { bottom: calc(env(safe-area-inset-bottom) + 10.4rem); } }
+
+.round.snd { position: absolute; left: .8rem; bottom: calc(env(safe-area-inset-bottom) + 11.2rem); width: 3.2rem; height: 3.2rem; font-size: 1.2rem; }
+@media (max-height: 520px) and (orientation: landscape) { .round.snd { bottom: calc(env(safe-area-inset-bottom) + 9rem); } }
+
+#questBar { position: absolute; top: calc(env(safe-area-inset-top) + 4.0rem); left: .6rem; right: .6rem; background: #fff3c8f0; border: 3px solid var(--yellow); border-radius: 1.2rem; padding: .35rem .8rem; font-size: .9rem; text-align: center; box-shadow: 0 3px 8px #0002; }
+#hint { top: calc(env(safe-area-inset-top) + 7.4rem) !important; }
+.msg.choice { align-self: stretch; display: flex; gap: .6rem; background: none; padding: 0; }
+.msg.choice button { flex: 1; min-height: 3.2rem; border-radius: 1.1rem; font-size: 1.05rem; border: 3px solid #f0d9a8; background: #fff; }
+.msg.choice button.ok { background: var(--green); color: #fff; border-color: #4ea83c; text-shadow: 0 1px 0 #3e8c30; }
+.msg.choice button:disabled { opacity: .5; }
+.qinv { background: #fff; border: 3px solid #f0e2c0; border-radius: 1rem; padding: .4rem .7rem; font-size: .95rem; text-align: center; }
+#qList h3 { margin: .6rem 0 .3rem; font-size: 1rem; }
+.qcard { display: flex; gap: .6rem; align-items: center; background: #fff; border: 3px solid #f0e2c0; border-radius: 1.1rem; padding: .4rem .6rem; margin-bottom: .4rem; }
+.qcard img { width: 2.8rem; height: 2.8rem; border-radius: 50%; background: #dff4ff; flex: none; }
+.qcard b { display: block; font-size: .98rem; }
+.qcard small { display: block; font-size: .72rem; opacity: .75; }
+.qcard p { margin: .15rem 0 0; font-size: .82rem; font-weight: 600; line-height: 1.35; }
+.qcard .pg { font-weight: 800; color: #3e8c30; }
+.qcard.ready { border-color: #3dbb6a; background: #effff3; }
+.qcard.avail { border-color: #ff8a3d; background: #fff6ee; }
+.qcard.done { opacity: .6; }
+#mapCv { width: 100%; max-width: 360px; align-self: center; border-radius: 1rem; border: 3px solid #f0e2c0; background: #7fc8f0; aspect-ratio: 1; }
+@media (max-height: 520px) and (orientation: landscape) { #questBar { right: auto; max-width: 52vw; } }
