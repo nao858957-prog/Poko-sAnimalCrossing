@@ -11,7 +11,7 @@ export const ISLAND_R = 33;
 export const HOMES = {
   sei: [3.5, -11], poko: [-2, -8.5], mei: [1.5, -8],
   rin: [-14, -1], pa: [13, -3], ku: [15.5, -6.5],
-  nami: [-3, 26], kuro: [3, 27.5], haru: [7, -6.5],
+  nami: [-3, 26], kuro: [3, 27.5], haru: [7, -6.5], pon: [-6.2, 12.7],
 };
 
 export function buildWorld() {

@@ -359,7 +359,8 @@ function wakeUp() {
 $('btnWake').onclick = () => { touchIdle(); };
 
 // ---------- おみせ ----------
-let shopTab = 'food', shopBusy = false;
+let shopTab = 'food', shopBusy = false, enterKind = null;
+$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'out') exitHouse(); sfx('tap'); };
 function refreshPlayerModel() {
   const p = player.root.position.clone(), ry = player.root.rotation.y;
   world.group.remove(player.root);
@@ -374,7 +375,8 @@ function openShop() {
   moveTarget = null; marker.visible = false; talkOnArrive = null;
   $('hud').classList.add('hidden'); $('btnTalk').classList.add('hidden');
   $('shop').classList.remove('hidden');
-  $('shopMsg').textContent = 'いらっしゃい！ おはなで おかいもの できるよ 🌼';
+  $('shopFace').src = portraits.pon;
+  $('shopMsg').textContent = 'いらっしゃいませぽん！ おはなで おかいもの できるぽん 🌼';
   sfx('open'); rebuildPreview(); renderShop();
 }
 function closeShop() {
@@ -422,13 +424,13 @@ function renderShop() {
   }
 }
 function eatFood(f) {
-  if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないよ… 🌼を あつめてきてね'; sfx('tap'); return; }
+  if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
   S.flowers -= f.price; sfx('pick');
   // いっしょに たべる ともだち
   const pals = ORDER.filter(i => i !== 'haru');
   const pal = pals[Math.floor(Math.random() * pals.length)];
   S.friend[pal] = Math.min(60, (S.friend[pal] || 0) + 2);
-  $('shopMsg').textContent = `${f.emoji} ${f.line}　${CHARS[pal].name}も ひとくち！ ♥`;
+  $('shopMsg').textContent = `${f.emoji} ${f.line}　${CHARS[pal].name}も ひとくち！ ♥　まいどありぽん！`;
   if (prevAvatar) { prevAvatar.cheer = 1.6; for (let i = 0; i < 3; i++) { tmp.set((Math.random() - 0.5) * 1.6, 3.4 + Math.random(), 0.5); spawnFx(prevScene, 'heart', tmp, 0.7); } }
   speak(f.line, 1.3);
   save(); renderShop();
@@ -438,7 +440,7 @@ function clothesAction(c) {
   if (!S.owned.includes(c.id)) {
     if (S.flowers < c.price) { $('shopMsg').textContent = 'おはなが たりないよ… 🌼を あつめてきてね'; sfx('tap'); return; }
     S.flowers -= c.price; S.owned.push(c.id); S.avatar[key] = c.id; sfx('heart');
-    $('shopMsg').textContent = `${c.emoji} ${c.name}を かったよ！ とっても にあってる！`;
+    $('shopMsg').textContent = `${c.emoji} ${c.name}、まいどありぽん！ とっても にあってるぽん！`;
   } else if (S.avatar[key] === c.id) { S.avatar[key] = null; sfx('tap'); $('shopMsg').textContent = `${c.name}を ぬいだよ`; }
   else { S.avatar[key] = c.id; sfx('pick'); $('shopMsg').textContent = `${c.emoji} ${c.name}を きたよ！`; }
   if (prevAvatar) prevAvatar.cheer = 1.2;
@@ -561,7 +563,7 @@ function updateNpcs(dt) {
     } else if (mode === 'play' || mode === 'title' || mode === 'creator') {
       P.wait -= dt;
       if (!P.target && P.wait <= 0) {
-        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && HOUSE_NPC.includes(id) ? 1.2 : id === 'sei' ? 1.5 : 3.5);
+        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : 3.5);
         P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
       if (P.target) {
@@ -814,6 +816,7 @@ function send(text) {
     speak(r.text, CHARS[id].voice); sfx('recv');
     npcs[id].hop = 0.7;
     gain(id, r.key === 'fb' ? 1 : 2);
+    if (r.key === 'shop') setTimeout(() => { if (mode === 'chat') { closeChat(); openShop(); } }, 1400);
     if (Math.random() < 0.4) renderChips(id);
     waiting = false;
     save();
@@ -1059,6 +1062,19 @@ function frame(now) {
     if (rot.r) yaw += dt * 1.8;
     if (mode === 'play' && !sleeping) { idle += dt; if (idle > ((gameHour() >= 20 || gameHour() < 5) ? 15 : 30)) startSleep(); }
     if (mode === 'play') $('btnTalk').classList.toggle('hidden', !nearNpc || sleeping);
+    {
+      let ent = null;
+      if (mode === 'play' && !sleeping && player) {
+        const pp = player.root.position;
+        if (place === 'out') {
+          if (Math.hypot(pp.x - world.door.x, pp.z - world.door.z) < 4) ent = 'house';
+          else if (Math.hypot(pp.x + 9, pp.z - 12.2) < 5.5) ent = 'shop';
+        } else if (pp.z > interior.exit.z - 2.5 && Math.abs(pp.x - OFF) < 2.6) ent = 'out';
+      }
+      enterKind = ent;
+      $('btnEnter').classList.toggle('hidden', !ent);
+      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 おうちに はいる' : '🚪 そとに でる';
+    }
     if (mode === 'play' && nearNpc) $('btnTalk').textContent = `💬 ${CHARS[nearNpc].name}と はなす`;
     updateFx(dt);
     updateCamera(dt);

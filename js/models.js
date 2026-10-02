@@ -351,6 +351,32 @@ function cat(o) {
   return P;
 }
 
+// ---- たぬき (ポン / おみせの店主) ----
+function tanuki() {
+  const P = chibi({ body: '#9a7556', belly: '#ecdcc0', headC: '#a47e5c', leg: '#4a3626', arm: '#8a6648', br: 0.58, bsy: 1.02, hr: 0.58, legH: 0.26, scale: 1.2 });
+  const hr = P.hr;
+  for (const sd of [-1, 1]) {
+    add(P.head, sph(0.17, '#4a3626', 1, 1, 0.55), sd * hr * 0.7, hr * 0.72, -0.02);
+    const x = sd * hr * 0.4, y = 0.0;
+    const mk = sph(0.16, '#3a2a22', 1.1, 1.35, 0.5);
+    add(P.head, mk, x, y, surfZ(hr, x, y) - 0.03); mk.rotation.z = sd * 0.55;
+  }
+  add(P.head, sph(0.2, '#f1e4cc', 1.25, 0.85, 0.8), 0, -0.2 * hr, surfZ(hr, 0, -0.2 * hr) - 0.05);
+  eyes(P, { y: 0.0, sp: hr * 0.4, r: 0.05, color: '#1a1410' });
+  nose(P, '#26262e', -0.12, 0.06);
+  cheeks(P, -0.3, 0.66, '#f0a090', 0.08);
+  // 頭の葉っぱ
+  const leaf = sph(0.2, '#5cb85c', 1.1, 0.12, 0.7); add(P.head, leaf, 0.04, hr * 0.98, 0.05); leaf.rotation.z = -0.25;
+  const leaf2 = sph(0.04, '#3f8f3f', 0.5, 0.2, 1.4); add(P.head, leaf2, 0.04, hr * 1.0, 0.05); leaf2.rotation.z = -0.25;
+  tailChain(P, 7, 0.17, 0.22, ['#9a7556', '#9a7556', '#4a3626'], { y: k => -0.1 + k * 0.28, z: k => k * 0.9 });
+  // みせの前掛け
+  const ap = '#3f8f6a';
+  const bib = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.7, 0.05), mat(ap)); bib.position.set(0, P.cy + 0.05, P.br * 0.92); bib.rotation.x = -0.1; P.body.add(bib);
+  add(P.body, sph(0.08, '#ffd84d'), 0, P.cy + 0.05, P.br * 0.92 + 0.04);
+  for (const sd of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.5, 0.04), mat(ap)); st.position.set(sd * 0.25, P.cy + 0.52, P.br * 0.6); st.rotation.x = -0.5; P.body.add(st); }
+  return P;
+}
+
 export const SPECIES = {
   poko: () => panda({ hr: 0.6, scale: 0.95 }),
   mei: () => panda({ hr: 0.58, scale: 1.12, mei: true }),
@@ -361,6 +387,7 @@ export const SPECIES = {
   haru: longTailedTit,
   nami: () => cat({ baby: true, br: 0.4, hr: 0.58, scale: 0.9 }),
   kuro: () => cat({ baby: false, br: 0.55, hr: 0.56, scale: 1.45 }),
+  pon: tanuki,
 };
 export function makeAnimal(id) {
   const P = SPECIES[id]();
