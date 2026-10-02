@@ -1,0 +1,76 @@
+// やさしい BGM / こうかおん / よみあげ (Web Audio・Web Speech)
+let ctx = null, master = null, bgmOn = true, timer = null, step = 0;
+const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
+const CHORDS = [[0, 4, 7], [-3, 0, 4], [-5, -1, 2], [-7, -3, 0]];
+const midi = n => 261.63 * Math.pow(2, n / 12);
+
+export function initAudio() {
+  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  ctx = new AC();
+  master = ctx.createGain();
+  master.gain.value = 0.5;
+  master.connect(ctx.destination);
+  if (bgmOn) startBgm();
+}
+function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = type; o.frequency.value = freq;
+  g.gain.setValueAtTime(0, t);
+  g.gain.linearRampToValueAtTime(vol, t + 0.03);
+  g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(dest || master);
+  o.start(t); o.stop(t + dur + 0.05);
+}
+function startBgm() {
+  if (timer || !ctx) return;
+  const beat = 0.62;
+  let next = ctx.currentTime + 0.2;
+  const sched = () => {
+    while (next < ctx.currentTime + 0.6) {
+      const bar = Math.floor(step / 8) % CHORDS.length;
+      const ch = CHORDS[bar];
+      if (step % 8 === 0) ch.forEach(n => tone(midi(n - 12), next, beat * 7, 'triangle', 0.035));
+      if (Math.random() < 0.7) {
+        const n = ch[step % 3] + 12 * (Math.random() < 0.3 ? 1 : 0);
+        const p = Math.random() < 0.5 ? n : PENTA[Math.floor(Math.random() * PENTA.length)];
+        tone(midi(p), next, beat * 1.6, 'sine', 0.06);
+      }
+      next += beat; step++;
+    }
+  };
+  sched();
+  timer = setInterval(sched, 250);
+}
+function stopBgm() { if (timer) { clearInterval(timer); timer = null; } }
+export function setBgm(on) { bgmOn = on; if (!ctx) return; on ? startBgm() : stopBgm(); }
+
+export function sfx(kind) {
+  if (!ctx) return;
+  const t = ctx.currentTime;
+  const seq = {
+    tap: [[880, 0, 0.1]],
+    pick: [[784, 0, 0.12], [1047, 0.08, 0.2]],
+    send: [[660, 0, 0.08], [880, 0.06, 0.12]],
+    recv: [[988, 0, 0.1], [1319, 0.07, 0.18]],
+    heart: [[523, 0, 0.2], [659, 0.12, 0.2], [784, 0.24, 0.2], [1047, 0.36, 0.5]],
+    open: [[523, 0, 0.12], [784, 0.08, 0.2]],
+  }[kind] || [];
+  for (const [f, d, l] of seq) tone(f, t + d, l, 'sine', 0.15);
+}
+
+export function duck(v) { if (master) master.gain.value = v ? 0.3 : 0.5; }
+
+// よみあげ
+let voiceOn = false;
+export function setVoice(on) { voiceOn = on; if (!on && 'speechSynthesis' in window) speechSynthesis.cancel(); }
+export function speak(text, pitch = 1.2) {
+  if (!voiceOn || !('speechSynthesis' in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text.replace(/[…♪♥]/g, '、'));
+  u.lang = 'ja-JP'; u.pitch = pitch; u.rate = 0.95;
+  const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith('ja'));
+  if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}

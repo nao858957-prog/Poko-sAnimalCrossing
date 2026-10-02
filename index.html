@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#bfe8ff">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ポコのちいさなしま</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐼%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- タイトル -->
+<section id="title" class="screen">
+  <div class="logo">
+    <div class="logo-sub">ポコたちと すごす</div>
+    <h1>ポコの<br>ちいさなしま</h1>
+  </div>
+  <div class="menu-col">
+    <button id="btnContinue" class="big primary">▶ つづきから あそぶ</button>
+    <button id="btnNew" class="big">✿ はじめから あそぶ</button>
+  </div>
+  <p class="fine">ファンメイドの非公式ゲームです。<br>やめても だいじょうぶ。じどうで ほぞんされます。</p>
+</section>
+
+<!-- アバターづくり -->
+<section id="creator" class="screen sheet hidden">
+  <h2>あなたの すがたを きめよう</h2>
+  <label class="field">おなまえ
+    <input id="nameInput" maxlength="8" placeholder="なまえ（ひらがなでも OK）" autocomplete="off">
+  </label>
+  <div class="row"><span class="lbl">かみがた</span><div id="optHair" class="opts"></div></div>
+  <div class="row"><span class="lbl">かみのいろ</span><div id="optHairColor" class="opts sw"></div></div>
+  <div class="row"><span class="lbl">はだのいろ</span><div id="optSkin" class="opts sw"></div></div>
+  <div class="row"><span class="lbl">ふくのいろ</span><div id="optOutfit" class="opts sw"></div></div>
+  <button id="btnCreateOk" class="big primary">これで けってい！</button>
+</section>
+
+<!-- あそぶ画面 -->
+<section id="hud" class="hidden">
+  <button id="btnMenu" class="hud-btn">☰ メニュー</button>
+  <div id="stat"><span id="clock">☀ 12:00</span><span id="flowerCount">🌼 0</span></div>
+  <div id="joy"><div id="joyKnob"></div></div>
+  <div id="rotBtns"><button id="rotL" class="round">◀</button><button id="rotR" class="round">▶</button></div>
+  <button id="btnTalk" class="talk hidden">💬 はなす</button>
+  <div id="hint">ゆびで うごかそう！ おはなを あつめて ともだちに あげよう</div>
+</section>
+<div id="toast" class="hidden"></div>
+
+<!-- チャット -->
+<section id="chat" class="hidden">
+  <header>
+    <img id="chatFace" alt="">
+    <div class="who"><b id="chatName"></b><span id="chatHearts"></span><small id="chatKind"></small></div>
+    <button id="chatClose" class="close">✕ とじる</button>
+  </header>
+  <div id="chatLog"></div>
+  <div id="chips"></div>
+  <div class="inputRow">
+    <input id="chatInput" maxlength="60" placeholder="ここに ことばを いれてね" autocomplete="off" enterkeyhint="send">
+    <button id="chatSend" class="send">おくる</button>
+    <button id="chatGift" class="gift">🌼</button>
+  </div>
+</section>
+
+<!-- メニュー -->
+<section id="menu" class="screen modal hidden">
+  <div class="panel">
+    <h2>メニュー</h2>
+    <button class="big" data-act="resume">▶ ゲームに もどる</button>
+    <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
+    <button class="big" data-act="notebook">💕 ともだちノート</button>
+    <button class="big" data-act="avatar">👤 すがたを かえる</button>
+    <button class="big" data-act="settings">⚙ せってい</button>
+    <button class="big" data-act="save">💾 セーブして おわる</button>
+    <button class="big danger" data-act="reset">🗑 はじめから やりなおす</button>
+  </div>
+</section>
+
+<section id="notebook" class="screen modal hidden">
+  <div class="panel">
+    <h2>ともだちノート</h2>
+    <div id="nbList"></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="settings" class="screen modal hidden">
+  <div class="panel">
+    <h2>せってい</h2>
+    <div class="set"><span>もじの おおきさ</span><div class="seg" id="setSize"><button data-v="1">ふつう</button><button data-v="1.18">おおきい</button><button data-v="1.36">とても</button></div></div>
+    <div class="set"><span>おんがく</span><div class="seg" id="setBgm"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
+    <div class="set"><span>こえで よみあげ</span><div class="seg" id="setVoice"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
+    <div class="set"><span>じかん</span><div class="seg wrap" id="setTime"><button data-v="auto">いま</button><button data-v="9">あさ</button><button data-v="13">ひる</button><button data-v="17.8">ゆうがた</button><button data-v="21">よる</button></div></div>
+    <div class="set"><span>きせつの かざり（七夕・お盆・ゆき・お正月）</span><div class="seg wrap" id="setEvent"><button data-v="auto">いま</button><button data-v="none">なし</button><button data-v="tanabata">七夕</button><button data-v="obon">お盆</button><button data-v="snow">ゆき</button><button data-v="newyear">お正月</button></div></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="theaterList" class="screen modal hidden">
+  <div class="panel">
+    <h2>🎬 ポコたちの シアター</h2>
+    <p class="fine2">3Dで うごく ミニストーリー（かんたんな オリジナルアニメ）</p>
+    <div id="thList"></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="theaterUI" class="hidden">
+  <div id="subtitle"><b id="subWho"></b><span id="subText"></span></div>
+  <div class="th-bar">
+    <button id="thPause" class="hud-btn">⏸ とめる</button>
+    <button id="thSkip" class="hud-btn">✕ おわる</button>
+  </div>
+  <div id="thEnd" class="hidden"><div class="panel"><h2>おしまい</h2><button id="thAgain" class="big primary">もういちど みる</button><button id="thBack" class="big">もどる</button></div></div>
+</section>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

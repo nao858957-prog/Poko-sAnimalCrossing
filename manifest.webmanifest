@@ -1,0 +1,12 @@
+{
+  "name": "ポコのちいさなしま",
+  "short_name": "ポコのしま",
+  "description": "ポコたちとふれあう、やさしい3Dのおさんぽゲーム（ファンメイド）",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#bfe8ff",
+  "theme_color": "#bfe8ff",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
