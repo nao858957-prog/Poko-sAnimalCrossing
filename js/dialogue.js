@@ -554,6 +554,17 @@ const LORE = [
   { k: ['ほたる', 'ホタル', 'うさぎ', 'ウサギ', 'おつきさま', 'お月'], who: {
     poko: 'あめあがりの おさんぽで ウサギさんと ほたるさんに あったの。つきあかりが きれいで…ふしぎな よるだったの。',
     pa: 'ぼくも うさぎの なかまだけど、月の夜はどきどきするよ、キュッ。' } },
+  { k: ['つり', '釣り', 'つりざお', '釣竿', 'さかな', '魚', 'フィッシング'], who: {
+    pon: 'つりざおなら、お店に並んでいるぽん！ 木のは入門用、ぎんは大物向き、きんは…伝説の逸品だぽん。ため池・みずうみ・うみで、釣れる魚がちがうぽん。夜にしか釣れない魚もいるぽん。',
+    kuro: '釣りは海辺の暮らしの楽しみよ。朝いちばんの、まだ冷たい海で糸を垂らすと、心が静まるの。釣れた日は、ナミが大喜びなのよ。',
+    nami: 'おさかな！ ナミ、だいすきニャ！ つれたら ナミに くれるニャ？ いっぱい、いっぱい ほしいニャ！',
+    sei: '釣りはね、待つ時間が楽しいのよ。何も考えないで、うきを眺めるの。たくさん釣れたら、お料理してあげるわ。',
+    poko: 'おさかな…ポコは つれるのかなぁ。うきが ぴくって したら、あわてて ころんじゃいそうなの。えへへ。',
+    mei: '釣りは辛抱強さが大事よ。…わたし、じっと待つのは得意なんだから。',
+    rin: '湖のほとりでの釣り、素敵よね。お花を眺めながら、ゆったり待つのもいいわ。',
+    haru: 'チュリ！ ぼく、うみで おさかなを みつけるの とくいなんだ！ そらから きらって ひかるのが みえるんだよ！',
+    pa: 'キュッ…ぼく、おさかなは たべないけど、うきが ゆらゆら してるのを みるのは すきだよ。',
+    ku: 'さかな…ひゃっ、ぴちぴち はねるのは ちょっと こわいけど…みるのは すき…。' } },
   { lv: 2, k: ['ひとり', '一人', 'じぶんの じかん', '自分の時間'], who: {
     sei: 'ひとりの時間も大切よ。わたしも、みんなが眠ったあとに、お茶を飲む時間があるの。誰のためでもない、自分だけの時間ね。',
     kuro: '子育てをしていると、ひとりの時間なんてなかなか取れないのよね。だからこそ、潮風に当たる朝の十分が、わたしの宝物なの。',
@@ -737,7 +748,7 @@ export const CHIPS = [
   ['hello', 'こんにちは'], ['how', 'げんき？'], ['like', 'すきなものは？'], ['praise', 'かわいいね'],
   ['tired', 'つかれたよ…'], ['food', 'おなかすいた？'], ['story', 'おはなしして'], ['weather', 'いいてんきだね'],
   ['happy', 'たのしいね'], ['sleep', 'ねむいね'], ['love', 'だいすき'], ['bye', 'またね'],
-  ['l7', 'おかいもの したい'], ['l1', 'ささって すき？'], ['l2', 'おりょうりは？'], ['l3', 'おかあさんの こと'], ['l4', 'うみの おもいで'], ['l5', 'ゆきの ひは？'], ['l6', 'おうちの だんろ'],
+  ['l7', 'おかいもの したい'], ['l8', 'つりは する？'], ['l1', 'ささって すき？'], ['l2', 'おりょうりは？'], ['l3', 'おかあさんの こと'], ['l4', 'うみの おもいで'], ['l5', 'ゆきの ひは？'], ['l6', 'おうちの だんろ'],
 ];
 
 // ctx: {name, hour, lv}
@@ -799,16 +810,16 @@ export function fillFor(id, text, ctx) { return fill(text, { ...ctx, cid: id });
 
 // ---- プレゼントの このみ (しゅるいで 反応が かわる) ----
 export const PREFS = {
-  poko: { love: ['sasa', 'takenoko', 'dango'], like: ['herb', 'flower', 'pancake'], dislike: ['mushroom'] },
+  poko: { love: ['sasa', 'takenoko', 'dango'], like: ['herb', 'flower', 'pancake', 'fish'], dislike: ['mushroom'] },
   mei: { love: ['stone', 'cake'], like: ['feather', 'flower', 'lemonade'], dislike: ['shell'] },
-  sei: { love: ['herb', 'soup'], like: ['flower', 'sasa', 'dango'], dislike: [] },
+  sei: { love: ['herb', 'soup'], like: ['flower', 'sasa', 'dango', 'fish'], dislike: [] },
   rin: { love: ['flower', 'feather'], like: ['herb', 'lemonade', 'cake'], dislike: [] },
-  pa: { love: ['herb'], like: ['sasa', 'mushroom', 'soup'], dislike: ['cake'] },
-  ku: { love: ['mushroom'], like: ['flower', 'feather', 'soup'], dislike: ['lemonade'] },
-  haru: { love: ['feather', 'flower'], like: ['herb', 'shell'], dislike: ['soup'] },
-  nami: { love: ['shell', 'pancake'], like: ['stone', 'dango'], dislike: ['herb'] },
-  kuro: { love: ['flower', 'lemonade'], like: ['shell', 'cake'], dislike: [] },
-  pon: { love: ['dango', 'cake'], like: ['stone', 'shell', 'pancake'], dislike: [] },
+  pa: { love: ['herb'], like: ['sasa', 'mushroom', 'soup'], dislike: ['cake', 'fish'] },
+  ku: { love: ['mushroom'], like: ['flower', 'feather', 'soup', 'fish'], dislike: ['lemonade'] },
+  haru: { love: ['feather', 'flower'], like: ['herb', 'shell', 'fish'], dislike: ['soup'] },
+  nami: { love: ['shell', 'pancake', 'fish'], like: ['stone', 'dango'], dislike: ['herb'] },
+  kuro: { love: ['flower', 'lemonade', 'fish'], like: ['shell', 'cake'], dislike: [] },
+  pon: { love: ['dango', 'cake'], like: ['stone', 'shell', 'pancake', 'fish'], dislike: [] },
 };
 const GIFT_LINES = {
   poko: { love: '{item}！？ ほんとに くれるの！？ だいすきなの！ ありがとうなの〜！', like: '{item}なの！ うれしいの！ ありがとうなの。', neutral: '{item}…？ ありがとうなの。たいせつに するの。', dislike: 'えっと…{item}…ちょっと にがてなの…。でも、きもちは うれしいの。' },
@@ -830,7 +841,7 @@ export function giftReaction(id, itemId, itemName, ctx) {
 }
 export function chipsFor(id) {
   const base = id === 'pon' ? ['l7', 'hello', 'story'] : ['hello', 'how', 'story'];
-  const lore = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6'].sort(() => Math.random() - 0.5).slice(0, 2);
+  const lore = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l8'].sort(() => Math.random() - 0.5).slice(0, 2);
   const rest = ['like', 'praise', 'tired', 'food', 'weather', 'happy', 'sleep', 'love'].sort(() => Math.random() - 0.5).slice(0, 2);
   const keys = [...base, ...lore, ...rest];
   return keys.map(k => CHIPS.find(c => c[0] === k)).filter(Boolean);

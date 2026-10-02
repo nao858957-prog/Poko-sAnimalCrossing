@@ -49,6 +49,7 @@
   <div id="joy"><div id="joyKnob"></div></div>
   <div id="rotBtns"><button id="rotL" class="round">◀</button><button id="rotR" class="round">▶</button></div>
   <button id="btnTalk" class="talk hidden">💬 はなす</button>
+  <button id="btnFish" class="talk fishbtn hidden">🎣 つりを する</button>
   <button id="btnEnter" class="talk enter hidden">🏠 はいる</button>
   <button id="btnWake" class="talk wake hidden">☀ おきる</button>
   <div id="questBar" class="hidden"></div>
@@ -76,7 +77,7 @@
 <!-- おみせ -->
 <section id="shop" class="hidden">
   <header><img id="shopFace" alt=""><h2>🛍 ポンの おみせ</h2><span id="shopFlowers">🌼 0</span></header>
-  <div class="tabs"><button data-tab="food" class="on">🍰 たべもの</button><button data-tab="cloth">👕 きせかえ</button></div>
+  <div class="tabs"><button data-tab="food" class="on">🍰 たべもの</button><button data-tab="cloth">👕 きせかえ</button><button data-tab="tool">🎣 どうぐ</button><button data-tab="sell">💰 うる</button></div>
   <div id="shopMsg">おはなで おかいもの できるよ</div>
   <div id="shopList"></div>
   <button id="shopBack" class="big">おみせを でる</button>
@@ -90,6 +91,7 @@
     <button class="big" data-act="quests">📜 おねがい ノート</button>
     <button class="big" data-act="map">🗺 マップ</button>
     <button class="big" data-act="diary">📖 にっき</button>
+    <button class="big" data-act="dex">🎣 さかなずかん</button>
     <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
     <button class="big" data-act="notebook">💕 ともだちノート</button>
     <button class="big" data-act="sleep">💤 ねる（おひるね）</button>
@@ -114,6 +116,15 @@
     <h2>🗺 しまの マップ</h2>
     <canvas id="mapCv" width="640" height="640"></canvas>
     <p class="fine2">🔴 じぶん　まるいてん：ともだち　！？：おねがい</p>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="dex" class="screen modal hidden">
+  <div class="panel">
+    <h2>🎣 さかなずかん</h2>
+    <div id="dexHead" class="qinv"></div>
+    <div id="dexList"></div>
     <button class="big" data-act="back">もどる</button>
   </div>
 </section>
@@ -161,6 +172,19 @@
     <p class="fine2">3Dで うごく ミニストーリー（かんたんな オリジナルアニメ）</p>
     <div id="thList"></div>
     <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="fishUI" class="hidden">
+  <div id="fishMsg">うきを みていよう…</div>
+  <button id="btnReel" class="reel hidden">🎣 いま！ つりあげる！</button>
+  <button id="btnFishQuit" class="hud-btn fq">✕ やめる</button>
+</section>
+<section id="catchCard" class="screen modal hidden">
+  <div class="panel cc">
+    <div id="ccBody"></div>
+    <button id="ccAgain" class="big primary">🎣 もういちど つる</button>
+    <button id="ccQuit" class="big">やめる</button>
   </div>
 </section>
 

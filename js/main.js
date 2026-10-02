@@ -6,6 +6,7 @@ import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
+import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch } from './fish.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -14,7 +15,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0 };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0 };
 }
 function loadSave() {
   try {
@@ -417,6 +418,33 @@ function renderShop() {
       b2.onclick = () => eatFood(f, true);
       wrap.append(b, b2); d.appendChild(wrap); box.appendChild(d);
     }
+  } else if (shopTab === 'tool') {
+    for (const r of RODS) {
+      const d = document.createElement('div'); d.className = 'item';
+      const have = S.rod >= r.id;
+      d.innerHTML = `<span class="e">${r.emoji}</span><div class="n">${r.name}<small>${have ? (S.rod === r.id ? 'いま つかっている' : 'もっている') : '🌼 ' + r.price}　${r.desc}</small></div>`;
+      const b = document.createElement('button');
+      if (have) { b.textContent = S.rod === r.id ? 'つかってる' : 'もっている'; b.classList.add('on'); }
+      else { b.textContent = 'かう'; if (S.flowers < r.price) b.classList.add('dis'); b.onclick = () => buyRod(r); }
+      d.appendChild(b); box.appendChild(d);
+    }
+    const tip = document.createElement('p'); tip.className = 'fine2'; tip.textContent = 'つりざおを かうと、ため池・みずうみ・うみの そばで「つり」が できるよ。さかなは ここで うれるよ。'; box.appendChild(tip);
+  } else if (shopTab === 'sell') {
+    const list = Object.entries(S.fish).filter(([, n]) => n > 0);
+    if (!list.length) { const e = document.createElement('p'); e.className = 'fine2'; e.textContent = 'うれる さかなが ないよ。つりざおで つってこよう！'; box.appendChild(e); }
+    else {
+      const total = list.reduce((a, [id, n]) => a + FISH_BY_ID[id].price * n, 0);
+      const all = document.createElement('div'); all.className = 'item';
+      all.innerHTML = `<span class="e">💰</span><div class="n">ぜんぶ うる<small>🌼 ${total}</small></div>`;
+      const ab = document.createElement('button'); ab.textContent = 'ぜんぶ うる'; ab.onclick = () => sellFish(null);
+      all.appendChild(ab); box.appendChild(all);
+      for (const [id, n] of list) {
+        const f = FISH_BY_ID[id], d = document.createElement('div'); d.className = 'item';
+        d.innerHTML = `<span class="e">${f.emoji}</span><div class="n">${f.name} ×${n}<small>1ひき 🌼 ${f.price}</small></div>`;
+        const b = document.createElement('button'); b.textContent = 'うる'; b.onclick = () => sellFish(id);
+        d.appendChild(b); box.appendChild(d);
+      }
+    }
   } else {
     for (const c of CLOTHES) {
       if (c.quest && !S.owned.includes(c.id)) continue;
@@ -436,6 +464,21 @@ function renderShop() {
     nb.onclick = () => { S.avatar.hat = S.avatar.neck = S.avatar.body = null; sfx('tap'); rebuildPreview(); renderShop(); };
     none.appendChild(nb); box.appendChild(none);
   }
+}
+function buyRod(r) {
+  if (S.flowers < r.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
+  S.flowers -= r.price; S.rod = Math.max(S.rod, r.id); sfx('heart'); questEvent('buyrod');
+  $('shopMsg').textContent = `${r.emoji} ${r.name}、まいどありぽん！ みずべに 立って「つりを する」を おすぽん！`;
+  addDiary(`${r.name}を かった。`);
+  save(); renderShop();
+}
+function sellFish(id) {
+  let sum = 0;
+  for (const [fid, n] of Object.entries(S.fish)) { if ((id && fid !== id) || n <= 0) continue; sum += FISH_BY_ID[fid].price * (id ? 1 : n); S.fish[fid] -= id ? 1 : n; }
+  if (!sum) return;
+  S.flowers += sum; sfx('pick');
+  $('shopMsg').textContent = `💰 🌼 ${sum} で かいとったぽん！ まいどありぽん！`;
+  save(); renderShop();
 }
 function eatFood(f, takeout) {
   if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
@@ -519,6 +562,7 @@ function updatePlayer(dt) {
   }
   collide(pos, 0.45);
   separate(player, Object.values(npcs), 0.5);
+  updateFishBtn(pos);
   doorCool = Math.max(0, doorCool - dt);
   if (mode === 'play' && doorCool <= 0) {
     if (place === 'out' && Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 1.25) enterHouse();
@@ -667,6 +711,17 @@ function updateCamera(dt) {
   }
   const pp = player.root.position;
   let desired, look;
+  if (mode === 'fish' && fishing) {
+    const ry = player.root.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry);
+    const dd = fishing.sp.dist;
+    const sd = fishing.side || 1;
+    desired = new THREE.Vector3(pp.x - fx * 6.2 + fz * 3.0 * sd, 7.0, pp.z - fz * 6.2 - fx * 3.0 * sd);
+    look = new THREE.Vector3(pp.x + fx * dd * 0.6, 0.2, pp.z + fz * dd * 0.6);
+    camPos.lerp(desired, Math.min(1, dt * 3)); camLook.lerp(look, Math.min(1, dt * 3));
+    camera.position.copy(camPos); camera.lookAt(camLook);
+    if (window.__poko && window.__poko.debugCam) { camera.position.set(...window.__poko.debugCam.pos); camera.lookAt(...window.__poko.debugCam.look); }
+    applyViewShift(dt); return;
+  }
   if (mode === 'chat' && chatNpc) {
     const n = npcs[chatNpc].root.position;
     const mx = (pp.x + n.x) / 2, mz = (pp.z + n.z) / 2;
@@ -777,6 +832,163 @@ function renderChips(id) {
     box.appendChild(b);
   }
 }
+// ---------- つり ----------
+const RODS_BY = Object.fromEntries(RODS.map(r => [r.id, r]));
+let fishing = null;
+const fishGroup = new THREE.Group(); world.group.add(fishGroup);
+const bobber = new THREE.Group();
+{ const a = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#ff4d4d' })); const b = new THREE.Mesh(new THREE.SphereGeometry(0.22, 12, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), new THREE.MeshLambertMaterial({ color: '#ffffff' })); bobber.add(a, b); }
+bobber.visible = false; fishGroup.add(bobber);
+const ripple = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.42, 24), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.8, side: THREE.DoubleSide }));
+ripple.rotation.x = -Math.PI / 2; ripple.visible = false; fishGroup.add(ripple);
+const lineGeo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
+const fishLine = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xffffff })); fishLine.visible = false; fishLine.frustumCulled = false; fishGroup.add(fishLine);
+let rodMesh = null;
+function rodObject(tier) {
+  const g = new THREE.Group();
+  const col = (RODS_BY[tier] || RODS[0]).color;
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.06, 2.8, 8), new THREE.MeshLambertMaterial({ color: col })); stick.position.y = 1.4; g.add(stick);
+  const reel = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.1, 10), new THREE.MeshLambertMaterial({ color: '#444' })); reel.rotation.z = Math.PI / 2; reel.position.set(0, 0.5, 0); g.add(reel);
+  return g;
+}
+function fishSpotAt(p) {
+  const rr = Math.hypot(p.x, p.z);
+  if (rr > ISLAND_R - 2.6) return { spot: 'sea', dx: p.x / rr, dz: p.z / rr, dist: 5.6 };
+  const L = world.landmarks.lake, dl = Math.hypot(p.x - L.x, p.z - L.z);
+  if (dl < 6.2 + 3.4) return { spot: 'lake', dx: (L.x - p.x) / dl, dz: (L.z - p.z) / dl, dist: Math.max(2.4, dl - 1.8) };
+  const dp = Math.hypot(p.x - 9, p.z - 9);
+  if (dp < 3.5 + 3.4) return { spot: 'pond', dx: (9 - p.x) / dp, dz: (9 - p.z) / dp, dist: Math.max(1.8, dp - 1.0) };
+  return null;
+}
+function updateFishBtn(pos) {
+  const b = $('btnFish');
+  const sp = (mode === 'play' && !sleeping && place === 'out') ? fishSpotAt(pos) : null;
+  b.classList.toggle('hidden', !sp);
+  if (sp) b.textContent = S.rod ? `🎣 ${SPOTS[sp.spot]}で つりを する` : '🎣 ここで つりが できそう…';
+}
+$('btnFish').onclick = () => {
+  const sp = fishSpotAt(player.root.position); if (!sp) return;
+  if (!S.rod) { toast('つりざおが あれば つれそう！<br>おみせの「どうぐ」で かえるよ 🎣', 3600); sfx('tap'); return; }
+  startFishing(sp);
+};
+function startFishing(sp) {
+  if (mode !== 'play') return;
+  mode = 'fish'; initAudio();
+  moveTarget = null; marker.visible = false; talkOnArrive = null;
+  const tier = S.rod, rod = RODS_BY[tier];
+  fishing = { sp, rod, phase: 'cast', t: 0, wait: 0, win: 0, catch: null, tip: new THREE.Vector3(), from: new THREE.Vector3(), to: new THREE.Vector3(), fx: 0 };
+  const pos = player.root.position;
+  fishing.to.set(pos.x + sp.dx * sp.dist, sp.spot === 'sea' ? -0.15 : 0.05, pos.z + sp.dz * sp.dist);
+  player.root.rotation.y = Math.atan2(sp.dx, sp.dz);
+  { // カメラは 木や いえが じゃまに ならない がわに おく
+    const ry = player.root.rotation.y, fx = Math.sin(ry), fz = Math.cos(ry);
+    const score = s => { const cx = pos.x - fx * 6.2 + fz * 3.0 * s, cz = pos.z - fz * 6.2 - fx * 3.0 * s; let n = 0; for (const o of world.obstacles) if (Math.hypot(o.x - cx, o.z - cz) < o.r + 2.8) n++; return n; };
+    fishing.side = score(1) <= score(-1) ? 1 : -1;
+  }
+  if (rodMesh) player.root.remove(rodMesh);
+  rodMesh = rodObject(tier); rodMesh.position.set(0.5, 1.0, 0.35); rodMesh.rotation.x = 0.95; player.root.add(rodMesh);
+  $('hud').classList.add('hidden'); $('btnFish').classList.add('hidden');
+  $('fishUI').classList.remove('hidden'); $('btnReel').classList.add('hidden');
+  fishMsg(`${SPOTS[sp.spot]}に ${rod.name}を なげるよ…`);
+  fishing.from.copy(rodTip());
+  bobber.visible = true; fishLine.visible = true; ripple.visible = false;
+  sfx('reel'); idle = 0;
+}
+function rodTip() { const v = new THREE.Vector3(0, 2.8, 0); rodMesh.localToWorld(v); return v; }
+function fishMsg(t) { $('fishMsg').textContent = t; }
+function endFishing() {
+  if (!fishing) return;
+  fishing = null; mode = 'play';
+  bobber.visible = false; fishLine.visible = false; ripple.visible = false;
+  if (rodMesh) { player.root.remove(rodMesh); rodMesh = null; }
+  $('fishUI').classList.add('hidden'); $('catchCard').classList.add('hidden');
+  $('hud').classList.remove('hidden');
+  doorCool = 0.8; idle = 0; save();
+}
+$('btnFishQuit').onclick = () => { sfx('tap'); endFishing(); };
+function nextWait() { const w = fishing.rod.wait; return w[0] + Math.random() * (w[1] - w[0]); }
+function updateFishing(dt) {
+  const f = fishing; if (!f) return;
+  idle = 0; f.t += dt;
+  animate(player, dt, { t: clock, walk: false });
+  const tip = rodTip(), pos = player.root.position;
+  if (f.phase === 'cast') {
+    const u = Math.min(1, f.t / 0.9);
+    bobber.position.lerpVectors(f.from, f.to, u); bobber.position.y += Math.sin(u * Math.PI) * 2.2;
+    if (u >= 1) { f.phase = 'wait'; f.t = 0; f.wait = nextWait(); bobber.position.copy(f.to); sfx('splash'); ripple.position.set(f.to.x, f.to.y + 0.02, f.to.z); ripple.visible = true; f.rip = 0; fishMsg('うきを みていよう… 🫧'); }
+  } else if (f.phase === 'wait') {
+    bobber.position.y = f.to.y + Math.sin(clock * 2.2) * 0.05;
+    f.rip = (f.rip || 0) + dt; ripple.scale.setScalar(1 + (f.rip % 1.8) * 0.9); ripple.material.opacity = 0.6 * (1 - (f.rip % 1.8) / 1.8);
+    if (f.t >= f.wait) {
+      f.phase = 'bite'; f.t = 0; f.catch = rollCatch(f.sp.spot, gameHour(), S.rod);
+      sfx('bite'); try { navigator.vibrate && navigator.vibrate(120); } catch (e) { /* 無視 */ }
+      tmp.copy(pos); tmp.y += 3.2; spawnFx(world.group, 'bang', tmp, 1.1);
+      $('btnReel').classList.remove('hidden'); fishMsg('ひいてる！ いま！ ✨');
+    }
+  } else if (f.phase === 'bite') {
+    bobber.position.y = f.to.y - 0.18 + Math.sin(clock * 30) * 0.06;
+    ripple.scale.setScalar(1 + (f.t % 0.5) * 3); ripple.material.opacity = 0.9;
+    if (f.t >= f.rod.window) {
+      f.phase = 'escape'; f.t = 0; $('btnReel').classList.add('hidden'); fishMsg('あっ…にげられちゃった。ざんねん！ つぎは がんばろう');
+    }
+  } else if (f.phase === 'escape') {
+    bobber.position.y = f.to.y + Math.sin(clock * 2.2) * 0.05;
+    if (f.t > 1.8) { f.phase = 'wait'; f.t = 0; f.wait = nextWait(); fishMsg('うきを みていよう… 🫧'); }
+  } else if (f.phase === 'reel') {
+    const u = Math.min(1, f.t / 0.7);
+    bobber.position.lerpVectors(f.to, tip, u); bobber.position.y += Math.sin(u * Math.PI) * 1.5;
+    if (u >= 1) showCatch();
+  }
+  if (f.phase !== 'result') {
+    const p = lineGeo.attributes.position;
+    p.setXYZ(0, tip.x, tip.y, tip.z); p.setXYZ(1, bobber.position.x, bobber.position.y, bobber.position.z); p.needsUpdate = true;
+  }
+}
+$('btnReel').onclick = () => {
+  const f = fishing; if (!f) return;
+  if (f.phase === 'bite') { f.phase = 'reel'; f.t = 0; $('btnReel').classList.add('hidden'); ripple.visible = false; sfx('reel'); fishMsg('よいしょ…！'); }
+};
+// うきを みてる ときに うっかり タップしても、やさしく おしえてあげる
+$('fishUI').addEventListener('pointerdown', e => { if (fishing && fishing.phase === 'wait' && e.target.id === 'fishUI') { fishMsg('まだ かな？ うきが しずむまで まとうね'); } });
+function showCatch() {
+  const f = fishing; f.phase = 'result';
+  const c = f.catch;
+  bobber.visible = false; fishLine.visible = false;
+  let html;
+  if (c.junk) {
+    html = `<div class="cc-e">${c.emoji}</div><h3>${c.name}</h3><p>${c.line}</p><p class="cc-s">…さかなじゃ なかったよ。うみに かえしたよ。</p>`;
+    sfx('tap');
+  } else {
+    const isNew = !S.dex[c.id];
+    S.fish[c.id] = (S.fish[c.id] || 0) + 1; S.fishTotal++;
+    const d = S.dex[c.id] || (S.dex[c.id] = { n: 0, best: 0 }); d.n++; const bigger = c.cm > d.best; if (bigger) d.best = c.cm;
+    const stars = '★'.repeat(c.r) + '☆'.repeat(4 - c.r);
+    html = `<div class="cc-e">${c.emoji}</div><h3>${isNew ? '<span class="new">NEW!</span> ' : ''}${c.name}を つった！</h3><p class="cc-s">${stars}　${c.cm}cm${bigger && !isNew ? '　<b>じこ ベスト！</b>' : ''}</p><p>${c.line}</p><p class="cc-s">うりね 🌼${c.price}　（おみせで うれるよ）</p>`;
+    sfx(c.r >= 3 ? 'heart' : 'catch');
+    if (isNew) addDiary(`${SPOTS[f.sp.spot]}で はじめて「${c.name}」を つった（${c.cm}cm）。`);
+    else if (c.r >= 4) addDiary(`${SPOTS[f.sp.spot]}で ${c.name}（${c.cm}cm）を つりあげた！`);
+    for (let i = 0; i < (c.r >= 3 ? 6 : 2); i++) setTimeout(() => { tmp.copy(player.root.position); tmp.y += 2.6 + Math.random(); tmp.x += (Math.random() - 0.5) * 2; spawnFx(world.group, c.r >= 3 ? 'star' : 'heart', tmp, 0.8); }, i * 120);
+    questEvent('catch', c);
+  }
+  $('ccBody').innerHTML = html;
+  $('catchCard').classList.remove('hidden'); $('fishUI').classList.add('hidden');
+  save();
+}
+$('ccAgain').onclick = () => { sfx('tap'); const sp = fishing && fishing.sp; $('catchCard').classList.add('hidden'); fishing = null; mode = 'play'; if (sp) startFishing(sp); };
+$('ccQuit').onclick = () => { sfx('tap'); endFishing(); };
+// さかなずかん
+function renderDex() {
+  const box = $('dexList'); box.innerHTML = '';
+  const got = Object.keys(S.dex).length;
+  $('dexHead').textContent = `つった しゅるい ${got}/${FISH.length}　　つった かず ${S.fishTotal || 0}　　つりざお：${S.rod ? RODS_BY[S.rod].name : 'まだ ない'}`;
+  for (const f of FISH) {
+    const d = S.dex[f.id];
+    const el = document.createElement('div'); el.className = 'dx' + (d ? '' : ' un');
+    el.innerHTML = d ? `<span class="e">${f.emoji}</span><div><b>${f.name}</b><small>${'★'.repeat(f.r)}　さいだい ${d.best}cm　×${d.n}</small><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}</small></div>` : `<span class="e">❓</span><div><b>？？？</b><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}で つれるよ</small></div>`;
+    box.appendChild(el);
+  }
+}
+
 // ---------- にっき / きょうの おしらせ ----------
 function fmtDate(ds) { const [y, mo, d] = ds.split('-').map(Number); const w = '日月火水木金土'[new Date(y, mo - 1, d).getDay()]; return `${mo}月${d}日（${w}）`; }
 function renderDiary() {
@@ -810,6 +1022,7 @@ $('dailyOk').onclick = () => { $('daily').classList.add('hidden'); mode = 'play'
 function qState(q) { return S.quests[q.id] || null; }
 function qProgress(q) {
   const st = qState(q) || {};
+  if (q.type === 'catch') return { have: Math.min(q.n, st.c || 0), need: q.n };
   if (q.type === 'collect') return { have: Math.min(q.n, q.item === 'flower' ? S.flowers : (S.inv[q.item] || 0)), need: q.n };
   if (q.type === 'talk') return { have: (st.talked || []).length, need: q.who.length };
   return { have: st.p ? 1 : 0, need: 1 };
@@ -819,6 +1032,7 @@ function qStatus(q) {
   if (st && st.s === 'done') return 'done';
   if (st) { const p = qProgress(q); return p.have >= p.need ? 'ready' : 'active'; }
   if (level(S.friend[q.giver] || 0) < q.lv) return 'locked';
+  if (q.needs === 'rod' && !S.rod) return 'locked';
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
   return 'available';
 }
@@ -876,6 +1090,19 @@ function updateQuestHud() {
 }
 function questEvent(type, what) {
   let hit = false;
+  if (type === 'catch') {
+    for (const q of QS()) {
+      const st = qState(q);
+      if (!st || st.s === 'done' || q.type !== 'catch') continue;
+      if ((q.minRarity || 0) > what.r || (q.loc && !what.loc.includes(q.loc)) || (q.night && !isNight())) continue;
+      st.c = (st.c || 0) + 1;
+      const p = qProgress(q);
+      toast(p.have >= p.need ? `📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！` : `📜 ${q.title}　${p.have}/${p.need}`, 2600);
+      hit = true;
+    }
+    if (hit) { refreshMarkers(); save(); }
+    return;
+  }
   if (type === 'none') { refreshMarkers(); return; }
   for (const q of QS()) {
     const st = qState(q);
@@ -1020,7 +1247,7 @@ function renderQuests() {
     for (const [id, q] of locked) {
       const need = Math.max(q.lv, 0);
       const d = document.createElement('div'); d.className = 'qcard lock';
-      d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>「${TIERS[need]}」になると、あたらしい おはなしが…</small></div>`;
+      d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>${q.needs === 'rod' && level(S.friend[id] || 0) >= q.lv ? 'つりざおを かうと、あたらしい おねがいが…' : '「' + TIERS[need] + '」になると、あたらしい おはなしが…'}</small></div>`;
       box.appendChild(d);
     }
   }
@@ -1198,6 +1425,7 @@ function giftList() {
   if (S.flowers > 0) out.push({ id: 'flower', emoji: '🌼', name: 'おはな', n: S.flowers, src: 'flowers' });
   for (const [k, def] of Object.entries(ITEMS)) if (k !== 'flower' && (S.inv[k] || 0) > 0) out.push({ id: k, emoji: def.emoji, name: def.name, n: S.inv[k], src: 'inv' });
   for (const f of FOODS) if ((S.food[f.id] || 0) > 0) out.push({ id: f.id, emoji: f.emoji, name: f.name, n: S.food[f.id], src: 'food' });
+  for (const [fid, n] of Object.entries(S.fish)) if (n > 0) { const f = FISH_BY_ID[fid]; out.push({ id: 'fish', fid, emoji: f.emoji, name: f.name, n, src: 'fish' }); }
   return out;
 }
 function refreshGiftBtn() { $('chatGift').disabled = giftList().length === 0; }
@@ -1219,6 +1447,7 @@ $('chatGift').onclick = () => {
 function giveGift(id, it) {
   if (it.src === 'flowers') { S.flowers--; $('flowerCount').textContent = '🌼 ' + S.flowers; }
   else if (it.src === 'inv') S.inv[it.id]--;
+  else if (it.src === 'fish') S.fish[it.fid]--;
   else S.food[it.id]--;
   stopSpeak();
   addMsg(id, 'sys', `${it.emoji} ${CHARS[id].name}に ${it.name}を あげたよ！`);
@@ -1330,7 +1559,7 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1340,6 +1569,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'back') showPanel('menu');
   else if (act === 'quests') { renderQuests(); showPanel('quests'); }
   else if (act === 'map') { showPanel('map'); openMap(); }
+  else if (act === 'dex') { renderDex(); showPanel('dex'); }
   else if (act === 'diary') { renderDiary(); showPanel('diary'); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
@@ -1457,8 +1687,8 @@ function frame(now) {
     }
     world.update(dt, clock);
     if (place === 'in') interior.update(clock);
-    if (player && (mode === 'play' || mode === 'chat')) {
-      if (mode === 'play') updatePlayer(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
+    if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
+      if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
       S.playSec += dt;
       saveTimer += dt;
       if (saveTimer > 6) { saveTimer = 0; save(); }
@@ -1467,6 +1697,7 @@ function frame(now) {
     if (rot.l) yaw -= dt * 1.8;
     if (rot.r) yaw += dt * 1.8;
     if (mode === 'play' && !sleeping) { idle += dt; if (idle > ((gameHour() >= 20 || gameHour() < 5) ? 15 : 30)) startSleep(); }
+    if (mode !== 'play') $('btnFish').classList.add('hidden');
     if (mode === 'play') $('btnTalk').classList.toggle('hidden', !nearNpc || sleeping);
     {
       let ent = null;
