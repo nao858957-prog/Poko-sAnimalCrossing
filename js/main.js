@@ -700,7 +700,7 @@ let titleAngle = 0;
 function updateCamera(dt) {
   const aspect = camera.aspect;
   if (mode === 'title' || mode === 'creator' || mode === 'shop') {
-    if (mode === 'shop') { camera.position.set(0, 2.4, camera.aspect < 0.8 ? 13 : 9.5); camera.lookAt(0, 1.2, 0); applyViewShift(dt); return; }
+    if (mode === 'shop') { camera.position.set(0, 2.4, camera.aspect < 0.8 ? 17 : 9.5); camera.lookAt(0, 1.2, 0); applyViewShift(dt); return; }
     if (mode === 'creator') {
       const land = $('creator').getBoundingClientRect().width < innerWidth * 0.9;
       camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, camera.aspect < 0.8 && !land ? -0.9 : 1.2, 0); applyViewShift(dt); return;
