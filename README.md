@@ -33,6 +33,11 @@
 
 世界観・設定の整理は [`docs/WORLD.md`](docs/WORLD.md) にまとめています。季節行事（七夕・お盆・初雪・お正月）は実際の日付で自動的に島の飾りが変わります（設定で切替可）。
 
+## 公開（GitHub Pages）
+
+リポジトリの **Settings → Pages → Build and deployment → Source: Deploy from a branch** で、ブランチ（`main` など）と `/ (root)` を選んで Save。
+数分後に `https://<ユーザー名>.github.io/Poko-sAnimalCrossing/` で遊べます（スマホのブラウザでこのURLを開くだけ）。
+
 ## 起動方法
 
 ES Modules を使うため、ファイルを直接開くのではなく簡易サーバーで配信してください。
