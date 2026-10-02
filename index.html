@@ -64,6 +64,7 @@
     <button id="chatClose" class="close">✕ とじる</button>
   </header>
   <div id="chatLog"></div>
+  <div id="giftPick" class="hidden"></div>
   <div id="chips"></div>
   <div class="inputRow">
     <input id="chatInput" maxlength="60" placeholder="ここに ことばを いれてね" autocomplete="off" enterkeyhint="send">
@@ -88,6 +89,7 @@
     <button class="big" data-act="resume">▶ ゲームに もどる</button>
     <button class="big" data-act="quests">📜 おねがい ノート</button>
     <button class="big" data-act="map">🗺 マップ</button>
+    <button class="big" data-act="diary">📖 にっき</button>
     <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
     <button class="big" data-act="notebook">💕 ともだちノート</button>
     <button class="big" data-act="sleep">💤 ねる（おひるね）</button>
@@ -113,6 +115,22 @@
     <canvas id="mapCv" width="640" height="640"></canvas>
     <p class="fine2">🔴 じぶん　まるいてん：ともだち　！？：おねがい</p>
     <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="diary" class="screen modal hidden">
+  <div class="panel">
+    <h2>📖 にっき</h2>
+    <div id="diaryList"></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="daily" class="screen modal hidden">
+  <div class="panel">
+    <h2>☀ きょうの おしらせ</h2>
+    <div id="dailyBody"></div>
+    <button id="dailyOk" class="big primary">はじめる</button>
   </div>
 </section>
 

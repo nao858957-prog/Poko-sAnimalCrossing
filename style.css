@@ -188,3 +188,18 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
 .qcard.done { opacity: .6; }
 #mapCv { width: 100%; max-width: 360px; align-self: center; border-radius: 1rem; border: 3px solid #f0e2c0; background: #7fc8f0; aspect-ratio: 1; }
 @media (max-height: 520px) and (orientation: landscape) { #questBar { right: auto; max-width: 52vw; } }
+
+#giftPick { display: flex; flex-wrap: wrap; gap: .4rem; padding: .4rem .8rem; background: #fff3e0; border-top: 3px dashed #f0d9a8; }
+#giftPick.hidden { display: none; }
+#giftPick .gp-t { width: 100%; font-size: .85rem; }
+#giftPick button { background: #fff; border: 3px solid var(--pink); border-radius: 1rem; padding: .35rem .8rem; font-size: .95rem; min-height: 2.8rem; }
+#giftPick button small { opacity: .7; }
+.item .btns { display: flex; flex-direction: column; gap: .3rem; }
+.item .btns button { min-height: 2.5rem; min-width: 6rem; font-size: .88rem; }
+.item button.alt { background: #fff; color: var(--ink); border-color: #f0b3c0; text-shadow: none; }
+.qcard.lock { opacity: .75; border-style: dashed; }
+#diaryList h3 { margin: .7rem 0 .2rem; font-size: 1rem; }
+.dline { margin: .1rem 0; font-size: .92rem; line-height: 1.5; font-weight: 600; }
+#dailyBody p { margin: .4rem 0; line-height: 1.6; }
+#dailyBody .dt { font-size: 1.1rem; }
+#dailyBody .tip { background: #ffe9a8; border-radius: 1rem; padding: .5rem .8rem; font-size: .9rem; }

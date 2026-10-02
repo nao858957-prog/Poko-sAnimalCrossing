@@ -18,4 +18,8 @@ export const CLOTHES = [
   { id: 'bluescarf', slot: 'neck', emoji: '🧣', name: 'そらいろ マフラー', price: 4 },
   { id: 'apron', slot: 'body', emoji: '👗', name: 'あおい エプロン', price: 5 },
   { id: 'cape', slot: 'body', emoji: '🌟', name: 'ほしの マント', price: 8 },
+  // ともだちから もらえる とくべつなもの (おみせでは うっていません)
+  { id: 'daisy', slot: 'hat', emoji: '🌼', name: 'メイの しろい おはな', price: 0, quest: true },
+  { id: 'leaf', slot: 'hat', emoji: '🍃', name: 'ポンの ばけじゅつの はっぱ', price: 0, quest: true },
+  { id: 'bell', slot: 'neck', emoji: '🔔', name: 'クロの すず', price: 0, quest: true },
 ];

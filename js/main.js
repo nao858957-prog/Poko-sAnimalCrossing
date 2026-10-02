@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
 import { buildWorld, buildInterior, ISLAND_R, HOMES } from './world.js';
-import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart } from './dialogue.js';
+import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
-import { QUESTS, QUEST_BY_ID, ITEMS, PLACES } from './missions.js';
+import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -14,7 +14,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {} };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0 };
 }
 function loadSave() {
   try {
@@ -347,7 +347,7 @@ function wakeUp() {
   player.lie = 0;
   for (const id of ['poko', 'mei']) { npcs[id].pose = 'stand'; npcs[id].joined = false; }
   if (sleepT > 4) {
-    for (const id of joined) S.friend[id] = Math.min(60, (S.friend[id] || 0) + 2);
+    for (const id of joined) S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 2);
     if (joined.includes('poko')) questEvent('nap');
     if (joined.length) {
       sfx('heart');
@@ -410,12 +410,16 @@ function renderShop() {
       const d = document.createElement('div'); d.className = 'item';
       const can = S.flowers >= f.price;
       d.innerHTML = `<span class="e">${f.emoji}</span><div class="n">${f.name}<small>🌼 ${f.price}</small></div>`;
+      const wrap = document.createElement('div'); wrap.className = 'btns';
       const b = document.createElement('button'); b.textContent = 'たべる'; if (!can) b.classList.add('dis');
-      b.onclick = () => eatFood(f);
-      d.appendChild(b); box.appendChild(d);
+      b.onclick = () => eatFood(f, false);
+      const b2 = document.createElement('button'); b2.textContent = 'もちかえる'; b2.className = 'alt'; if (!can) b2.classList.add('dis');
+      b2.onclick = () => eatFood(f, true);
+      wrap.append(b, b2); d.appendChild(wrap); box.appendChild(d);
     }
   } else {
     for (const c of CLOTHES) {
+      if (c.quest && !S.owned.includes(c.id)) continue;
       const d = document.createElement('div'); d.className = 'item';
       const own = S.owned.includes(c.id), worn = S.avatar[SLOT_KEY[c.slot]] === c.id;
       d.innerHTML = `<span class="e">${c.emoji}</span><div class="n">${c.name}<small>${own ? 'もっている' : '🌼 ' + c.price}</small></div>`;
@@ -433,13 +437,18 @@ function renderShop() {
     none.appendChild(nb); box.appendChild(none);
   }
 }
-function eatFood(f) {
+function eatFood(f, takeout) {
   if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
   S.flowers -= f.price; sfx('pick'); questEvent('buy', f.id);
+  if (takeout) {
+    S.food[f.id] = (S.food[f.id] || 0) + 1;
+    $('shopMsg').textContent = `${f.emoji} ${f.name}を もちかえりに したよ。ともだちへの プレゼントに できるよ！　まいどありぽん！`;
+    save(); renderShop(); return;
+  }
   // いっしょに たべる ともだち
   const pals = ORDER.filter(i => i !== 'haru');
   const pal = pals[Math.floor(Math.random() * pals.length)];
-  S.friend[pal] = Math.min(60, (S.friend[pal] || 0) + 2);
+  S.friend[pal] = Math.min(MAX_PTS, (S.friend[pal] || 0) + 2);
   $('shopMsg').textContent = `${f.emoji} ${f.line}　${CHARS[pal].name}も ひとくち！ ♥　まいどありぽん！`;
   if (prevAvatar) { prevAvatar.cheer = 1.6; for (let i = 0; i < 3; i++) { tmp.set((Math.random() - 0.5) * 1.6, 3.4 + Math.random(), 0.5); spawnFx(prevScene, 'heart', tmp, 0.7); } }
   speak(f.line, 1.3);
@@ -533,7 +542,7 @@ function updatePlayer(dt) {
         const def = ITEMS[it.kind];
         toast(`${def.emoji} ${def.name}を ひろったよ！（${S.inv[it.kind]}こ）`, 1600);
         updateQuestHud();
-        if (QUESTS.some(q => qStatus(q) === 'ready' && q.type === 'collect' && q.item === it.kind)) { refreshMarkers(); }
+        if (QS().some(q => qStatus(q) === 'ready' && q.type === 'collect' && q.item === it.kind)) { refreshMarkers(); }
         save();
       }
     }
@@ -544,7 +553,7 @@ function updatePlayer(dt) {
     if (f.mesh.visible && Math.hypot(pos.x - f.x, pos.z - f.z) < 1.1) {
       f.mesh.visible = false; f.back = 50;
       S.flowers++; $('flowerCount').textContent = '🌼 ' + S.flowers;
-      sfx('pick'); if (QUESTS.some(q => q.item === 'flower')) refreshMarkers();
+      sfx('pick'); if (QS().some(q => q.item === 'flower')) refreshMarkers();
       tmp.set(f.x, 1.2, f.z); spawnFx(world.group, 'star', tmp, 0.7);
       if (S.flowers === 1) toast('おはなを ひろったよ！<br>ともだちに あげると よろこぶよ 🌼');
     }
@@ -722,12 +731,13 @@ function chooseChatSide(id) {
   const obs = place === 'in' ? inObstacles : world.obstacles;
   const others = Object.values(npcs).filter(o => o.id !== id && o.root.visible).map(o => o.root.position);
   let best = base + Math.PI / 2, bestScore = 1e9;
-  for (const off of [Math.PI / 2, -Math.PI / 2, Math.PI / 2 + 0.7, -Math.PI / 2 - 0.7, Math.PI / 2 - 0.7, -Math.PI / 2 + 0.7]) {
+  const H = Math.PI / 2;
+  for (const off of [H, -H, H + 0.6, -H - 0.6, H - 0.6, -H + 0.6, H + 1.2, -H - 1.2, H - 1.2, -H + 1.2, Math.PI, 0]) {
     const ang = base + off;
-    let score = Math.abs(off) > 1.7 || Math.abs(off) < 1.4 ? 0.5 : 0;
+    let score = Math.abs(Math.abs(off) - H) > 0.1 ? 0.4 + Math.abs(Math.abs(off) - H) * 0.3 : 0;
     for (let t = 0.15; t <= 1; t += 0.12) {
-      const x = mx + Math.sin(ang) * 9 * t, z = mz + Math.cos(ang) * 9 * t;
-      for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + 1.3) score += 1;
+      const x = mx + Math.sin(ang) * 11 * t, z = mz + Math.cos(ang) * 11 * t;
+      for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + (o.r < 1.3 ? 2.4 : 1.3)) score += 1;
       for (const q of others) if (Math.hypot(q.x - x, q.z - z) < 2.4) score += 2;
       if (place === 'out' && Math.hypot(x, z) > ISLAND_R + 6) score += 3;
       if (place === 'in') { const b = interior.bounds; if (x < OFF + b.x0 - 1 || x > OFF + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
@@ -767,6 +777,35 @@ function renderChips(id) {
     box.appendChild(b);
   }
 }
+// ---------- にっき / きょうの おしらせ ----------
+function fmtDate(ds) { const [y, mo, d] = ds.split('-').map(Number); const w = '日月火水木金土'[new Date(y, mo - 1, d).getDay()]; return `${mo}月${d}日（${w}）`; }
+function renderDiary() {
+  const box = $('diaryList'); box.innerHTML = '';
+  if (!S.diary.length) { box.innerHTML = '<p class="fine2">まだ なにも かいてないよ。ともだちと すごすと、できごとが ここに のこるよ。</p>'; return; }
+  let lastD = '';
+  for (const e of [...S.diary].reverse()) {
+    if (e.d !== lastD) { const h = document.createElement('h3'); h.textContent = '📅 ' + fmtDate(e.d); box.appendChild(h); lastD = e.d; }
+    const p = document.createElement('p'); p.className = 'dline'; p.textContent = '・' + e.t; box.appendChild(p);
+  }
+}
+function showDailyNotice() {
+  const t = todayStr();
+  if (S.lastDay === t) return;
+  S.days = (S.days || 0) + 1; S.lastDay = t;
+  const ev = EVENT_NAMES[currentEvent()];
+  const calling = ORDER.filter(id => questsOf(id, 'available').length || dailyPossible(id)).map(id => CHARS[id].name);
+  const ready = QS().filter(q => qStatus(q) === 'ready').length;
+  const tips = ['ともだちに プレゼントを すると、このみに あうと とっても よろこぶよ。', 'おしゃべりは 1にち すこしずつ。まいにち あいにくると、ゆっくり なかよくなれるよ。', 'よるの とうだいは、とくべつな ふんいき。ほしを みに いってみよう。', 'おみせで 「もちかえる」と、ともだちへの プレゼントに できるよ。', 'つかれたら 「ねる」で ひとやすみ。ポコが となりに きてくれるかも。'];
+  $('toast').classList.add('hidden');
+  $('dailyBody').innerHTML = `<p class="dt">📅 ${fmtDate(t)}${ev ? '　<b>' + ev + '</b>' : ''}</p><p>あそび はじめて <b>${S.days}日め</b>。</p>` +
+    (calling.length ? `<p>❗ ${calling.slice(0, 5).join('・')}${calling.length > 5 ? ' ほか' : ''} が あなたを まっているよ。</p>` : '') +
+    (ready ? `<p>？ ほうこくできる おねがいが ${ready}けん あるよ。</p>` : '') +
+    `<p class="tip">💡 ${tips[(S.days + new Date().getDate()) % tips.length]}</p>`;
+  $('daily').classList.remove('hidden');
+  mode = 'menu';
+}
+$('dailyOk').onclick = () => { $('daily').classList.add('hidden'); mode = 'play'; sfx('tap'); save(); };
+
 // ---------- おねがい (ミッション) ----------
 function qState(q) { return S.quests[q.id] || null; }
 function qProgress(q) {
@@ -783,8 +822,12 @@ function qStatus(q) {
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
   return 'available';
 }
-const questsOf = (id, status) => QUESTS.filter(q => q.giver === id && qStatus(q) === status);
-function fillN(t) { return t.replace(/\{n\}/g, S.avatar.name || 'あなた'); }
+const QS = () => [...QUESTS, ...Object.values(S.dyn || {})];
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const isNight = () => { const h = gameHour(); return h >= 19 || h < 5; };
+function addDiary(t) { S.diary.push({ d: todayStr(), t }); if (S.diary.length > 250) S.diary.shift(); }
+const questsOf = (id, status) => QS().filter(q => q.giver === id && qStatus(q) === status);
+function fillN(t, id) { return fillFor(id, t, ctxFor(id)); }
 
 function makeMark(ch, bg) {
   const c = document.createElement('canvas'); c.width = c.height = 96;
@@ -812,17 +855,17 @@ function initMarks() {
 function refreshMarkers() {
   if (!S) return;
   const targets = new Set();
-  for (const q of QUESTS) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'talk') for (const w of q.who) if (!(st.talked || []).includes(w)) targets.add(w); }
+  for (const q of QS()) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'talk') for (const w of q.who) if (!(st.talked || []).includes(w)) targets.add(w); }
   for (const id of ORDER) {
     const P = npcs[id]; if (!P.marks) continue;
-    const kind = questsOf(id, 'ready').length ? 'ready' : questsOf(id, 'available').length ? 'avail' : targets.has(id) ? 'target' : null;
+    const kind = questsOf(id, 'ready').length ? 'ready' : (questsOf(id, 'available').length || dailyPossible(id)) ? 'avail' : targets.has(id) ? 'target' : null;
     for (const [k, s] of Object.entries(P.marks)) s.visible = k === kind;
   }
   updateQuestHud();
 }
 function updateQuestHud() {
   const bar = $('questBar');
-  const ready = QUESTS.filter(q => qStatus(q) === 'ready'), active = QUESTS.filter(q => qStatus(q) === 'active');
+  const ready = QS().filter(q => qStatus(q) === 'ready'), active = QS().filter(q => qStatus(q) === 'active');
   const q = ready[0] || active[0];
   if (!q) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
@@ -833,7 +876,8 @@ function updateQuestHud() {
 }
 function questEvent(type, what) {
   let hit = false;
-  for (const q of QUESTS) {
+  if (type === 'none') { refreshMarkers(); return; }
+  for (const q of QS()) {
     const st = qState(q);
     if (!st || st.s === 'done' || q.type !== type) continue;
     if (type === 'buy' && q.what !== what) continue;
@@ -843,10 +887,11 @@ function questEvent(type, what) {
 }
 function checkVisits(pos) {
   let hit = false;
-  for (const q of QUESTS) {
+  for (const q of QS()) {
     const st = qState(q);
     if (!st || st.s === 'done' || q.type !== 'visit' || st.p) continue;
     const pl = PLACES[q.where];
+    if (q.night && !isNight()) continue;
     if (Math.hypot(pos.x - pl.x, pos.z - pl.z) < q.r) { st.p = 1; hit = true; toast(`📍 ${pl.name}に ついたよ！<br>${CHARS[q.giver].name}に おしえてあげよう`, 3600); sfx('heart'); }
   }
   if (hit) { refreshMarkers(); save(); }
@@ -865,16 +910,23 @@ function completeQuest(q) {
   const st = qState(q);
   if (q.type === 'collect') { if (q.item === 'flower') { S.flowers -= q.n; } else S.inv[q.item] = Math.max(0, (S.inv[q.item] || 0) - q.n); }
   st.s = 'done';
-  npcSay(q.giver, fillN(q.thanks));
+  npcSay(q.giver, fillN(q.thanks, q.giver));
   S.flowers += q.reward.flowers; $('flowerCount').textContent = '🌼 ' + S.flowers;
   addMsg(q.giver, 'sys', `🎁 おねがい たっせい！ 🌼 +${q.reward.flowers}　なかよし ♥ +${q.reward.friend}`);
+  if (q.diary) addDiary(q.diary); else addDiary(`${CHARS[q.giver].name}の「${q.title}」を おてつだいした。`);
+  if (q.unlock && !S.owned.includes(q.unlock)) {
+    S.owned.push(q.unlock);
+    const c = CLOTHES.find(x => x.id === q.unlock);
+    if (c) { setTimeout(() => { if (chatNpc === q.giver) addMsg(q.giver, 'sys', `✨ とくべつな プレゼント：${c.emoji} ${c.name}（おみせの「きせかえ」で きられるよ）`); }, 1200); addDiary(`${CHARS[q.giver].name}から とくべつな ${c.name}を もらった。`); }
+  }
+  if (q.daily) { S.daily.done = S.daily.done || {}; S.daily.done[q.giver] = todayStr(); }
   sfx('heart');
   gain(q.giver, q.reward.friend, q.thanks.length);
-  $('chatGift').disabled = S.flowers <= 0;
+  refreshGiftBtn();
   refreshMarkers(); save();
 }
 function askQuest(q) {
-  npcSay(q.giver, fillN(q.ask));
+  npcSay(q.giver, fillN(q.ask, q.giver));
   setTimeout(() => {
     if (chatNpc !== q.giver) return;
     addChoices(q.giver, [
@@ -889,17 +941,45 @@ function askQuest(q) {
   }, 900);
 }
 // ともだちの「おねがい」の はなし (ひらくとき/「おねがい」ボタン)
+// まいにちの「ごようきき」: しんゆう(なかよし)になると、小さな おねがいを まいにち してくれる
+const DAILY_THANKS = { poko: 'ありがとうなの！ たすかったの〜', mei: '…ありがとう。助かったわ。', sei: 'ありがとう、{n}さん。助かったわ。', rin: 'ありがとう！ 助かっちゃった。', pa: 'キュッ！ ありがとう！', ku: 'ありがとう…！ うれしい…。', haru: 'チュリ！ ありがとう！', nami: 'ありがとニャ！', kuro: 'ありがとう、{n}さん。助かるわ。', pon: 'まいどありがとうだぽん！' };
+function dailyPossible(id) {
+  if (level(S.friend[id] || 0) < 2) return false;
+  const t = todayStr();
+  if (S.daily.date !== t) S.daily = { date: t, made: {}, done: S.daily.done || {} };
+  if (S.daily.made[id]) return false;
+  if (questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length) return false;
+  return !!DAILY[id];
+}
+function makeDaily(id) {
+  const t = todayStr(), tpl = DAILY[id];
+  S.daily.made[id] = true;
+  const lv = level(S.friend[id] || 0);
+  const cnt = 1 + Math.floor(Math.random() * Math.min(3, lv));
+  let def;
+  if (tpl.type === 'buy') {
+    const fid = tpl.foods[Math.floor(Math.random() * tpl.foods.length)], f = FOODS.find(x => x.id === fid);
+    def = { id: `d_${id}_${t}`, daily: true, giver: id, lv: 0, title: `きょうの ごようきき：${f.name}`, type: 'buy', what: fid, ask: tpl.ask.replace('{item}', f.name), hint: `おみせで ${f.name}を かおう`, thanks: DAILY_THANKS[id], reward: { flowers: 4, friend: 1 } };
+  } else {
+    const k = tpl.items[Math.floor(Math.random() * tpl.items.length)], it = ITEMS[k];
+    def = { id: `d_${id}_${t}`, daily: true, giver: id, lv: 0, title: `きょうの ごようきき：${it.name}`, type: 'collect', item: k, n: cnt, ask: tpl.ask.replace('{item}', it.name).replace('{count}', cnt), hint: `${it.name}を ${cnt}こ あつめよう`, thanks: DAILY_THANKS[id], reward: { flowers: 3 + cnt * 2, friend: 1 } };
+  }
+  for (const k of Object.keys(S.dyn)) if (!k.endsWith(t) && S.quests[k] && S.quests[k].s === 'done') { delete S.dyn[k]; delete S.quests[k]; }
+  S.dyn[def.id] = def;
+  return def;
+}
 function questTalk(id, manual) {
   const rd = questsOf(id, 'ready')[0];
   if (rd) { completeQuest(rd); return true; }
   const av = questsOf(id, 'available')[0];
   if (av) { askQuest(av); return true; }
+  if (dailyPossible(id)) { askQuest(makeDaily(id)); return true; }
   const ac = questsOf(id, 'active')[0];
   if (ac && manual) { const p = qProgress(ac); npcSay(id, `「${ac.title}」は ${p.have}/${p.need} だよ。${ac.hint}。むりしないでね。`); return true; }
   if (manual) { npcSay(id, 'いまは だいじょうぶ！ ありがとう。また こんど おねがいするかも。'); return true; }
   return false;
 }
-function hasQuestTalk(id) { return questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length; }
+function hasQuestTalk(id) { return questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length || dailyPossible(id); }
 
 // おねがいノート / マップ
 const DIRS = ['きた', 'ほくとう', 'ひがし', 'なんとう', 'みなみ', 'なんせい', 'にし', 'ほくせい'];
@@ -927,15 +1007,25 @@ function renderQuests() {
     d.innerHTML = `<img src="${portraits[q.giver]}" alt=""><div><b>${q.title}</b><small>${CHARS[q.giver].name}からの おねがい</small>${body}</div>`;
     return d;
   };
-  sec('✅ おわらせよう', QUESTS.filter(q => qStatus(q) === 'ready'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に おはなししよう（${dirText(gx, gz)}）</p>`, 'ready'); });
-  sec('📜 すすんでいる', QUESTS.filter(q => qStatus(q) === 'active'), q => {
+  sec('✅ おわらせよう', QS().filter(q => qStatus(q) === 'ready'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に おはなししよう（${dirText(gx, gz)}）</p>`, 'ready'); });
+  sec('📜 すすんでいる', QS().filter(q => qStatus(q) === 'active'), q => {
     const p = qProgress(q); let where = '';
     if (q.type === 'visit') where = `<p>めざす：${PLACES[q.where].name}（${dirText(PLACES[q.where].x, PLACES[q.where].z)}）</p>`;
     return card(q, `<p>${q.hint}</p>${where}<p class="pg">${p.have}/${p.need}</p>`);
   });
-  sec('❗ ともだちが よんでいるよ', QUESTS.filter(q => qStatus(q) === 'available'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に はなしかけよう（${dirText(gx, gz)}）</p>`, 'avail'); });
-  const done = QUESTS.filter(q => qStatus(q) === 'done');
-  sec(`🏅 おわった（${done.length}/${QUESTS.length}）`, done, q => card(q, '', 'done'));
+  sec('❗ ともだちが よんでいるよ', QS().filter(q => qStatus(q) === 'available'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に はなしかけよう（${dirText(gx, gz)}）</p>`, 'avail'); });
+  const locked = ORDER.map(id => { const q = QUESTS.find(x => x.giver === id && qStatus(x) === 'locked'); return q ? [id, q] : null; }).filter(Boolean);
+  if (locked.length) {
+    const h = document.createElement('h3'); h.textContent = '🔒 もっと なかよくなると…'; box.appendChild(h);
+    for (const [id, q] of locked) {
+      const need = Math.max(q.lv, 0);
+      const d = document.createElement('div'); d.className = 'qcard lock';
+      d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>「${TIERS[need]}」になると、あたらしい おはなしが…</small></div>`;
+      box.appendChild(d);
+    }
+  }
+  const done = QS().filter(q => qStatus(q) === 'done');
+  sec(`🏅 おわった（${done.length}）`, done, q => card(q, '', 'done'));
   if (!box.children.length) box.innerHTML = '<p class="fine2">まだ おねがいは ないよ。ともだちに はなしかけてみよう（！マークの こ）</p>';
 }
 let mapTimer = 0;
@@ -956,7 +1046,7 @@ function drawMap() {
   lab(12, 40, '🏖', 'うみの いえ'); lab(-19, -13, '🎋', 'たけやぶ'); lab(-14, -1, '🌼', 'おはなばたけ'); lab(25, 17, '', 'みずうみ'); lab(0, -30, '🍄', 'もり');
   // おねがいの もくてき地
   const t = performance.now() / 300;
-  for (const q of QUESTS) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && !st.p) { const pl = PLACES[q.where]; g.fillStyle = '#ff8a3d'; g.beginPath(); g.arc(X(pl.x), Z(pl.z), (7 + Math.sin(t) * 2), 0, 7); g.fill(); } }
+  for (const q of QS()) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && !st.p) { const pl = PLACES[q.where]; g.fillStyle = '#ff8a3d'; g.beginPath(); g.arc(X(pl.x), Z(pl.z), (7 + Math.sin(t) * 2), 0, 7); g.fill(); } }
   // なかま
   for (const id of ORDER) {
     const [x, z] = place === 'in' && ['sei', 'poko', 'mei'].includes(id) ? [0, -14] : [npcs[id].root.position.x, npcs[id].root.position.z];
@@ -1000,24 +1090,28 @@ function openChat(id) {
   setTimeout(() => { if (chatNpc !== id) return; addMsg(id, 'npc', line); logPush(id, 'npc', line); speak(line, c.voice); npcs[id].hop = 0.8; sfx('recv'); }, 250);
   // おねがい: とどけものの へんじ → たっせい/あたらしい おねがい
   let d = 1500 + Math.min(2400, line.length * 70);
-  for (const q of QUESTS) {
+  for (const q of QS()) {
     const st = qState(q);
     if (st && st.s === 'active' && q.type === 'talk' && q.who.includes(id) && !(st.talked || []).includes(id)) {
       st.talked = [...(st.talked || []), id];
       const dl = q.deliver && q.deliver[id];
-      setTimeout(() => { if (chatNpc !== id) return; if (dl) npcSay(id, fillN(dl)); addMsg(id, 'sys', `📜 ${q.title}：${st.talked.length}/${q.who.length}`); refreshMarkers(); save(); }, d);
+      setTimeout(() => { if (chatNpc !== id) return; if (dl) npcSay(id, fillN(dl, id)); addMsg(id, 'sys', `📜 ${q.title}：${st.talked.length}/${q.who.length}`); refreshMarkers(); save(); }, d);
       d += 2400;
     }
   }
   setTimeout(() => { if (chatNpc === id && !waiting) questTalk(id, false); }, d);
   renderChips(id);
-  $('chatGift').disabled = S.flowers <= 0;
+  refreshGiftBtn(); $('giftPick').classList.add('hidden');
   $('chat').classList.remove('hidden');
   save();
 }
-function updateHearts(id) { $('chatHearts').textContent = hearts(level(S.friend[id] || 0)); }
+function updateHearts(id) {
+  const p = S.friend[id] || 0, lv = level(p);
+  $('chatHearts').textContent = hearts(lv) + '　' + TIERS[lv] + (lv < 5 ? `（あと ${toNext(p)}）` : '');
+}
 function closeChat() {
   if (mode !== 'chat') return;
+  $('giftPick').classList.add('hidden');
   clearTimeout(lvTimer); lvPending = null;
   mode = 'play'; chatNpc = null;
   $('chat').classList.add('hidden');
@@ -1041,16 +1135,27 @@ function flushLvup() {
 }
 function gain(id, n, readLen = 20) {
   const before = level(S.friend[id] || 0);
-  S.friend[id] = Math.min(60, (S.friend[id] || 0) + n);
+  S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + n);
   const after = level(S.friend[id]);
   updateHearts(id);
   if (after > before) {
     sfx('heart');
-    addMsg(id, 'sys', `💕 ${CHARS[id].name}との なかよしレベルが ${after} に あがったよ！`);
+    addMsg(id, 'sys', `💕 ${CHARS[id].name}との なかよしが「${TIERS[after]}」に あがったよ！`);
+    addDiary(`${CHARS[id].name}と「${TIERS[after]}」に なった。`);
     lvPending = { id, ctx: ctxFor(id) };
     scheduleLvup(2500 + readLen * 150);
     for (let i = 0; i < 5; i++) setTimeout(() => { tmp.copy(npcs[id].root.position); tmp.y += 3; tmp.x += (Math.random() - 0.5) * 1.5; spawnFx(world.group, 'heart', tmp, 0.9); }, i * 150);
   }
+}
+// 会話だけで ふえる なかよしポイントは 1日 8ポイントまで (まいにち すこしずつ なかよくなる)
+const CHAT_CAP = 8;
+function gainChat(id, n, readLen) {
+  const t = todayStr();
+  if (S.chatPts.date !== t) S.chatPts = { date: t };
+  const used = S.chatPts[id] || 0, allow = Math.max(0, Math.min(n, CHAT_CAP - used));
+  S.chatPts[id] = used + allow;
+  if (allow > 0) gain(id, allow, readLen);
+  if (used < CHAT_CAP && S.chatPts[id] >= CHAT_CAP) addMsg(id, 'sys', '💤 きょうは たくさん おしゃべり したね。つづきは また あした。（プレゼントや おねがいなら、もっと なかよくなれるよ）');
 }
 let waiting = false;
 function send(text) {
@@ -1077,7 +1182,7 @@ function send(text) {
     addMsg(id, 'npc', r.text); logPush(id, 'npc', r.text);
     speak(r.text, CHARS[id].voice); sfx('recv');
     npcs[id].hop = 0.7;
-    gain(id, r.key === 'fb' ? 1 : 2, r.text.length);
+    gainChat(id, r.key === 'fb' ? 1 : r.key === 'gate' ? 0 : 2, r.text.length);
     if (r.key === 'shop') setTimeout(() => { if (mode === 'chat') { closeChat(); openShop(); } }, 1400);
     if (Math.random() < 0.4) renderChips(id);
     waiting = false;
@@ -1088,16 +1193,49 @@ function send(text) {
 $('chatSend').onclick = () => send($('chatInput').value);
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) send($('chatInput').value); });
 $('chatClose').onclick = closeChat;
+function giftList() {
+  const out = [];
+  if (S.flowers > 0) out.push({ id: 'flower', emoji: '🌼', name: 'おはな', n: S.flowers, src: 'flowers' });
+  for (const [k, def] of Object.entries(ITEMS)) if (k !== 'flower' && (S.inv[k] || 0) > 0) out.push({ id: k, emoji: def.emoji, name: def.name, n: S.inv[k], src: 'inv' });
+  for (const f of FOODS) if ((S.food[f.id] || 0) > 0) out.push({ id: f.id, emoji: f.emoji, name: f.name, n: S.food[f.id], src: 'food' });
+  return out;
+}
+function refreshGiftBtn() { $('chatGift').disabled = giftList().length === 0; }
 $('chatGift').onclick = () => {
-  const id = chatNpc;
-  if (!id || S.flowers <= 0) return;
-  S.flowers--; $('flowerCount').textContent = '🌼 ' + S.flowers;
-  $('chatGift').disabled = S.flowers <= 0;
-  addMsg(id, 'sys', `🌼 ${CHARS[id].name}に おはなを あげたよ！`);
-  sfx('pick');
-  const t = giftLine(id, ctxFor(id));
-  setTimeout(() => { addMsg(id, 'npc', t); logPush(id, 'npc', t); speak(t, CHARS[id].voice); sfx('recv'); npcs[id].hop = 1.2; gain(id, 5, t.length); save(); }, 700);
+  const id = chatNpc; if (!id) return;
+  const box = $('giftPick');
+  if (!box.classList.contains('hidden')) { box.classList.add('hidden'); return; }
+  const list = giftList();
+  if (!list.length) return;
+  box.innerHTML = '<div class="gp-t">なにを あげる？（このみが あるよ）</div>';
+  for (const it of list) {
+    const b = document.createElement('button');
+    b.innerHTML = `${it.emoji} ${it.name} <small>×${it.n}</small>`;
+    b.onclick = () => { box.classList.add('hidden'); giveGift(id, it); };
+    box.appendChild(b);
+  }
+  box.classList.remove('hidden');
 };
+function giveGift(id, it) {
+  if (it.src === 'flowers') { S.flowers--; $('flowerCount').textContent = '🌼 ' + S.flowers; }
+  else if (it.src === 'inv') S.inv[it.id]--;
+  else S.food[it.id]--;
+  stopSpeak();
+  addMsg(id, 'sys', `${it.emoji} ${CHARS[id].name}に ${it.name}を あげたよ！`);
+  sfx('pick');
+  const t = todayStr();
+  if (S.giftsToday.date !== t) S.giftsToday = { date: t };
+  const again = S.giftsToday[id] || 0; S.giftsToday[id] = again + 1;
+  const rx = giftReaction(id, it.id, it.name, ctxFor(id));
+  const pts = again >= 1 ? Math.max(1, Math.floor(rx.pts / 2)) : rx.pts;
+  setTimeout(() => {
+    if (chatNpc !== id) return;
+    npcSay(id, rx.text); npcs[id].hop = rx.pref === 'love' ? 1.6 : 1.0;
+    addMsg(id, 'sys', rx.pref === 'love' ? `💖 だいすきな ものだったみたい！ なかよし ♥ +${pts}` : rx.pref === 'like' ? `😊 よろこんでくれた！ なかよし ♥ +${pts}` : rx.pref === 'dislike' ? `😅 にがてな ものだったみたい… なかよし ♥ +${pts}` : `なかよし ♥ +${pts}`);
+    if (rx.pref === 'love') addDiary(`${CHARS[id].name}に ${it.name}を おくったら、とても よろこんでくれた。`);
+    gain(id, pts, rx.text.length); refreshGiftBtn(); questEvent('none'); save();
+  }, 700);
+}
 $('btnTalk').onclick = () => { if (nearNpc) openChat(nearNpc); };
 
 // ---------- アバター作成 ----------
@@ -1162,6 +1300,7 @@ function enterPlay() {
   camPos.copy(camera.position); camLook.set(player.root.position.x, 1, player.root.position.z);
   refreshMarkers(); yaw = 0; idle = 0; sleeping = false; $('btnWake').classList.add('hidden');
   save();
+  setTimeout(() => { if (mode === 'play') showDailyNotice(); }, 900);
 }
 function showTitle() {
   if (place === 'in' && player) exitHouse();
@@ -1191,7 +1330,7 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1201,6 +1340,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'back') showPanel('menu');
   else if (act === 'quests') { renderQuests(); showPanel('quests'); }
   else if (act === 'map') { showPanel('map'); openMap(); }
+  else if (act === 'diary') { renderDiary(); showPanel('diary'); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'theater') { renderTheaterList(); showPanel('theaterList'); }
@@ -1216,7 +1356,7 @@ function renderNotebook() {
     const c = CHARS[id];
     const d = document.createElement('div'); d.className = 'nb';
     const lv = level(S.friend[id] || 0);
-    d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${c.name}</b><small>${c.kind}</small><small>${c.tag}</small></div><span class="h">${hearts(lv)}</span>`;
+    d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${c.name}</b><small>${c.kind}</small><small>${c.tag}</small></div><span class="h">${hearts(lv)}<br><small>${TIERS[lv]}</small></span>`;
     box.appendChild(d);
   }
 }

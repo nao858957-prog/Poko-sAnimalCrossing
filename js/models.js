@@ -519,6 +519,18 @@ export function makeAvatar(a) {
     const cr = new THREE.Mesh(new THREE.CylinderGeometry(0.4, 0.34, 0.26, 16, 1, true), new THREE.MeshLambertMaterial({ color: '#ffcf3a', side: THREE.DoubleSide, emissive: '#6a4a00' })); cr.position.set(0, 0.98, 0); head.add(cr);
     for (let i = 0; i < 5; i++) { const an = (i / 5) * Math.PI * 2; const c = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 6), mat('#ffcf3a')); c.position.set(Math.cos(an) * 0.4, 1.2, Math.sin(an) * 0.4); head.add(c); add(head, sph(0.04, '#ff5c7a'), Math.cos(an) * 0.4, 1.32, Math.sin(an) * 0.4); }
   }
+  if (H === 'daisy') {
+    const fl = new THREE.Group(); fl.position.set(0.44, 0.88, 0.32); head.add(fl);
+    for (let i = 0; i < 8; i++) { const an = (i / 8) * Math.PI * 2; add(fl, sph(0.075, '#ffffff', 1, 1.6, 0.5), Math.cos(an) * 0.12, Math.sin(an) * 0.12, 0).rotation.z = an - Math.PI / 2; }
+    add(fl, sph(0.07, '#ffcf3a', 1, 1, 0.8), 0, 0, 0.03);
+  } else if (H === 'leaf') {
+    const lf = sph(0.26, '#5cb85c', 1.1, 0.12, 0.7); add(head, lf, 0.05, 1.0, 0.05); lf.rotation.z = -0.25;
+    const vn = sph(0.05, '#3f8f3f', 0.5, 0.2, 1.4); add(head, vn, 0.05, 1.03, 0.05); vn.rotation.z = -0.25;
+  }
+  if (a.neck === 'bell') {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.07, 8, 20), mat('#e8455a')); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.46, 0.02); body.add(t);
+    add(body, sph(0.1, '#ffd84d'), 0, cy + 0.36, 0.42);
+  }
   if (a.neck === 'redscarf' || a.neck === 'bluescarf') {
     const col = a.neck === 'redscarf' ? '#e8455a' : '#6fb8e8';
     const t = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.11, 8, 20), mat(col)); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.46, 0.02); body.add(t);
