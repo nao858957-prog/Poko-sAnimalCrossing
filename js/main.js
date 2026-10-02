@@ -6,6 +6,7 @@ import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
+import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
 import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch } from './fish.js';
 
 const $ = id => document.getElementById(id);
@@ -15,7 +16,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0 };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0 };
 }
 function loadSave() {
   try {
@@ -381,6 +382,7 @@ function refreshPlayerModel() {
 }
 function openShop() {
   if (mode !== 'play') return;
+  track('shop');
   if (sleeping) wakeUp();
   mode = 'shop'; shopTab = 'food';
   moveTarget = null; marker.visible = false; talkOnArrive = null;
@@ -873,6 +875,7 @@ $('btnFish').onclick = () => {
 };
 function startFishing(sp) {
   if (mode !== 'play') return;
+  track('fishing');
   mode = 'fish'; initAudio();
   moveTarget = null; marker.visible = false; talkOnArrive = null;
   const tier = S.rod, rod = RODS_BY[tier];
@@ -1004,7 +1007,7 @@ function renderDiary() {
 function showDailyNotice() {
   const t = todayStr();
   if (S.lastDay === t) return;
-  S.days = (S.days || 0) + 1; S.lastDay = t;
+  S.days = (S.days || 0) + 1; S.lastDay = t; trackDays(S.days);
   const ev = EVENT_NAMES[currentEvent()];
   const calling = ORDER.filter(id => questsOf(id, 'available').length || dailyPossible(id)).map(id => CHARS[id].name);
   const ready = QS().filter(q => qStatus(q) === 'ready').length;
@@ -1135,6 +1138,7 @@ function addChoices(id, opts) {
 }
 function npcSay(id, text) { addMsg(id, 'npc', text); logPush(id, 'npc', text); speak(text, CHARS[id].voice); npcs[id].hop = 0.7; sfx('recv'); }
 function completeQuest(q) {
+  track('quest-done');
   const st = qState(q);
   if (q.type === 'collect') { if (q.item === 'flower') { S.flowers -= q.n; } else S.inv[q.item] = Math.max(0, (S.inv[q.item] || 0) - q.n); }
   st.s = 'done';
@@ -1295,6 +1299,7 @@ const NPC_POS_DUMMY = 0; void NPC_POS_DUMMY;
 
 function openChat(id) {
   if (mode !== 'play') return;
+  track('chat');
   if (sleeping) wakeUp();
   chooseChatSide(id);
   mode = 'chat'; chatNpc = id;
@@ -1367,7 +1372,7 @@ function gain(id, n, readLen = 20) {
   const after = level(S.friend[id]);
   updateHearts(id);
   if (after > before) {
-    sfx('heart');
+    sfx('heart'); track('levelup');
     addMsg(id, 'sys', `💕 ${CHARS[id].name}との なかよしが「${TIERS[after]}」に あがったよ！`);
     addDiary(`${CHARS[id].name}と「${TIERS[after]}」に なった。`);
     lvPending = { id, ctx: ctxFor(id) };
@@ -1544,11 +1549,13 @@ function showTitle() {
 $('btnContinue').onclick = () => {
   const s = loadSave();
   if (!s) return;
+  track('continue');
   S = s; applySettings(); buildPlayer(); initAudio(); enterPlay();
   toast(`おかえりなさい、${S.avatar.name}さん！`, 2400);
 };
 $('btnNew').onclick = () => {
   if (loadSave() && !confirm('いまの ぼうけんを けして、はじめからに しますか？')) return;
+  track('new-game');
   S = freshState(); applySettings(); initAudio();
   startCreator(false);
 };
@@ -1614,16 +1621,18 @@ function renderSettings() {
   seg('setBgm', S.settings.bgm ? 1 : 0, v => { S.settings.bgm = v === '1'; applySettings(); save(); });
   seg('setVoice', S.settings.voice ? 1 : 0, v => { S.settings.voice = v === '1'; applySettings(); save(); if (S.settings.voice) speak('こんにちは、なの！', 1.7); });
   seg('setTime', S.settings.time, v => { S.settings.time = v; save(); });
+  seg('setStats', S.settings.stats === false ? 0 : 1, v => { S.settings.stats = v === '1'; setAnalyticsEnabled(S.settings.stats); save(); });
   seg('setEvent', S.settings.event || 'auto', v => { S.settings.event = v; applyEvent(); save(); });
 }
 function applySettings() {
   document.documentElement.style.setProperty('--fs', S.settings.size);
-  setSound(S.settings.sound !== false); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
+  setAnalyticsEnabled(S.settings.stats !== false); setSound(S.settings.sound !== false); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
 }
 
 // ---------- シアター ----------
 let curScene = null;
 function playScene(def) {
+  track('theater');
   if (place === 'in') exitHouse();
   curScene = def;
   mode = 'theater';
@@ -1730,6 +1739,9 @@ window.addEventListener('beforeunload', save);
 S = loadSave() || freshState();
 if (S.created) { applySettings(); buildPlayer(); } else { applySettings(); }
 initMarks();
+if (!analyticsAvailable) { for (const el of document.querySelectorAll('.stats-only')) el.classList.add('hidden'); }
+setAnalyticsEnabled(S.settings.stats !== false);
+initAnalytics();
 showTitle();
 $('btnContinue').classList.toggle('hidden', !loadSave());
 if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); player.root.position.set(0, 0, 6); world.group.add(player.root); player.root.visible = false; }

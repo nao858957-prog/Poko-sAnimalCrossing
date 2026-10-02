@@ -75,6 +75,10 @@ js/audio.js              BGM・効果音・読み上げ（Web Audio / Web Speech
 vendor/three.module.js   three.js r160
 ```
 
+## 管理者向け：アクセス解析
+
+匿名の来訪数・遊んだ時間・機能の利用回数を、管理者だけが見られます（画面には出ません）。設定方法は [`docs/ANALYTICS.md`](docs/ANALYTICS.md) を見てください。
+
 ## 注意
 
 - 画像・動画・音源の素材は使わず、モデルはすべて three.js の基本図形で作成しています。
