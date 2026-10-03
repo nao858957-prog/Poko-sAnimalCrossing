@@ -24,6 +24,7 @@
   <div class="menu-col">
     <button id="btnContinue" class="big primary">▶ つづきから あそぶ</button>
     <button id="btnNew" class="big">✿ はじめから あそぶ</button>
+    <button id="btnTransferT" class="big sub">🔑 ひきつぎコード</button>
   </div>
   <p class="fine">『ポコの小さな日々』の世界を あそべるよ。<br>やめても だいじょうぶ。じどうで ほぞんされます。<br><span class="stats-only">📊 あそびかたの とうけい（なまえ・かいわは おくりません）を とっています。せっていで オフに できます。</span><br>🔊 おとが でない ときは、マナーモードを オフにして おんりょうを あげてね</p>
 </section>
@@ -97,6 +98,7 @@
     <button class="big" data-act="sleep">💤 ねる（おひるね）</button>
     <button class="big" data-act="avatar">👤 すがたを かえる</button>
     <button class="big" data-act="settings">⚙ せってい</button>
+    <button class="big" data-act="transfer">🔑 ひきつぎコード</button>
     <button class="big" data-act="save">💾 セーブして おわる</button>
     <button class="big danger" data-act="reset">🗑 はじめから やりなおす</button>
   </div>
@@ -164,6 +166,18 @@
     <div class="set stats-only"><span>つかいかたの とうけい（こじんは わかりません）</span><div class="seg" id="setStats"><button data-v="1">あり</button><button data-v="0">なし</button></div></div>
     <div class="set"><span>きせつの かざり（七夕・お盆・ゆき・お正月）</span><div class="seg wrap" id="setEvent"><button data-v="auto">いま</button><button data-v="none">なし</button><button data-v="tanabata">七夕</button><button data-v="obon">お盆</button><button data-v="snow">ゆき</button><button data-v="newyear">お正月</button></div></div>
     <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="transfer" class="screen modal hidden">
+  <div class="panel">
+    <h2>🔑 ひきつぎコード</h2>
+    <p class="fine2">きかいを かえる・べつの ブラウザや アドレスで あそぶ ときに、いまの きろくを うつせます。</p>
+    <button id="tfMake" class="big primary" type="button">① コードを つくる（コピー）</button>
+    <textarea id="tfBox" rows="5" placeholder="ここに コードが でます。うつしたい ときは、コードを ここに はりつけてね" spellcheck="false" autocomplete="off" autocapitalize="off"></textarea>
+    <button id="tfLoad" class="big" type="button">② この コードで ふっこうする</button>
+    <p id="tfMsg" class="fine2"></p>
+    <button id="tfBack" class="big" type="button">もどる</button>
   </div>
 </section>
 

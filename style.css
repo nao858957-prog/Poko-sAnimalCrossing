@@ -252,3 +252,8 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
   #title .menu-col { flex: 1; width: auto; max-width: 340px; }
   #title .fine { flex: 1; font-size: .72rem; }
 }
+
+/* ひきつぎコード */
+#tfBox { width: 100%; box-sizing: border-box; font-size: .8rem; font-family: monospace; padding: .5rem; border: 3px solid var(--blue); border-radius: 1rem; background: #fff; resize: none; word-break: break-all; touch-action: pan-y; user-select: text; -webkit-user-select: text; }
+#tfMsg { min-height: 1.2em; font-weight: bold; }
+#btnTransferT.sub { font-size: .95rem; opacity: .9; }

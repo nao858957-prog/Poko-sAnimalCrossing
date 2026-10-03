@@ -1540,7 +1540,7 @@ function enterPlay() {
 function showTitle() {
   if (place === 'in' && player) exitHouse();
   mode = 'title';
-  ['hud', 'menu', 'creator', 'chat', 'notebook', 'settings', 'theaterList', 'theaterUI'].forEach(i => $(i).classList.add('hidden'));
+  ['hud', 'menu', 'creator', 'chat', 'notebook', 'settings', 'theaterList', 'theaterUI', 'transfer'].forEach(i => $(i).classList.add('hidden'));
   $('title').classList.remove('hidden');
   const has = !!loadSave();
   $('btnContinue').classList.toggle('hidden', !has);
@@ -1560,6 +1560,60 @@ $('btnNew').onclick = () => {
   startCreator(false);
 };
 
+// ひきつぎコード（きろくを文字にして コピー／はりつけで うつす）
+const b64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64 = t => { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
+async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
+async function makeCode() {
+  save();
+  const raw = localStorage.getItem(SAVE_KEY);
+  if (!raw) throw new Error('nosave');
+  const bytes = new TextEncoder().encode(raw);
+  if (typeof CompressionStream === 'function') return 'POKO2-' + b64(await pipeBytes(bytes, new CompressionStream('gzip')));
+  return 'POKO1-' + b64(bytes);
+}
+async function readCode(code) {
+  const t = code.replace(/\s+/g, '');
+  const m = /^POKO([12])-([A-Za-z0-9_-]+)$/.exec(t);
+  if (!m) throw new Error('format');
+  let bytes = unb64(m[2]);
+  if (m[1] === '2') bytes = await pipeBytes(bytes, new DecompressionStream('gzip'));
+  const s = JSON.parse(new TextDecoder().decode(bytes));
+  if (!s || s.v !== 1 || !s.created || !s.avatar) throw new Error('data');
+  return s;
+}
+let tfFrom = 'menu';
+function openTransfer() { $('tfBox').value = ''; $('tfMsg').textContent = ''; tfFrom = mode === 'title' ? 'title' : 'menu'; }
+$('btnTransferT').onclick = () => { initAudio(); sfx('tap'); openTransfer(); tfFrom = 'title'; $('transfer').classList.remove('hidden'); };
+$('tfBack').onclick = () => { sfx('tap'); if (tfFrom === 'title') $('transfer').classList.add('hidden'); else showPanel('menu'); };
+$('tfMake').onclick = async () => {
+  sfx('tap');
+  if (!S || !S.created) { $('tfMsg').textContent = 'まだ ほぞんされた きろくが ありません'; return; }
+  try {
+    const code = await makeCode();
+    $('tfBox').value = code;
+    let ok = false;
+    try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* 手動コピー */ }
+    if (!ok) { $('tfBox').focus(); $('tfBox').select(); }
+    $('tfMsg').textContent = ok ? '✅ コピーしました。メモなどに はりつけて とっておいてね' : 'コードを ながおしして コピーしてね';
+  } catch (e) { $('tfMsg').textContent = 'コードを つくれませんでした'; }
+};
+$('tfLoad').onclick = async () => {
+  sfx('tap');
+  const code = $('tfBox').value.trim();
+  if (!code) { $('tfMsg').textContent = 'コードを はりつけてね'; return; }
+  try {
+    const s = await readCode(code);
+    if (loadSave() && !confirm('いまの きろくは きえて、コードの きろくに かわります。いいですか？')) return;
+    S = Object.assign(freshState(), s, { settings: { ...freshState().settings, ...s.settings } });
+    localStorage.setItem(SAVE_KEY, JSON.stringify(S));
+    track('transfer-in');
+    $('transfer').classList.add('hidden'); $('menu').classList.add('hidden');
+    applySettings(); showTitle();
+    toast(`ふっこう しました！「つづきから」で ${S.avatar.name}さんに あえるよ`, 3600);
+  } catch (e) { $('tfMsg').textContent = 'コードが うまく よめません。ぜんぶ コピーできているか みてね'; }
+};
+
 // メニュー
 function openMenu() {
   if (mode !== 'play') return;
@@ -1567,7 +1621,7 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1581,6 +1635,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'diary') { renderDiary(); showPanel('diary'); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
+  else if (act === 'transfer') { openTransfer(); showPanel('transfer'); }
   else if (act === 'theater') { renderTheaterList(); showPanel('theaterList'); }
   else if (act === 'sleep') { $('menu').classList.add('hidden'); mode = 'play'; startSleep(); }
   else if (act === 'avatar') { $('menu').classList.add('hidden'); startCreator(true); }
@@ -1737,6 +1792,7 @@ window.addEventListener('beforeunload', save);
 
 // 起動
 S = loadSave() || freshState();
+try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* 非対応 */ }
 if (S.created) { applySettings(); buildPlayer(); } else { applySettings(); }
 initMarks();
 if (!analyticsAvailable) { for (const el of document.querySelectorAll('.stats-only')) el.classList.add('hidden'); }
