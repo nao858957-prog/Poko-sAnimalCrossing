@@ -2,7 +2,8 @@
 //  - 島の ひろがり / つり / はたけ+チャオ / おうちづくり+かざり / おはなばたけ の大木 / シアター
 import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
 import fs from 'fs';
-const OUT = '/tmp/claude-0/vid/f4';
+const OUT = process.env.OUT || '/tmp/claude-0/vid/f4';
+const ONLY = process.env.ONLY ? process.env.ONLY.split(',') : null; // 例: ONLY=H3 K0=2100 で その場面だけ 撮りなおす
 fs.mkdirSync(OUT, { recursive: true });
 const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--no-sandbox'] });
 const ctx = await b.newContext({ viewport: { width: 924, height: 520 }, deviceScaleFactor: 2.0779, hasTouch: false });
@@ -24,13 +25,14 @@ await page.evaluate(() => {
   const c = document.createElement('div'); c.id = 'vcap'; document.body.appendChild(c);
   const f = document.createElement('div'); f.id = 'vfade'; document.body.appendChild(f);
 });
-let k = 0; const t0 = Date.now();
+let k = Number(process.env.K0 || 0); const t0 = Date.now();
 const E = (f, a) => page.evaluate(f, a);
 const key = (type, kk) => E(([type, kk]) => window.dispatchEvent(new KeyboardEvent(type, { key: kk })), [type, kk]);
 const clickNth = (sel, n) => E(([sel, n]) => { const el = document.querySelectorAll(sel)[n]; if (el) el.click(); }, [sel, n]);
 const clickId = id => E(id => { const el = document.getElementById(id); if (el) el.click(); }, id);
 const put = (x, z) => E(([x, z]) => __poko.player().root.position.set(x, 0, z), [x, z]);
 async function stage(name, n, caption, per, pos = 'top') {
+  if (ONLY && !ONLY.includes(name.split(' ')[0])) { k += n; return; }
   await E(([t, p]) => { const c = document.getElementById('vcap'); c.textContent = t || ''; c.className = p === 'top' ? 'top' : ''; }, [caption, pos]);
   for (let i = 0; i < n; i++) {
     if (i % 50 === 25) { await key('keydown', 'Shift'); await key('keyup', 'Shift'); } // ねむらないように
@@ -46,6 +48,11 @@ async function stage(name, n, caption, per, pos = 'top') {
 const lerp = (a, b, u) => a + (b - a) * u, ease = u => u * u * (3 - 2 * u);
 const lerp3 = (a, b, u) => a.map((v, i) => lerp(v, b[i], u));
 
+if (ONLY) { // その場面だけ撮りなおす ときの じゅんび (あたらしく はじめて おうちを たてた じょうたいに する)
+  await E(() => { document.getElementById('btnContinue').classList.add('hidden'); document.getElementById('btnNew').click(); document.getElementById('nameInput').value = 'みどり'; const d = new Date(); __poko.S.lastDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
+  await E(() => { document.getElementById('btnCreateOk').click(); __poko.S.flowers = 3000; __poko.S.home.stage = 3; __poko.applyHome(); });
+  for (let i = 0; i < 20; i++) await E(() => __step(33.3));
+}
 // A: タイトル 5秒
 await E(() => { document.getElementById('btnContinue').classList.add('hidden'); });
 await stage('A title', 150, 'ポコたちの森で 一緒に遊ぼう！', null, 'bottom');
@@ -150,22 +157,26 @@ await stage('H2 houses', 180, 'テントから おおきな おうちへ', async
   if (i === 55) await E(() => __poko.world.setHome(2));
   if (i === 110) await E(() => __poko.world.setHome(3));
 });
-// H3: おへやを かざる 12秒
+// H3: おへやを かざる 12秒 (リビング・ねどこ・ピアノなど、ばしょを きめて おしゃれに ならべる)
+const LAYOUT = [
+  ['rugr', 1, 0.5, 0], ['sofa', 1, -2.6, 0], ['table', 1, 0.5, 0], ['cushion', -0.6, 1.8, 0], ['cushion', 2.6, 1.8, 0],
+  ['bookshelf', -5.4, -3.7, 0], ['plant', -3.4, -3.9, 0], ['piano', 5.2, -3.4, 0], ['bed', -5.3, 1.2, 0],
+  ['lamp', -3.4, 3.0, 0], ['plush', -4.4, 3.3, 0], ['rocker', 5.0, 1.9, 3], ['frame', -1.0, 0, 0], ['clock', 3.2, 0, 0], ['wreath', -3.6, 0, 0],
+];
 await stage('H3 decorate', 360, 'おへやを すてきに かざろう', async i => {
   if (i === 0) {
     await E(() => {
       __poko.debugCam = null; const S = __poko.S;
-      for (const id of ['sofa', 'dtable', 'rugr', 'bookshelf', 'plant', 'lamp', 'bed', 'frame', 'piano', 'rocker']) S.home.have[id] = (S.home.have[id] || 0) + 1;
+      for (const id of ['sofa', 'table', 'rugr', 'bookshelf', 'plant', 'lamp', 'bed', 'frame', 'piano', 'rocker', 'cushion', 'plush', 'clock', 'wreath']) S.home.have[id] = (S.home.have[id] || 0) + (id === 'cushion' ? 2 : 1);
       S.home.styles.push('pink'); S.home.guests = ['poko', 'mei'];
       __poko.applyHome(); const d = __poko.world.homeDoorPos(3); __poko.player().root.position.set(d.x, 0, d.z + 1.2); __poko.enterHome();
     });
   }
   if (i === 40) await E(() => __poko.openDeco());
-  const seq = ['rugr', 'sofa', 'dtable', 'bookshelf', 'plant', 'lamp', 'frame', 'bed', 'piano'];
-  if (i >= 60 && (i - 60) % 22 === 0 && (i - 60) / 22 < seq.length) { const id = seq[(i - 60) / 22]; await E(id => __poko.placeNew(id), id); }
-  if (i === 275) await E(() => document.querySelector('.decoTabs button[data-dt=style]').click());
-  if (i === 292) await clickNth('#decoStock button', 1);
-  if (i === 320) await clickId('decoDone');
+  if (i >= 56 && (i - 56) % 15 === 0 && (i - 56) / 15 < LAYOUT.length) { const [id, x, z, r] = LAYOUT[(i - 56) / 15]; await E(([id, x, z, r]) => __poko.placeAt(id, x, z, r), [id, x, z, r]); }
+  if (i === 292) await E(() => document.querySelector('.decoTabs button[data-dt=style]').click());
+  if (i === 308) await clickNth('#decoStock button', 1);
+  if (i === 335) await clickId('decoDone');
 });
 // I: おおきな きと おはなばたけ 6秒
 await stage('I tree', 180, 'ポコたちの 島を すみずみまで', async i => {
