@@ -62,6 +62,14 @@ export const FURN = [
   F('trophy', '🐟', 'おおものの かざり', 40, 0, 'wall', () => { const g = G(); box(g, 1.2, 0.5, 0.06, '#8a5a34', 0, 0, 0); add(g, sph(0.34, '#8fb8d8', 1.8, 0.7, 0.3), 0, 0, 0.06); add(g, sph(0.14, '#8fb8d8', 1, 1, 0.3), -0.52, 0, 0.06); return g; }, { y: 2.5 }),
 ];
 export const FURN_BY_ID = Object.fromEntries(FURN.map(f => [f.id, f]));
+// かぐの ふちの おおきさ [よこ(はんぶん), うしろ, てまえ]  (うしろ=かべに くっつく がわ)
+const EXT = {
+  futon: [0.75, 1.0, 1.0], bed: [0.85, 1.15, 1.15], cushion: [0.35, 0.35, 0.35], sofa: [1.45, 0.6, 0.6], chair: [0.35, 0.35, 0.35],
+  rocker: [0.5, 0.45, 0.6], table: [0.8, 0.8, 0.8], dtable: [1.0, 0.6, 0.6], desk: [0.8, 0.4, 0.4], bookshelf: [0.8, 0.25, 0.25],
+  chest: [0.65, 0.35, 0.35], kitchen: [0.95, 0.4, 0.4], lamp: [0.2, 0.2, 0.2], lantern: [0.15, 0.15, 0.15], plant: [0.25, 0.25, 0.25],
+  bigplant: [0.4, 0.4, 0.4], vase: [0.15, 0.15, 0.15], stove: [0.45, 0.45, 0.45], aquarium: [0.6, 0.2, 0.2], piano: [0.95, 0.4, 1.0],
+  record: [0.45, 0.3, 0.3], plush: [0.3, 0.3, 0.3], globe: [0.2, 0.2, 0.2],
+};
 
 // ---- へや ----
 export class HomeRoom {
@@ -79,7 +87,7 @@ export class HomeRoom {
     if (this.shell) { this.group.remove(this.shell); this.shell.traverse(o => { if (o.geometry) o.geometry.dispose(); }); }
     this.stage = stage; this.styleId = sty.id;
     const hw = st.hw, d0 = st.d0, d1 = st.d1, depth = d1 - d0, H = stage === 1 ? 3.6 : 4.4;
-    this.bounds = { x0: -hw + 0.3, x1: hw - 0.3, z0: d0 + 0.2, z1: d1 - 0.2 };
+    this.bounds = { x0: -hw + 0.3, x1: hw - 0.3, z0: d0 + 0.2, z1: d1 - 0.2 }; // (あるく はんい)
     const g = new THREE.Group(); this.shell = g; this.group.add(g);
     // ゆか
     const n = Math.round(hw * 2 / 0.9);
@@ -129,30 +137,52 @@ export class HomeRoom {
     for (const it of this.items) { const d = FURN_BY_ID[it.id]; if (d && d.kind === 'floor' && d.r > 0.2) out.push({ x: it.x, z: it.z, r: Math.min(d.r, 0.9) * 0.85 }); }
     return out;
   }
-  // おける? (ゆかの かぐは かさならない・でぐちを ふさがない)
+  // かぐを おける ゆかの はんい (かべの ないがわ ぴったりまで)
+  get fb() { const st = STAGES[this.stage]; return { x0: -st.hw + 0.02, x1: st.hw - 0.02, z0: st.d0 + 0.02, z1: st.d1 - 0.3 }; }
+  // かぐの ふちを (ひだり・みぎ・うしろ・てまえ) の きょりで あらわす。むきに あわせて まわす
+  box(it) {
+    const d = FURN_BY_ID[it.id], e = EXT[it.id] || [d.r, d.r, d.r], rr = it.r || 0;
+    const [fw, fd, ff] = d.kind === 'rug' ? [d.rr, d.rr * (it.id === 'rugs' ? 0.7 : 1), d.rr * (it.id === 'rugs' ? 0.7 : 1)] : e;
+    const [xl, xr, zb, zf] = rr === 0 ? [fw, fw, fd, ff] : rr === 1 ? [fd, ff, fw, fw] : rr === 2 ? [fw, fw, ff, fd] : [ff, fd, fw, fw];
+    return { x0: it.x - xl, x1: it.x + xr, z0: it.z - zb, z1: it.z + zf };
+  }
+  // おける? (ゆかの かぐは かさならない・でぐちを ふさがない。かべぎわにも ぴったり おける)
   canPlace(it, ignore = -1) {
-    const d = FURN_BY_ID[it.id], b = this.bounds; if (!d) return false;
+    const d = FURN_BY_ID[it.id], f = this.fb; if (!d) return false;
     if (d.kind === 'wall') {
-      if (it.x < b.x0 + 0.7 || it.x > b.x1 - 0.7) return false;
+      if (it.x < f.x0 + 0.6 || it.x > f.x1 - 0.6) return false;
       return !this.items.some((o, i) => i !== ignore && FURN_BY_ID[o.id].kind === 'wall' && Math.abs(o.x - it.x) < 1.0);
     }
-    const m = d.kind === 'rug' ? 0.2 : d.r;
-    if (it.x < b.x0 + m || it.x > b.x1 - m || it.z < b.z0 + m || it.z > b.z1 - m) return false;
+    const q = this.box(it);
+    if (q.x0 < f.x0 - 1e-6 || q.x1 > f.x1 + 1e-6 || q.z0 < f.z0 - 1e-6 || q.z1 > f.z1 + 1e-6) return false;
     if (d.kind === 'rug') return true;
-    if (it.z > b.z1 - 1.9 - d.r * 0.4 && Math.abs(it.x) < 1.6 + d.r * 0.5) return false;
-    return !this.items.some((o, i) => { if (i === ignore) return false; const od = FURN_BY_ID[o.id]; return od.kind === 'floor' && Math.hypot(o.x - it.x, o.z - it.z) < (od.r + d.r) * 0.85; });
+    if (q.x1 > -1.5 && q.x0 < 1.5 && q.z1 > f.z1 - 1.5) return false; // でぐちの まえは あけておく
+    return !this.items.some((o, i) => {
+      if (i === ignore || FURN_BY_ID[o.id].kind !== 'floor') return false;
+      const w = this.box(o);
+      return q.x0 < w.x1 - 0.04 && q.x1 > w.x0 + 0.04 && q.z0 < w.z1 - 0.04 && q.z1 > w.z0 + 0.04;
+    });
   }
-  // あいている ばしょを さがす
+  // あいている ばしょを さがす (まんなかから)
   findSpot(id) {
-    const d = FURN_BY_ID[id], b = this.bounds, cz = (b.z0 + b.z1) / 2 - 0.3;
+    const d = FURN_BY_ID[id], f = this.fb, cz = (f.z0 + f.z1) / 2 - 0.3;
     if (d.kind === 'wall') {
-      for (let k = 0; k < 40; k++) { const x = Math.round(((k % 2 ? 1 : -1) * Math.ceil(k / 2) * 1.0) * 2) / 2; if (this.canPlace({ id, x, z: b.z0 }, -1)) return { id, x, z: b.z0, r: 0 }; }
+      for (let k = 0; k < 40; k++) { const x = Math.round(((k % 2 ? 1 : -1) * Math.ceil(k / 2) * 1.0) * 2) / 2; if (this.canPlace({ id, x, z: 0 }, -1)) return { id, x, z: 0, r: 0 }; }
       return null;
     }
     const c = [];
-    for (let x = Math.ceil(b.x0 * 2) / 2; x <= b.x1; x += 0.5) for (let z = Math.ceil(b.z0 * 2) / 2; z <= b.z1; z += 0.5) c.push({ x, z, k: Math.hypot(x, (z - cz) * 1.2) });
+    for (let x = Math.ceil(f.x0 * 2) / 2; x <= f.x1; x += 0.5) for (let z = Math.ceil(f.z0 * 2) / 2; z <= f.z1; z += 0.5) c.push({ x, z, k: Math.hypot(x, (z - cz) * 1.2) });
     c.sort((a, b2) => a.k - b2.k);
     for (const p of c) if (this.canPlace({ id, x: p.x, z: p.z }, -1)) return { id, x: p.x, z: p.z, r: 0 };
+    return null;
+  }
+  // うごかす: 1マス うごかせなければ、かべや とりかけまで ぴったり よせる
+  nudge(it, dx, dz, ignore) {
+    for (let k = 10; k >= 1; k--) {
+      const n = { ...it, x: it.x + dx * 0.5 * k / 10, z: it.z + dz * 0.5 * k / 10 };
+      n.x = Math.round(n.x * 100) / 100; n.z = Math.round(n.z * 100) / 100;
+      if (this.canPlace(n, ignore)) return n;
+    }
     return null;
   }
 }

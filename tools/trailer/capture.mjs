@@ -159,9 +159,9 @@ await stage('H2 houses', 180, 'テントから おおきな おうちへ', async
 });
 // H3: おへやを かざる 12秒 (リビング・ねどこ・ピアノなど、ばしょを きめて おしゃれに ならべる)
 const LAYOUT = [
-  ['rugr', 1, 0.5, 0], ['sofa', 1, -2.6, 0], ['table', 1, 0.5, 0], ['cushion', -0.6, 1.8, 0], ['cushion', 2.6, 1.8, 0],
-  ['bookshelf', -5.4, -3.7, 0], ['plant', -3.4, -3.9, 0], ['piano', 5.2, -3.4, 0], ['bed', -5.3, 1.2, 0],
-  ['lamp', -3.4, 3.0, 0], ['plush', -4.4, 3.3, 0], ['rocker', 5.0, 1.9, 3], ['frame', -1.0, 0, 0], ['clock', 3.2, 0, 0], ['wreath', -3.6, 0, 0],
+  ['rugr', 0.5, -1.5, 0], ['sofa', 0.5, -4.18, 0], ['table', 0.5, -1.5, 0], ['cushion', -1.0, -1.4, 0], ['cushion', 2.0, -1.4, 0],
+  ['bookshelf', -6.18, -4.53, 0], ['plant', -4.5, -4.53, 0], ['piano', 6.03, -4.38, 0], ['bed', -5.83, 1.0, 1],
+  ['lamp', -6.75, 3.6, 0], ['plush', -5.6, 3.9, 0], ['rocker', 6.53, 1.8, 3], ['frame', -2.5, 0, 0], ['clock', 3.5, 0, 0], ['wreath', -4.5, 0, 0],
 ];
 await stage('H3 decorate', 360, 'おへやを すてきに かざろう', async i => {
   if (i === 0) {
@@ -173,7 +173,7 @@ await stage('H3 decorate', 360, 'おへやを すてきに かざろう', async 
     });
   }
   if (i === 40) await E(() => __poko.openDeco());
-  if (i >= 56 && (i - 56) % 15 === 0 && (i - 56) / 15 < LAYOUT.length) { const [id, x, z, r] = LAYOUT[(i - 56) / 15]; await E(([id, x, z, r]) => __poko.placeAt(id, x, z, r), [id, x, z, r]); }
+  if (i >= 56 && (i - 56) % 15 === 0 && (i - 56) / 15 < LAYOUT.length) { const [id, x, z, r] = LAYOUT[(i - 56) / 15]; const ok = await E(([id, x, z, r]) => __poko.placeAt(id, x, z, r), [id, x, z, r]); if (!ok) console.log('PLACE FAILED', id); }
   if (i === 292) await E(() => document.querySelector('.decoTabs button[data-dt=style]').click());
   if (i === 308) await clickNth('#decoStock button', 1);
   if (i === 335) await clickId('decoDone');

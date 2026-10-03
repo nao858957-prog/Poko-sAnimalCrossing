@@ -2077,9 +2077,9 @@ function placeNew(id) {
 }
 function moveSel(dx, dz) {
   const it = homeItems()[decoSel]; if (!it) return;
-  const n = { ...it, x: it.x + dx * 0.5, z: it.z + dz * 0.5 };
-  if (FURN_BY_ID[it.id].kind === 'wall') n.z = it.z;
-  if (room.canPlace(n, decoSel)) { homeItems()[decoSel] = n; refreshRoom(); sfx('tap'); } else sfx('open');
+  if (FURN_BY_ID[it.id].kind === 'wall') dz = 0;
+  const n = room.nudge(it, dx, dz, decoSel);
+  if (n) { homeItems()[decoSel] = n; refreshRoom(); sfx('tap'); } else sfx('open');
 }
 function pickFurn(cx, cy) {
   ndc.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
