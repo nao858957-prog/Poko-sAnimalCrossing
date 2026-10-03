@@ -8,7 +8,7 @@ import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isA
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
-import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch, slipChance } from './fish.js';
+import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch, slipChance, fishIcon } from './fish.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -507,7 +507,7 @@ function renderShop() {
       all.appendChild(ab); box.appendChild(all);
       for (const [id, n] of list) {
         const f = FISH_BY_ID[id], d = document.createElement('div'); d.className = 'item';
-        d.innerHTML = `<span class="e">${f.emoji}</span><div class="n">${f.name} ×${n}<small>1ひき 🌼 ${f.price}</small></div>`;
+        d.innerHTML = `<span class="e">${fishIcon(f)}</span><div class="n">${f.name} ×${n}<small>1ひき 🌼 ${f.price}</small></div>`;
         const b = document.createElement('button'); b.textContent = 'うる'; b.onclick = () => sellFish(id);
         d.appendChild(b); box.appendChild(d);
       }
@@ -1103,7 +1103,7 @@ function showCatch() {
     S.fish[c.id] = (S.fish[c.id] || 0) + 1; S.fishTotal++;
     const d = S.dex[c.id] || (S.dex[c.id] = { n: 0, best: 0 }); d.n++; const bigger = c.cm > d.best; if (bigger) d.best = c.cm;
     const stars = '★'.repeat(c.r) + '☆'.repeat(4 - c.r);
-    html = `<div class="cc-e">${c.emoji}</div><h3>${isNew ? '<span class="new">NEW!</span> ' : ''}${c.name}を つった！</h3><p class="cc-s">${stars}　${c.cm}cm${bigger && !isNew ? '　<b>じこ ベスト！</b>' : ''}</p><p>${c.line}</p><p class="cc-s">うりね 🌼${c.price}　（おみせで うれるよ）</p>`;
+    html = `<div class="cc-e">${fishIcon(c)}</div><h3>${isNew ? '<span class="new">NEW!</span> ' : ''}${c.name}を つった！</h3><p class="cc-s">${stars}　${c.cm}cm${bigger && !isNew ? '　<b>じこ ベスト！</b>' : ''}</p><p>${c.line}</p><p class="cc-s">うりね 🌼${c.price}　（おみせで うれるよ）</p>`;
     sfx(c.r >= 3 ? 'heart' : 'catch');
     if (isNew) addDiary(`${SPOTS[f.sp.spot]}で はじめて「${c.name}」を つった（${c.cm}cm）。`);
     else if (c.r >= 4) addDiary(`${SPOTS[f.sp.spot]}で ${c.name}（${c.cm}cm）を つりあげた！`);
@@ -1124,7 +1124,7 @@ function renderDex() {
   for (const f of FISH) {
     const d = S.dex[f.id];
     const el = document.createElement('div'); el.className = 'dx' + (d ? '' : ' un');
-    el.innerHTML = d ? `<span class="e">${f.emoji}</span><div><b>${f.name}</b><small>${'★'.repeat(f.r)}　さいだい ${d.best}cm　×${d.n}</small><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}</small></div>` : `<span class="e">❓</span><div><b>？？？</b><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}で つれるよ</small></div>`;
+    el.innerHTML = d ? `<span class="e">${fishIcon(f)}</span><div><b>${f.name}</b><small>${'★'.repeat(f.r)}　さいだい ${d.best}cm　×${d.n}</small><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}</small></div>` : `<span class="e">❓</span><div><b>？？？</b><small>${SPOTS[f.loc[0]]}${f.loc.length > 1 ? 'など' : ''}${f.time === 'night' ? '・よる' : f.time === 'day' ? '・ひる' : ''}で つれるよ</small></div>`;
     box.appendChild(el);
   }
 }
@@ -1579,7 +1579,7 @@ function giftList() {
   if (S.flowers > 0) out.push({ id: 'flower', emoji: '🌼', name: 'おはな', n: S.flowers, src: 'flowers' });
   for (const [k, def] of Object.entries(ITEMS)) if (k !== 'flower' && (S.inv[k] || 0) > 0) out.push({ id: k, emoji: def.emoji, name: def.name, n: S.inv[k], src: 'inv' });
   for (const f of FOODS) if ((S.food[f.id] || 0) > 0) out.push({ id: f.id, emoji: f.emoji, name: f.name, n: S.food[f.id], src: 'food' });
-  for (const [fid, n] of Object.entries(S.fish)) if (n > 0) { const f = FISH_BY_ID[fid]; out.push({ id: 'fish', fid, emoji: f.emoji, name: f.name, n, src: 'fish' }); }
+  for (const [fid, n] of Object.entries(S.fish)) if (n > 0) { const f = FISH_BY_ID[fid]; out.push({ id: 'fish', fid, emoji: f.emoji, icon: fishIcon(f), name: f.name, n, src: 'fish' }); }
   return out;
 }
 function refreshGiftBtn() { $('chatGift').disabled = giftList().length === 0; }
@@ -1592,7 +1592,7 @@ $('chatGift').onclick = () => {
   box.innerHTML = '<div class="gp-t">なにを あげる？（このみが あるよ）</div>';
   for (const it of list) {
     const b = document.createElement('button');
-    b.innerHTML = `${it.emoji} ${it.name} <small>×${it.n}</small>`;
+    b.innerHTML = `${it.icon || it.emoji} ${it.name} <small>×${it.n}</small>`;
     b.onclick = () => { box.classList.add('hidden'); giveGift(id, it); };
     box.appendChild(b);
   }

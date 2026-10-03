@@ -292,3 +292,7 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
 
 #shop .tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; font-size: .7rem; min-height: 2.9rem; }
 #shop .tabs button i { font-style: normal; font-size: 1.05rem; line-height: 1; }
+
+/* さかなの SVG アイコン */
+svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible; }
+.cc-e svg.fi { height: 1em; width: 1.5em; filter: drop-shadow(0 4px 4px #0003); }
