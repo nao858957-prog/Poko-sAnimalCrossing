@@ -1773,19 +1773,40 @@ async function readCode(code) {
   return s;
 }
 let tfFrom = 'menu';
-function openTransfer() { $('tfBox').value = ''; $('tfMsg').textContent = ''; tfFrom = mode === 'title' ? 'title' : 'menu'; }
-$('btnTransferT').onclick = () => { initAudio(); sfx('tap'); openTransfer(); tfFrom = 'title'; $('transfer').classList.remove('hidden'); };
+function tfFit() { const t = $('tfBox'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 4, Math.round(innerHeight * 0.36)) + 'px'; }
+function tfReset() { $('tfBox').value = ''; $('tfMsg').textContent = ''; $('tfCopy').classList.add('hidden'); $('tfShare').classList.add('hidden'); tfFit(); }
+function openTransfer() { tfReset(); tfFrom = mode === 'title' ? 'title' : 'menu'; }
+$('tfBox').addEventListener('input', tfFit);
+$('btnTransferT').onclick = () => { initAudio(); sfx('tap'); openTransfer(); tfFrom = 'title'; $('transfer').classList.remove('hidden'); tfFit(); };
 $('tfBack').onclick = () => { sfx('tap'); if (tfFrom === 'title') $('transfer').classList.add('hidden'); else showPanel('menu'); };
+// ぜんぶの もじを コピー (タップの なかで すぐに。見えている ぶんだけに ならないよう、ぜんぶを せんたくして コピーする)
+function copyAllText() {
+  const ta = $('tfBox'), text = ta.value;
+  let ok = false;
+  try { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand('copy'); } catch (e) { /* つぎの ほうほうへ */ }
+  if (ok) return Promise.resolve(true);
+  if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(() => true, () => false);
+  return Promise.resolve(false);
+}
+const tfTail = t => t.slice(-4);
+$('tfCopy').onclick = async () => {
+  sfx('tap');
+  const text = $('tfBox').value; if (!text) return;
+  const ok = await copyAllText();
+  $('tfMsg').textContent = ok ? `✅ ぜんぶ（${text.length}もじ）コピーしました。さいごの4もじは「${tfTail(text)}」。メモなどに はりつけて とっておいてね` : 'コピーできませんでした。コードを ながおしして「すべてを せんたく」→「コピー」してね';
+};
+$('tfShare').onclick = async () => {
+  const text = $('tfBox').value; if (!text) return;
+  try { await navigator.share({ title: 'ポコの ちいさなしま ひきつぎコード', text }); } catch (e) { /* とりけし */ }
+};
 $('tfMake').onclick = async () => {
   sfx('tap');
   if (!S || !S.created) { $('tfMsg').textContent = 'まだ ほぞんされた きろくが ありません'; return; }
   try {
     const code = await makeCode();
-    $('tfBox').value = code;
-    let ok = false;
-    try { await navigator.clipboard.writeText(code); ok = true; } catch (e) { /* 手動コピー */ }
-    if (!ok) { $('tfBox').focus(); $('tfBox').select(); }
-    $('tfMsg').textContent = ok ? '✅ コピーしました。メモなどに はりつけて とっておいてね' : 'コードを ながおしして コピーしてね';
+    $('tfBox').value = code; tfFit();
+    $('tfCopy').classList.remove('hidden'); if (navigator.share) $('tfShare').classList.remove('hidden');
+    $('tfMsg').textContent = `コードを つくりました（${code.length}もじ）。つぎに「ぜんぶ コピーする」を おしてね`;
   } catch (e) { $('tfMsg').textContent = 'コードを つくれませんでした'; }
 };
 $('tfLoad').onclick = async () => {
@@ -1801,7 +1822,7 @@ $('tfLoad').onclick = async () => {
     $('transfer').classList.add('hidden'); $('menu').classList.add('hidden');
     applySettings(); showTitle();
     toast(`ふっこう しました！「つづきから」で ${S.avatar.name}さんに あえるよ`, 3600);
-  } catch (e) { $('tfMsg').textContent = 'コードが うまく よめません。ぜんぶ コピーできているか みてね'; }
+  } catch (e) { $('tfMsg').textContent = 'コードが うまく よめません。「POKO2-」から さいごまで ぜんぶ コピーできているか みてね'; }
 };
 
 // メニュー

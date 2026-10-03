@@ -303,3 +303,6 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 #seedList { display: flex; flex-direction: column; gap: .5rem; }
 #seedList button { display: flex; align-items: center; gap: .6rem; text-align: left; background: #fff; border: 3px solid var(--blue); border-radius: 1.1rem; padding: .5rem .8rem; font-size: 1rem; min-height: 3rem; }
 #seedList button small { opacity: .7; margin-left: auto; }
+
+#tfBox { overflow-y: auto; min-height: 5.2rem; }
+.tfRow { display: flex; flex-direction: column; gap: .5rem; }
