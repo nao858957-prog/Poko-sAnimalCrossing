@@ -53,6 +53,7 @@
   <button id="btnFish" class="talk fishbtn hidden">🎣 つりを する</button>
   <button id="btnEnter" class="talk enter hidden">🏠 はいる</button>
   <button id="btnWake" class="talk wake hidden">☀ おきる</button>
+  <button id="btnDeco" class="hud-btn deco hidden">🛋 おへやを かざる</button>
   <div id="questBar" class="hidden"></div>
   <div id="hint">ゆびで うごかそう！ おはなを あつめて ともだちに あげよう</div>
 </section>
@@ -78,7 +79,7 @@
 <!-- おみせ -->
 <section id="shop" class="hidden">
   <header><img id="shopFace" alt=""><h2>🛍 ポンの おみせ</h2><span id="shopFlowers">🌼 0</span></header>
-  <div class="tabs"><button data-tab="food" class="on">🍰 たべもの</button><button data-tab="cloth">👕 きせかえ</button><button data-tab="tool">🎣 どうぐ</button><button data-tab="sell">💰 うる</button></div>
+  <div class="tabs"><button data-tab="food" class="on"><i>🍰</i>たべもの</button><button data-tab="cloth"><i>👕</i>きせかえ</button><button data-tab="tool"><i>🎣</i>どうぐ</button><button data-tab="home"><i>🏠</i>おうち</button><button data-tab="sell"><i>💰</i>うる</button></div>
   <div id="shopMsg">おはなで おかいもの できるよ</div>
   <div id="shopList"></div>
   <button id="shopBack" class="big">おみせを でる</button>
@@ -90,6 +91,7 @@
     <h2>メニュー</h2>
     <button class="big" data-act="resume">▶ ゲームに もどる</button>
     <button class="big" data-act="quests">📜 おねがい ノート</button>
+    <button class="big" data-act="invite">🏠 おうちに しょうたい</button>
     <button class="big" data-act="map">🗺 マップ</button>
     <button class="big" data-act="diary">📖 にっき</button>
     <button class="big" data-act="dex">🎣 さかなずかん</button>
@@ -101,6 +103,15 @@
     <button class="big" data-act="transfer">🔑 ひきつぎコード</button>
     <button class="big" data-act="save">💾 セーブして おわる</button>
     <button class="big danger" data-act="reset">🗑 はじめから やりなおす</button>
+  </div>
+</section>
+
+<section id="invite" class="screen modal hidden">
+  <div class="panel">
+    <h2>🏠 おうちに しょうたい</h2>
+    <p id="invNote" class="fine2"></p>
+    <div id="invList"></div>
+    <button class="big" data-act="back">もどる</button>
   </div>
 </section>
 
@@ -187,6 +198,17 @@
     <p class="fine2">3Dで うごく ミニストーリー（かんたんな オリジナルアニメ）</p>
     <div id="thList"></div>
     <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="deco" class="hidden">
+  <header><b>🛋 おへやを かざる</b><button id="decoDone" class="close">✓ おわる</button></header>
+  <div id="decoMsg">かぐを えらぶと おへやに ならぶよ。おいた かぐを タップすると うごかせるよ</div>
+  <div class="decoTabs"><button data-dt="stock" class="on">🛋 かぐ</button><button data-dt="style">🎨 かべ・ゆか</button></div>
+  <div id="decoStock"></div>
+  <div class="decoPad">
+    <button data-mv="-1,0" aria-label="ひだり">◀</button><button data-mv="0,-1" aria-label="おく">▲</button><button data-mv="0,1" aria-label="てまえ">▼</button><button data-mv="1,0" aria-label="みぎ">▶</button>
+    <button id="decoRot">⟳ まわす</button><button id="decoDel">📦 しまう</button>
   </div>
 </section>
 

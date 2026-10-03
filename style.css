@@ -257,3 +257,38 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
 #tfBox { width: 100%; box-sizing: border-box; font-size: .8rem; font-family: monospace; padding: .5rem; border: 3px solid var(--blue); border-radius: 1rem; background: #fff; resize: none; word-break: break-all; touch-action: pan-y; user-select: text; -webkit-user-select: text; }
 #tfMsg { min-height: 1.2em; font-weight: bold; }
 #btnTransferT.sub { font-size: .95rem; opacity: .9; }
+
+/* おうち: かざりモード */
+#btnDeco { position: absolute; right: .6rem; top: calc(env(safe-area-inset-top) + 4.1rem); background: #4f9fe0; color: #fff; border-color: #fff; box-shadow: 0 3px 0 #3478b8, 0 4px 8px #0002; }
+#deco { position: fixed; left: 0; right: 0; bottom: 0; z-index: 30; max-width: 760px; margin: 0 auto; background: #fff8e8; border-radius: 1.6rem 1.6rem 0 0; box-shadow: 0 -8px 24px #0004; display: flex; flex-direction: column; gap: .4rem; padding: .6rem .8rem calc(env(safe-area-inset-bottom) + .6rem); max-height: 46dvh; touch-action: pan-y; }
+#deco.hidden { display: none; }
+#deco header { display: flex; justify-content: space-between; align-items: center; }
+#decoMsg { background: #ffe9a8; border-radius: 1rem; padding: .25rem .7rem; font-size: .8rem; text-align: center; line-height: 1.35; }
+.decoTabs { display: flex; gap: .4rem; }
+.decoTabs button { flex: 1; min-height: 2.4rem; border-radius: .9rem; background: #fff; border: 3px solid #f0d9a8; font-size: .9rem; }
+.decoTabs button.on { background: var(--yellow); border-color: #e8a800; }
+#decoStock { display: flex; gap: .45rem; overflow-x: auto; padding: .15rem 0 .3rem; min-height: 3rem; scrollbar-width: none; touch-action: pan-x; }
+#decoStock::-webkit-scrollbar { display: none; }
+#decoStock button { flex: none; background: #fff; border: 3px solid var(--blue); border-radius: 99px; padding: .35rem .8rem; font-size: .92rem; min-height: 2.7rem; white-space: nowrap; box-shadow: 0 3px 0 #9ad3ec; }
+#decoStock button.on { background: var(--yellow); border-color: #e8a800; box-shadow: 0 3px 0 #d9a800; }
+#decoStock p { margin: .5rem 0; font-size: .85rem; white-space: normal; }
+.decoPad { display: grid; grid-template-columns: repeat(4, 1fr) 1.7fr 1.5fr; gap: .35rem; }
+.decoPad button { min-height: 2.9rem; border-radius: .9rem; background: #fff; border: 3px solid #f0d9a8; font-size: 1.05rem; box-shadow: 0 3px 0 #e0cf9f; padding: 0; }
+.decoPad button:disabled { opacity: .4; }
+.decoPad #decoRot, .decoPad #decoDel { font-size: .85rem; }
+@media (max-height: 520px) and (orientation: landscape) {
+  #deco { left: auto; right: 0; top: 0; height: 100dvh; max-height: none; width: min(54vw, 520px); border-radius: 1.6rem 0 0 1.6rem; max-width: none; margin: 0; }
+  #btnDeco { top: calc(env(safe-area-inset-top) + 3.9rem); }
+}
+#invList { display: flex; flex-direction: column; gap: .5rem; }
+#invList .inv { display: flex; align-items: center; gap: .6rem; background: #fff; border: 3px solid #f0d9a8; border-radius: 1.2rem; padding: .4rem .6rem; }
+#invList .inv img { width: 2.8rem; height: 2.8rem; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px #d9c9a8; background: #dff4ff; flex: none; }
+#invList .inv div { flex: 1; font-size: .95rem; line-height: 1.3; }
+#invList .inv small { display: block; font-size: .75rem; opacity: .75; }
+#invList .inv button { min-height: 2.6rem; padding: 0 .8rem; border-radius: 99px; border: 3px solid var(--blue); background: #fff; font-size: .9rem; flex: none; }
+#invList .inv button.on { background: var(--yellow); border-color: #e8a800; }
+#invList .inv button:disabled { opacity: .45; }
+.shop-h { margin: .5rem 0 .1rem; font-weight: bold; font-size: .9rem; color: #7a5a30; }
+
+#shop .tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; font-size: .7rem; min-height: 2.9rem; }
+#shop .tabs button i { font-style: normal; font-size: 1.05rem; line-height: 1; }

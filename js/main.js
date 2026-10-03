@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
+import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } from './home.js';
 import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
@@ -16,7 +17,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0 };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0, home: { stage: 0, style: 'log', styles: ['log'], have: {}, items: [], guests: [], visit: {} } };
 }
 function loadSave() {
   try {
@@ -29,7 +30,7 @@ function loadSave() {
 function save() {
   if (!S || !S.created) return;
   try {
-    S.pos = place === 'in' ? { x: 0, z: -11.4, ry: 0 } : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
+    S.pos = place === 'in' ? (inKind === 'home' ? { x: world.homeDoorPos(S.home.stage).x, z: world.homeDoorPos(S.home.stage).z + 1.8, ry: 0 } : { x: 0, z: -11.4, ry: 0 }) : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
     localStorage.setItem(SAVE_KEY, JSON.stringify(S));
   } catch (e) { /* 保存できない環境でも遊べる */ }
 }
@@ -55,7 +56,21 @@ interior.group.position.set(OFF, 0, 0);
 interior.group.visible = false;
 world.group.add(interior.group);
 let place = 'out'; // 'out' | 'in'
+let inKind = 'sei'; // 'in' のとき: 'sei' (セイママの いえ) | 'home' (わたしの おうち)
 const inObstacles = interior.obstacles.map(o => ({ x: o.x + OFF, z: o.z, r: o.r }));
+const OFF2 = 1000; // わたしの おうちの なかは さらに とおくに おく
+const room = new HomeRoom();
+room.group.position.set(OFF2, 0, 0); room.group.visible = false; world.group.add(room.group);
+let homeObs = [];
+const curObs = () => place === 'in' ? (inKind === 'home' ? homeObs : inObstacles) : world.obstacles;
+function applyHome() {
+  const h = S.home;
+  h.items = (h.items || []).filter(it => FURN_BY_ID[it.id]);
+  world.setHome(h.stage);
+  if (h.stage > 0) { room.buildShell(h.stage, h.style); room.setItems(h.items); homeObs = room.obstacles().map(o => ({ x: o.x + OFF2, z: o.z, r: o.r })); }
+  else homeObs = [];
+}
+function refreshRoom() { room.setItems(S.home.items); homeObs = room.obstacles().map(o => ({ x: o.x + OFF2, z: o.z, r: o.r })); }
 const doorLabel = makeLabel('🏠 おうちに はいる', '#4f86c6');
 doorLabel.position.set(0, 4.4, -12.4);
 world.group.add(doorLabel);
@@ -174,6 +189,7 @@ window.addEventListener('keydown', e => {
   if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
   keys[e.key.toLowerCase()] = true;
   if (e.key === 'Enter' || e.key === ' ') { if (mode === 'play' && nearNpc) openChat(nearNpc); }
+  if (mode === 'deco') { const m = { arrowleft: [-1, 0], arrowright: [1, 0], arrowup: [0, -1], arrowdown: [0, 1] }[e.key.toLowerCase()]; if (m) { moveSel(m[0], m[1]); e.preventDefault(); } }
 });
 window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 
@@ -223,6 +239,7 @@ canvas.addEventListener('pointerup', e => {
   if (!ptr) return;
   const moved = ptr.moved + Math.abs(e.clientY - ptr.y);
   const p = ptr; ptr = null;
+  if (mode === 'deco') { if (moved <= 14) pickFurn(p.x, p.y); return; }
   if (moved > 14 || mode !== 'play') return;
   ndc.set((p.x / innerWidth) * 2 - 1, -(p.y / innerHeight) * 2 + 1);
   ray.setFromCamera(ndc, camera);
@@ -248,12 +265,13 @@ function dist2(a, b) { return Math.hypot(a.root.position.x - b.root.position.x, 
 // ---------- 移動と衝突 ----------
 function collide(pos, rad) {
   if (pos.x > OFF / 2) {
-    for (const o of inObstacles) {
+    const home = pos.x > OFF2 - 200, off = home ? OFF2 : OFF;
+    for (const o of (home ? homeObs : inObstacles)) {
       const dx = pos.x - o.x, dz = pos.z - o.z, d = Math.hypot(dx, dz), m = o.r + rad;
       if (d < m && d > 0.0001) { pos.x = o.x + dx / d * m; pos.z = o.z + dz / d * m; }
     }
-    const b = interior.bounds;
-    pos.x = Math.min(OFF + b.x1, Math.max(OFF + b.x0, pos.x));
+    const b = home ? room.bounds : interior.bounds;
+    pos.x = Math.min(off + b.x1, Math.max(off + b.x0, pos.x));
     pos.z = Math.min(b.z1, Math.max(b.z0, pos.z));
     return;
   }
@@ -281,7 +299,7 @@ let doorCool = 0;
 const HOUSE_NPC = ['sei', 'poko', 'mei'];
 function enterHouse() {
   if (place === 'in') return;
-  place = 'in'; doorCool = 1.2;
+  place = 'in'; inKind = 'sei'; doorCool = 1.2;
   interior.group.visible = true;
   doorLabel.visible = false;
   player.root.position.set(OFF + interior.spawn.x, 0, interior.spawn.z);
@@ -311,6 +329,53 @@ function exitHouse() {
   appliedHour = -1; applySky(gameHour());
   camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
   sfx('open');
+}
+
+const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
+function enterHome() {
+  if (place === 'in' || S.home.stage < 1) return;
+  place = 'in'; inKind = 'home'; doorCool = 1.2;
+  room.group.visible = true;
+  world.homeLabelBuild.visible = world.homeLabelMine.visible = false;
+  player.root.position.set(OFF2 + room.spawn.x, 0, room.spawn.z);
+  player.root.rotation.y = Math.PI;
+  moveTarget = null; talkOnArrive = null; marker.visible = false;
+  placeGuests();
+  yaw = 0; appliedHour = -1; applySky(gameHour());
+  camPos.set(OFF2, 9, room.spawn.z + 12); camLook.set(OFF2, 1, 0);
+  sfx('open');
+  track('home-enter');
+  if (!S.seenHome) { S.seenHome = true; toast('わたしの おうちだよ 🏠<br>「おへやを かざる」で かぐを ならべられるよ', 5200); }
+  updateQuestHud();
+}
+function exitHome() {
+  if (place === 'out') return;
+  place = 'out'; doorCool = 1.2;
+  room.group.visible = false;
+  const d = world.homeDoorPos(S.home.stage);
+  player.root.position.set(d.x, 0, d.z + 1.8);
+  player.root.rotation.y = 0;
+  moveTarget = null; marker.visible = false;
+  for (const id of ORDER) { const P = npcs[id]; if (P.root.position.x > 300) { const h = HOMES[id]; P.home.set(h[0], h[1]); P.root.position.set(h[0], 0, h[1]); P.target = null; P.pose = 'stand'; } }
+  appliedHour = -1; applySky(gameHour());
+  camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
+  sfx('open');
+  updateQuestHud();
+}
+function exitAny() { if (inKind === 'home') exitHome(); else exitHouse(); }
+// しょうたいした ともだちを おうちの なかに ならべる
+function placeGuests() {
+  const ids = S.home.guests.filter(id => npcs[id]), b = room.bounds, today = todayKey();
+  ids.forEach((id, k) => {
+    const P = npcs[id];
+    let x = (k - (ids.length - 1) / 2) * 2.4, z = b.z0 + (b.z1 - b.z0) * 0.38;
+    for (let t = 0; t < 30 && homeObs.some(o => Math.hypot(o.x - OFF2 - x, o.z - z) < o.r + 0.9); t++) { x = b.x0 + 1 + Math.random() * (b.x1 - b.x0 - 2); z = b.z0 + 1 + Math.random() * (b.z1 - b.z0 - 3); }
+    P.home.set(OFF2 + x, z); P.root.position.set(OFF2 + x, 0, z); P.root.rotation.y = 0; P.target = null; P.wait = 1 + Math.random() * 2; P.pose = 'stand';
+    if (S.home.visit[id] !== today) {
+      S.home.visit[id] = today; S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 3);
+      setTimeout(() => { if (place === 'in' && inKind === 'home') { tmp.set(OFF2 + x, 1.8, z); spawnFx(world.group, 'heart', tmp, 0.9); toast(`${CHARS[id].name}が あそびに きているよ 💕<br>なかよし ♥ +3`, 3200); sfx('heart'); } }, 700 + k * 500);
+    }
+  });
 }
 
 // ---------- きせつ ----------
@@ -370,7 +435,7 @@ $('btnSound').onclick = () => {
 
 // ---------- おみせ ----------
 let shopTab = 'food', shopBusy = false, enterKind = null;
-$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'out') exitHouse(); sfx('tap'); };
+$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'home') enterHome(); else if (enterKind === 'out') exitAny(); sfx('tap'); };
 function refreshPlayerModel() {
   const p = player.root.position.clone(), ry = player.root.rotation.y;
   world.group.remove(player.root);
@@ -429,6 +494,8 @@ function renderShop() {
       d.appendChild(b); box.appendChild(d);
     }
     const tip = document.createElement('p'); tip.className = 'fine2'; tip.textContent = 'つりざおを かうと、ため池・みずうみ・うみの そばで「つり」が できるよ。さかなは ここで うれるよ。'; box.appendChild(tip);
+  } else if (shopTab === 'home') {
+    renderHomeShop(box);
   } else if (shopTab === 'sell') {
     const list = Object.entries(S.fish).filter(([, n]) => n > 0);
     if (!list.length) { const e = document.createElement('p'); e.className = 'fine2'; e.textContent = 'うれる さかなが ないよ。つりざおで つってこよう！'; box.appendChild(e); }
@@ -464,6 +531,58 @@ function renderShop() {
     nb.onclick = () => { S.avatar.hat = S.avatar.neck = S.avatar.body = null; sfx('tap'); rebuildPreview(); renderShop(); };
     none.appendChild(nb); box.appendChild(none);
   }
+}
+function shopHead(box, t) { const h = document.createElement('div'); h.className = 'shop-h'; h.textContent = t; box.appendChild(h); }
+function shopRow(box, emoji, name, sub, btnText, onClick, dis, on) {
+  const d = document.createElement('div'); d.className = 'item';
+  d.innerHTML = `<span class="e">${emoji}</span><div class="n">${name}<small>${sub}</small></div>`;
+  const b = document.createElement('button'); b.textContent = btnText;
+  if (dis) b.classList.add('dis'); if (on) b.classList.add('on');
+  if (onClick) b.onclick = onClick;
+  d.appendChild(b); box.appendChild(d);
+}
+function renderHomeShop(box) {
+  const h = S.home, next = STAGES[h.stage + 1];
+  shopHead(box, '🏠 おうちを たてる');
+  if (next) shopRow(box, next.emoji, next.name, `🌼 ${next.price}　${next.desc}`, 'たてる', () => buildStage(next), S.flowers < next.price);
+  else shopRow(box, '🏡', 'いちばん おおきな おうち', 'ありがとうぽん！ かぐで かざってね', 'たてた', null, false, true);
+  if (h.stage === 0) { const n = document.createElement('p'); n.className = 'fine2'; n.textContent = 'しまの にしの「くらしの はま」に たつよ。たてると かぐも ならべられるぽん'; box.appendChild(n); }
+  shopHead(box, '🛋 かぐ');
+  for (const f of FURN) {
+    const have = h.have[f.id] || 0;
+    shopRow(box, f.emoji, f.name, `🌼 ${f.price}${have ? `　もっている ×${have}` : ''}`, 'かう', () => buyFurn(f), S.flowers < f.price);
+  }
+  shopHead(box, '🎨 かべがみ・ゆか');
+  for (const st of STYLES) {
+    if (!st.price) continue;
+    const own = h.styles.includes(st.id);
+    shopRow(box, '🎨', st.name, own ? 'もっている' : `🌼 ${st.price}`, own ? 'もっている' : 'かう', own ? null : () => buyStyle(st), !own && S.flowers < st.price, own);
+  }
+}
+function buildStage(st) {
+  const h = S.home;
+  if (h.stage + 1 !== st.id) return;
+  if (S.flowers < st.price) { $('shopMsg').textContent = 'おはなが たりないぽん… ためてから また きてほしいぽん'; sfx('tap'); return; }
+  S.flowers -= st.price; h.stage = st.id;
+  for (const [id, n] of Object.entries(st.give)) h.have[id] = (h.have[id] || 0) + n;
+  applyHome(); sfx('heart'); track('home-build-' + st.id); questEvent('build', st.id);
+  addDiary(`${st.name}を たてた。にしの くらしの はまが わたしの おうちに なった。`);
+  const names = Object.entries(st.give).map(([id, n]) => `${FURN_BY_ID[id].name}×${n}`).join('、');
+  $('shopMsg').textContent = `${st.emoji} ${st.name}、できあがりぽん！ ${names} は おまけぽん。にしの はまで まってるぽん！`;
+  $('flowerCount').textContent = '🌼 ' + S.flowers;
+  save(); renderShop();
+}
+function buyFurn(f) {
+  if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん…'; sfx('tap'); return; }
+  S.flowers -= f.price; S.home.have[f.id] = (S.home.have[f.id] || 0) + 1; sfx('pick');
+  $('shopMsg').textContent = `${f.emoji} ${f.name}、まいどありぽん！ ${S.home.stage ? 'おうちで「かざる」から ならべるぽん' : 'おうちを たてたら ならべられるぽん'}`;
+  save(); renderShop();
+}
+function buyStyle(st) {
+  if (S.flowers < st.price) { $('shopMsg').textContent = 'おはなが たりないぽん…'; sfx('tap'); return; }
+  S.flowers -= st.price; S.home.styles.push(st.id); sfx('pick');
+  $('shopMsg').textContent = `🎨 ${st.name}、まいどありぽん！ おうちの「かざる」から はりかえられるぽん`;
+  save(); renderShop();
 }
 function buyRod(r) {
   if (S.flowers < r.price) { $('shopMsg').textContent = 'おはなが たりないぽん… 🌼を あつめてきてほしいぽん'; sfx('tap'); return; }
@@ -565,12 +684,17 @@ function updatePlayer(dt) {
   updateFishBtn(pos);
   doorCool = Math.max(0, doorCool - dt);
   if (mode === 'play' && doorCool <= 0) {
+    const hd = S.home.stage > 0 ? world.homeDoorPos(S.home.stage) : null;
     if (place === 'out' && Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 1.25) enterHouse();
-    else if (place === 'in' && pos.z > interior.exit.z && Math.abs(pos.x - OFF) < 1.7) exitHouse();
+    else if (place === 'out' && hd && Math.hypot(pos.x - hd.x, pos.z - hd.z) < 1.4) enterHome();
+    else if (place === 'in' && inKind === 'sei' && pos.z > interior.exit.z && Math.abs(pos.x - OFF) < 1.7) exitHouse();
+    else if (place === 'in' && inKind === 'home' && pos.z > room.exit.z && Math.abs(pos.x - OFF2) < 1.7) exitHome();
   }
   if (place === 'out') {
     doorLabel.visible = Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 14;
     world.shopLabel.visible = Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 14;
+    const nearHome = Math.hypot(pos.x - HOME_PLOT.x, pos.z - HOME_PLOT.z) < 16;
+    world.homeLabelBuild.visible = nearHome && S.home.stage === 0; world.homeLabelMine.visible = nearHome && S.home.stage > 0;
     if (mode === 'play' && doorCool <= 0 && Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 1.3) openShop();
   }
   if (moving) idle = 0;
@@ -623,7 +747,8 @@ function updateNpcs(dt) {
       if (sleepT > delay) {
         const ry = player.root.rotation.y, off = side * (id === 'poko' ? 1.15 : 1.35);
         const tx = ppos.x + Math.sin(ry) * off, tz = ppos.z + Math.cos(ry) * off;
-        const dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz);
+        let dx = tx - pos.x, dz = tz - pos.z, d = Math.hypot(dx, dz);
+        if (d > 30) { pos.x = tx; pos.z = tz; dx = dz = 0; d = 0; }
         if (d > 0.25) {
           const sp = Math.min(d, 3.4 * dt); pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 10); moving = true; P.pose = 'stand';
         } else {
@@ -643,7 +768,7 @@ function updateNpcs(dt) {
     } else if (mode === 'play' || mode === 'title' || mode === 'creator') {
       P.wait -= dt;
       if (!P.target && P.wait <= 0) {
-        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : 3.5);
+        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : 3.5);
         P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
       if (P.target) {
@@ -722,6 +847,15 @@ function updateCamera(dt) {
     if (window.__poko && window.__poko.debugCam) { camera.position.set(...window.__poko.debugCam.pos); camera.lookAt(...window.__poko.debugCam.look); }
     applyViewShift(dt); return;
   }
+  if (mode === 'deco') {
+    const st = STAGES[S.home.stage], cz = (room.bounds.z0 + room.bounds.z1) / 2, W = innerWidth, pr = $('deco').getBoundingClientRect();
+    const side = pr.width < W * 0.9, fx = side ? 1 - pr.width / W : 1, fy = side ? 1 : 1 - pr.height / innerHeight;
+    const need = Math.max((st.hw + 1.2) / (Math.tan(25 * Math.PI / 180) * aspect * fx), (st.d1 - st.d0 + 3.4) / (Math.tan(25 * Math.PI / 180) * fy * 1.4));
+    const dist = Math.max(8, need * 0.95);
+    camPos.lerp(new THREE.Vector3(OFF2, dist * 0.82, cz + dist * 0.62), Math.min(1, dt * 4)); camLook.lerp(new THREE.Vector3(OFF2, 0.4, cz), Math.min(1, dt * 4));
+    camera.position.copy(camPos); camera.lookAt(camLook);
+    applyViewShift(dt); return;
+  }
   if (mode === 'chat' && chatNpc) {
     const n = npcs[chatNpc].root.position;
     const mx = (pp.x + n.x) / 2, mz = (pp.z + n.z) / 2;
@@ -740,7 +874,8 @@ function updateCamera(dt) {
   } else {
     const inn = place === 'in';
     if (inn) yaw = Math.max(-0.6, Math.min(0.6, yaw));
-    const dist = inn ? (aspect < 0.8 ? 18 : 12.5) : aspect < 0.8 ? 15.5 : 12.5, h = inn ? (aspect < 0.8 ? 13 : 9.5) : aspect < 0.8 ? 11 : 8.4;
+    let dist = inn ? (aspect < 0.8 ? 18 : 12.5) : aspect < 0.8 ? 15.5 : 12.5, h = inn ? (aspect < 0.8 ? 13 : 9.5) : aspect < 0.8 ? 11 : 8.4;
+    if (inn && inKind === 'home') { const c = STAGES[S.home.stage].cam; dist = c[0] * (aspect < 0.8 ? 1.3 : 1); h = c[1] * (aspect < 0.8 ? 1.3 : 1); }
     desired = new THREE.Vector3(pp.x + Math.sin(yaw) * dist, h, pp.z + Math.cos(yaw) * dist);
     look = new THREE.Vector3(pp.x, 1.2, pp.z);
     camPos.lerp(desired, Math.min(1, dt * 5)); camLook.lerp(look, Math.min(1, dt * 6));
@@ -755,7 +890,7 @@ const shift = { x: 0, y: 0 };
 function applyViewShift(dt) {
   const W = innerWidth, H = innerHeight;
   let tx = 0, ty = 0;
-  if (mode === 'chat' || mode === 'shop') {
+  if (mode === 'chat' || mode === 'shop' || mode === 'deco') {
     const r = $(mode).getBoundingClientRect();
     if (r.width < W * 0.9) tx = r.width / 2; else ty = r.height / 2;
   } else if (mode === 'creator') {
@@ -783,7 +918,7 @@ function chooseChatSide(id) {
   const n = npcs[id].root.position, p = player.root.position;
   const mx = (n.x + p.x) / 2, mz = (n.z + p.z) / 2;
   const base = Math.atan2(n.x - p.x, n.z - p.z);
-  const obs = place === 'in' ? inObstacles : world.obstacles;
+  const obs = curObs();
   const others = Object.values(npcs).filter(o => o.id !== id && o.root.visible).map(o => o.root.position);
   let best = base + Math.PI / 2, bestScore = 1e9;
   const H = Math.PI / 2;
@@ -795,7 +930,7 @@ function chooseChatSide(id) {
       for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + (o.r < 1.3 ? 2.4 : 1.3)) score += 1;
       for (const q of others) if (Math.hypot(q.x - x, q.z - z) < 2.4) score += 2;
       if (place === 'out' && landDepth(x, z) < -6) score += 3;
-      if (place === 'in') { const b = interior.bounds; if (x < OFF + b.x0 - 1 || x > OFF + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
+      if (place === 'in') { const b = inKind === 'home' ? room.bounds : interior.bounds, of = inKind === 'home' ? OFF2 : OFF; if (x < of + b.x0 - 1 || x > of + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
     }
     if (score < bestScore) { bestScore = score; best = ang; }
   }
@@ -804,7 +939,7 @@ function chooseChatSide(id) {
 function ctxFor(id) {
   const pts = S.friend[id] || 0;
   const ev = currentEvent();
-  return { name: S.avatar.name || 'あなた', hour: gameHour(), lv: level(pts), first: !S.firstDone[id], storyIdx: S.storyIdx[id] || 0, inside: place === 'in', event: ev === 'none' ? null : ev };
+  return { name: S.avatar.name || 'あなた', hour: gameHour(), lv: level(pts), first: !S.firstDone[id], storyIdx: S.storyIdx[id] || 0, inside: place === 'in' && inKind === 'sei', event: ev === 'none' ? null : ev };
 }
 function addMsg(id, from, text, cls = '') {
   const d = document.createElement('div');
@@ -1027,6 +1162,8 @@ function qProgress(q) {
   if (q.type === 'catch') return { have: Math.min(q.n, st.c || 0), need: q.n };
   if (q.type === 'collect') return { have: Math.min(q.n, q.item === 'flower' ? S.flowers : (S.inv[q.item] || 0)), need: q.n };
   if (q.type === 'talk') return { have: (st.talked || []).length, need: q.who.length };
+  if (q.type === 'build' && S.home.stage >= q.stage) return { have: 1, need: 1 };   // もう その おうちを たてていれば そのまま クリア
+  if (q.type === 'invite' && S.home.guests.includes(q.who)) return { have: 1, need: 1 };
   if (q.type === 'buyrod' && S.rod > 0) return { have: 1, need: 1 };   // もう つりざおを もっている人は そのまま クリア
   if (q.type === 'wear' && qState(q) && S.avatar.hat) return { have: 1, need: 1 };   // もう ぼうしを かぶっていれば そのまま クリア
   return { have: st.p ? 1 : 0, need: 1 };
@@ -1037,6 +1174,7 @@ function qStatus(q) {
   if (st) { const p = qProgress(q); return p.have >= p.need ? 'ready' : 'active'; }
   if (level(S.friend[q.giver] || 0) < q.lv) return 'locked';
   if (q.needs === 'rod' && !S.rod) return 'locked';
+  if (q.needs === 'home' && !S.home.stage) return 'locked';
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
   return 'available';
 }
@@ -1085,7 +1223,7 @@ function updateQuestHud() {
   const bar = $('questBar');
   const ready = QS().filter(q => qStatus(q) === 'ready'), active = QS().filter(q => qStatus(q) === 'active');
   const q = ready[0] || active[0];
-  if (!q) { bar.classList.add('hidden'); return; }
+  if (!q || (place === 'in' && inKind === 'home')) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
   const p = qProgress(q);
   const more = ready.length + active.length - 1;
@@ -1112,6 +1250,8 @@ function questEvent(type, what) {
     const st = qState(q);
     if (!st || st.s === 'done' || q.type !== type) continue;
     if (type === 'buy' && q.what !== what) continue;
+    if (type === 'build' && what < q.stage) continue;
+    if (type === 'invite' && q.who !== what) continue;
     if (!st.p) { st.p = 1; hit = true; toast(`📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！`, 3200); sfx('heart'); }
   }
   if (hit) { refreshMarkers(); save(); }
@@ -1252,7 +1392,7 @@ function renderQuests() {
     for (const [id, q] of locked) {
       const need = Math.max(q.lv, 0);
       const d = document.createElement('div'); d.className = 'qcard lock';
-      d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>${q.needs === 'rod' && level(S.friend[id] || 0) >= q.lv ? 'つりざおを かうと、あたらしい おねがいが…' : '「' + TIERS[need] + '」になると、あたらしい おはなしが…'}</small></div>`;
+      d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>${q.needs === 'home' && level(S.friend[id] || 0) >= q.lv ? 'おうちを たてると、あたらしい おねがいが…' : q.needs === 'rod' && level(S.friend[id] || 0) >= q.lv ? 'つりざおを かうと、あたらしい おねがいが…' : '「' + TIERS[need] + '」になると、あたらしい おはなしが…'}</small></div>`;
       box.appendChild(d);
     }
   }
@@ -1269,7 +1409,7 @@ function drawMap() {
   g.fillStyle = '#7fc8f0'; g.fillRect(0, 0, W, W);
   g.fillStyle = '#f4e2b0'; for (const c of LAND) { g.beginPath(); g.arc(X(c.x), Z(c.z), (c.r + 2) * k, 0, 7); g.fill(); }
   g.fillStyle = '#8fd36e'; for (const c of [...LAND.map(c => ({ x: c.x, z: c.z, g: c.g })), { x: -44, z: -1, g: 10 }]) { g.beginPath(); g.arc(X(c.x), Z(c.z), c.g * k, 0, 7); g.fill(); }
-  g.fillStyle = '#ead7a4'; g.fillRect(X(-1.5), Z(-12), 3 * k, 52 * k); g.fillRect(X(-70), Z(-3.2), 140 * k, 2.4 * k);
+  g.fillStyle = '#ead7a4'; g.fillRect(X(-1.5), Z(-12), 3 * k, 52 * k); g.fillRect(X(-70), Z(-3.2), 102 * k, 2.4 * k);
   g.fillStyle = '#c8935a'; const hp = HOME_PLOT; g.fillRect(X(hp.x) - 3 * k, Z(hp.z) - 3 * k, 6 * k, 6 * k);
   g.fillStyle = '#7ccdf2'; for (const [x, z, r] of [[9, 9, 3.5], [25, 17, 6.2]]) { g.beginPath(); g.arc(X(x), Z(z), r * k, 0, 7); g.fill(); }
   g.font = `bold ${Math.round(W * 0.034)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -1332,6 +1472,10 @@ function openChat(id) {
       setTimeout(() => { if (chatNpc !== id) return; if (dl) npcSay(id, fillN(dl, id)); addMsg(id, 'sys', `📜 ${q.title}：${st.talked.length}/${q.who.length}`); refreshMarkers(); save(); }, d);
       d += 2400;
     }
+  }
+  if (place === 'in' && inKind === 'home' && S.home.guests.includes(id) && HOME_LINES[id]) {
+    const txt = fillN(HOME_LINES[id][S.home.items.length >= 6 ? 1 : 0], id);
+    if (!(S.logs[id] || []).some(l => l[1] === txt)) { setTimeout(() => { if (chatNpc === id) npcSay(id, txt); }, d); d += 2600; }
   }
   setTimeout(() => { if (chatNpc === id && !waiting) questTalk(id, false); }, d);
   renderChips(id);
@@ -1539,7 +1683,7 @@ function enterPlay() {
   setTimeout(() => { if (mode === 'play') showDailyNotice(); }, 900);
 }
 function showTitle() {
-  if (place === 'in' && player) exitHouse();
+  if (place === 'in' && player) exitAny();
   mode = 'title';
   ['hud', 'menu', 'creator', 'chat', 'notebook', 'settings', 'theaterList', 'theaterUI', 'transfer'].forEach(i => $(i).classList.add('hidden'));
   $('title').classList.remove('hidden');
@@ -1622,7 +1766,7 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer', 'invite'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1637,6 +1781,8 @@ document.body.addEventListener('click', e => {
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'transfer') { openTransfer(); showPanel('transfer'); }
+  else if (act === 'invite') { renderInvite(); showPanel('invite'); }
+  else if (act === 'deco') { $('menu').classList.add('hidden'); mode = 'play'; openDeco(); }
   else if (act === 'theater') { renderTheaterList(); showPanel('theaterList'); }
   else if (act === 'sleep') { $('menu').classList.add('hidden'); mode = 'play'; startSleep(); }
   else if (act === 'avatar') { $('menu').classList.add('hidden'); startCreator(true); }
@@ -1644,6 +1790,27 @@ document.body.addEventListener('click', e => {
   else if (act === 'reset') { if (confirm('ほんとうに はじめから やりなおしますか？\n（いままでの きろくは きえます）')) { localStorage.removeItem(SAVE_KEY); S = freshState(); applySettings(); $('menu').classList.add('hidden'); startCreator(false); } }
 });
 
+const GUEST_LV = 2;
+function renderInvite() {
+  const h = S.home, st = STAGES[h.stage], box = $('invList'); box.innerHTML = '';
+  $('invNote').textContent = !st ? 'おうちを たてると ともだちを しょうたいできるよ（ポンの おみせ →「おうち」）' : `${st.name}には ${st.guests}にんまで しょうたいできるよ（いま ${h.guests.length}にん）。おうちに はいると あそびに きているよ`;
+  for (const id of ORDER) {
+    if (id === 'haru') continue;
+    const lv = level(S.friend[id] || 0), inv = h.guests.includes(id), ok = !!st && lv >= GUEST_LV;
+    const d = document.createElement('div'); d.className = 'inv';
+    d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>${lv < GUEST_LV ? 'もう すこし なかよくなると よべるよ' : inv ? 'おうちで まっているよ' : 'しょうたい できるよ'}</small></div>`;
+    const b = document.createElement('button');
+    b.textContent = inv ? 'かえってもらう' : 'しょうたい'; if (inv) b.classList.add('on');
+    b.disabled = !inv && (!ok || h.guests.length >= (st ? st.guests : 0));
+    b.onclick = () => {
+      sfx('tap');
+      if (inv) h.guests = h.guests.filter(x => x !== id);
+      else { h.guests.push(id); toast(`${CHARS[id].name}を しょうたいしたよ！<br>おうちに はいると あそびに きているよ`, 3200); questEvent('invite', id); track('home-invite'); addDiary(`${CHARS[id].name}を おうちに しょうたいした。`); }
+      save(); renderInvite();
+    };
+    d.appendChild(b); box.appendChild(d);
+  }
+}
 function renderNotebook() {
   const box = $('nbList'); box.innerHTML = '';
   for (const id of ORDER) {
@@ -1683,13 +1850,104 @@ function renderSettings() {
 function applySettings() {
   document.documentElement.style.setProperty('--fs', S.settings.size);
   setAnalyticsEnabled(S.settings.stats !== false); setSound(S.settings.sound !== false); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
+  applyHome();
+}
+
+// ---------- おへやを かざる ----------
+let decoSel = -1, decoTab = 'stock', decoRepeat = null;
+const selRing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.7, 28), new THREE.MeshBasicMaterial({ color: 0x3dbb6a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }));
+selRing.rotation.x = -Math.PI / 2; selRing.renderOrder = 20; selRing.visible = false; room.group.add(selRing);
+const homeItems = () => S.home.items;
+function openDeco() {
+  if (!(place === 'in' && inKind === 'home')) { toast('おうちの なかで かざれるよ 🏠', 2200); return; }
+  if (sleeping) wakeUp();
+  mode = 'deco'; decoSel = -1; decoTab = 'stock';
+  moveTarget = null; marker.visible = false;
+  $('hud').classList.add('hidden'); $('btnTalk').classList.add('hidden'); $('btnDeco').classList.add('hidden');
+  player.root.visible = false;
+  $('toast').classList.add('hidden'); $('deco').classList.remove('hidden'); sfx('open');
+  renderDeco();
+}
+function closeDeco() {
+  if (mode !== 'deco') return;
+  mode = 'play'; decoSel = -1; selRing.visible = false;
+  $('deco').classList.add('hidden'); $('hud').classList.remove('hidden');
+  player.root.visible = true; player.root.position.set(OFF2 + room.spawn.x, 0, room.spawn.z);
+  camera.clearViewOffset(); shift.x = shift.y = 0;
+  camPos.set(OFF2, 9, room.spawn.z + 12); camLook.set(OFF2, 1, 0);
+  refreshRoom(); save(); sfx('tap');
+}
+function decoStockLeft(id) { return (S.home.have[id] || 0) - homeItems().filter(i => i.id === id).length; }
+function renderDeco() {
+  const box = $('decoStock'); box.innerHTML = '';
+  for (const b of document.querySelectorAll('.decoTabs button')) b.classList.toggle('on', b.dataset.dt === decoTab);
+  if (decoTab === 'stock') {
+    let n = 0;
+    for (const f of FURN) {
+      const left = decoStockLeft(f.id); if (left <= 0) continue; n++;
+      const b = document.createElement('button'); b.textContent = `${f.emoji} ${f.name} ×${left}`;
+      b.onclick = () => placeNew(f.id); box.appendChild(b);
+    }
+    if (!n) { const p = document.createElement('p'); p.textContent = 'ならべる かぐが ないよ。ポンの おみせ「おうち」で かえるよ'; box.appendChild(p); }
+  } else {
+    for (const id of S.home.styles) {
+      const st = STYLE_BY_ID[id]; if (!st) continue;
+      const b = document.createElement('button'); b.textContent = '🎨 ' + st.name; if (S.home.style === id) b.classList.add('on');
+      b.onclick = () => { S.home.style = id; room.buildShell(S.home.stage, id); room.setItems(homeItems()); sfx('pick'); save(); renderDeco(); };
+      box.appendChild(b);
+    }
+  }
+  const it = homeItems()[decoSel], def = it && FURN_BY_ID[it.id];
+  $('decoMsg').textContent = def ? `${def.emoji} ${def.name} を えらんでいるよ。◀▲▼▶で うごかそう` : 'かぐを えらぶと おへやに ならぶよ。おいた かぐを タップすると うごかせるよ';
+  for (const b of document.querySelectorAll('.decoPad button')) b.disabled = !def;
+  if (def && def.kind === 'wall') for (const b of document.querySelectorAll('.decoPad [data-mv="0,-1"], .decoPad [data-mv="0,1"], #decoRot')) b.disabled = true;
+}
+function placeNew(id) {
+  const spot = room.findSpot(id);
+  if (!spot) { toast('そこに おけないよ。へやが いっぱい！', 1800); sfx('tap'); return; }
+  homeItems().push(spot); decoSel = homeItems().length - 1;
+  refreshRoom(); sfx('pick'); renderDeco(); save();
+}
+function moveSel(dx, dz) {
+  const it = homeItems()[decoSel]; if (!it) return;
+  const n = { ...it, x: it.x + dx * 0.5, z: it.z + dz * 0.5 };
+  if (FURN_BY_ID[it.id].kind === 'wall') n.z = it.z;
+  if (room.canPlace(n, decoSel)) { homeItems()[decoSel] = n; refreshRoom(); sfx('tap'); } else sfx('open');
+}
+function pickFurn(cx, cy) {
+  ndc.set((cx / innerWidth) * 2 - 1, -(cy / innerHeight) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const hit = ray.intersectObjects(room.furn.children, true)[0];
+  if (hit && hit.object.userData.furn !== undefined) { decoSel = hit.object.userData.furn; sfx('pick'); renderDeco(); }
+  else { decoSel = -1; renderDeco(); }
+}
+function stopRepeat() { clearInterval(decoRepeat); decoRepeat = null; }
+for (const b of document.querySelectorAll('.decoPad [data-mv]')) {
+  const [dx, dz] = b.dataset.mv.split(',').map(Number);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); stopRepeat(); moveSel(dx, dz); decoRepeat = setInterval(() => moveSel(dx, dz), 170); });
+  for (const ev of ['pointerup', 'pointerleave', 'pointercancel']) b.addEventListener(ev, stopRepeat);
+}
+$('decoRot').onclick = () => { const it = homeItems()[decoSel]; if (!it) return; it.r = ((it.r || 0) + 1) % 4; refreshRoom(); sfx('tap'); };
+$('decoDel').onclick = () => { if (decoSel < 0) return; homeItems().splice(decoSel, 1); decoSel = -1; refreshRoom(); sfx('pick'); renderDeco(); save(); };
+$('decoDone').onclick = closeDeco;
+$('btnDeco').onclick = () => { initAudio(); sfx('tap'); openDeco(); };
+for (const b of document.querySelectorAll('.decoTabs button')) b.onclick = () => { decoTab = b.dataset.dt; sfx('tap'); renderDeco(); };
+function updateDeco() {
+  const it = homeItems()[decoSel], def = it && FURN_BY_ID[it.id];
+  selRing.visible = !!def;
+  if (def) {
+    const wall = def.kind === 'wall';
+    selRing.position.set(it.x, 0.06, wall ? room.bounds.z0 + 0.9 : it.z);
+    selRing.scale.setScalar(Math.max(0.5, (def.kind === 'rug' ? def.rr : def.r) * 1.15) + Math.sin(clock * 6) * 0.04);
+    const node = room.nodes[decoSel]; if (node) node.position.y = (wall ? def.y : 0) + Math.abs(Math.sin(clock * 4)) * 0.05;
+  }
 }
 
 // ---------- シアター ----------
 let curScene = null;
 function playScene(def) {
   track('theater');
-  if (place === 'in') exitHouse();
+  if (place === 'in') exitAny();
   curScene = def;
   mode = 'theater';
   $('toast').classList.add('hidden');
@@ -1752,7 +2010,8 @@ function frame(now) {
       if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) $('clock').textContent = clockText(h) + (EVENT_NAMES[currentEvent()] ? '　' + EVENT_NAMES[currentEvent()] : '');
     }
     world.update(dt, clock);
-    if (place === 'in') interior.update(clock);
+    if (place === 'in' && inKind === 'sei') interior.update(clock);
+    $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
       S.playSec += dt;
@@ -1760,6 +2019,7 @@ function frame(now) {
       if (saveTimer > 6) { saveTimer = 0; save(); }
     } else if (player && mode === 'menu') animate(player, dt, { t: clock });
     updateNpcs(dt);
+    if (mode === 'deco') updateDeco();
     if (rot.l) yaw -= dt * 1.8;
     if (rot.r) yaw += dt * 1.8;
     if (mode === 'play' && !sleeping) { idle += dt; if (idle > ((gameHour() >= 20 || gameHour() < 5) ? 15 : 30)) startSleep(); }
@@ -1772,11 +2032,13 @@ function frame(now) {
         if (place === 'out') {
           if (Math.hypot(pp.x - world.door.x, pp.z - world.door.z) < 4) ent = 'house';
           else if (Math.hypot(pp.x + 9, pp.z - 12.2) < 5.5) ent = 'shop';
-        } else if (pp.z > interior.exit.z - 2.5 && Math.abs(pp.x - OFF) < 2.6) ent = 'out';
+          else if (S.home.stage > 0) { const hd = world.homeDoorPos(S.home.stage); if (Math.hypot(pp.x - hd.x, pp.z - hd.z) < 4) ent = 'home'; }
+        } else if (inKind === 'home') { if (pp.z > room.exit.z - 2.5 && Math.abs(pp.x - OFF2) < 2.6) ent = 'out'; }
+        else if (pp.z > interior.exit.z - 2.5 && Math.abs(pp.x - OFF) < 2.6) ent = 'out';
       }
       enterKind = ent;
       $('btnEnter').classList.toggle('hidden', !ent);
-      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 おうちに はいる' : '🚪 そとに でる';
+      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 セイママの おうちに はいる' : ent === 'home' ? '🏡 わたしの おうちに はいる' : '🚪 そとに でる';
     }
     if (mode === 'play' && nearNpc) $('btnTalk').textContent = `💬 ${CHARS[nearNpc].name}と はなす`;
     updateFx(dt);
@@ -1805,4 +2067,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
