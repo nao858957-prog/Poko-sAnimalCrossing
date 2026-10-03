@@ -1029,6 +1029,8 @@ function qProgress(q) {
   if (q.type === 'catch') return { have: Math.min(q.n, st.c || 0), need: q.n };
   if (q.type === 'collect') return { have: Math.min(q.n, q.item === 'flower' ? S.flowers : (S.inv[q.item] || 0)), need: q.n };
   if (q.type === 'talk') return { have: (st.talked || []).length, need: q.who.length };
+  if (q.type === 'buyrod' && S.rod > 0) return { have: 1, need: 1 };   // もう つりざおを もっている人は そのまま クリア
+  if (q.type === 'wear' && qState(q) && S.avatar.hat) return { have: 1, need: 1 };   // もう ぼうしを かぶっていれば そのまま クリア
   return { have: st.p ? 1 : 0, need: 1 };
 }
 function qStatus(q) {
@@ -1165,7 +1167,7 @@ function askQuest(q) {
       ['✅ ひきうける', () => {
         S.quests[q.id] = { s: 'active', p: 0, talked: [] };
         addMsg(q.giver, 'sys', `📜 おねがいを ひきうけたよ：${q.title}`);
-        npcSay(q.giver, 'ありがとう！ ' + q.hint + ' ね。おねがいね！');
+        npcSay(q.giver, q.type === 'buyrod' && S.rod > 0 ? 'あら、もう つりざおを もっているのね！ それなら おはなし してくれるだけで だいじょうぶよ。' : 'ありがとう！ ' + q.hint + ' ね。おねがいね！');
         refreshMarkers(); save();
       }, 'ok'],
       ['あとで', () => { npcSay(q.giver, 'うん、気が向いたら またおねがいね。'); }, 'later'],
