@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
 import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } from './home.js';
-import { buildWorld, buildInterior, buildHollow, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, GREAT_TREE, HOLLOW_DOOR, landDepth, clampLand, shoreNormal } from './world.js';
+import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
@@ -31,7 +31,7 @@ function loadSave() {
 function save() {
   if (!S || !S.created) return;
   try {
-    S.pos = place === 'in' ? (inKind === 'home' ? { x: world.homeDoorPos(S.home.stage).x, z: world.homeDoorPos(S.home.stage).z + 1.8, ry: 0 } : inKind === 'hollow' ? { x: HOLLOW_DOOR.x, z: HOLLOW_DOOR.z + 2.0, ry: 0 } : { x: 0, z: -11.4, ry: 0 }) : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
+    S.pos = place === 'in' ? (inKind === 'home' ? { x: world.homeDoorPos(S.home.stage).x, z: world.homeDoorPos(S.home.stage).z + 1.8, ry: 0 } : { x: 0, z: -11.4, ry: 0 }) : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
     localStorage.setItem(SAVE_KEY, JSON.stringify(S));
   } catch (e) { /* 保存できない環境でも遊べる */ }
 }
@@ -63,11 +63,7 @@ const OFF2 = 1000; // わたしの おうちの なかは さらに とおくに
 const room = new HomeRoom();
 room.group.position.set(OFF2, 0, 0); room.group.visible = false; world.group.add(room.group);
 let homeObs = [];
-const OFF3 = 1400; // おもいでの ほらあな
-const hollow = buildHollow();
-hollow.group.position.set(OFF3, 0, 0); hollow.group.visible = false; world.group.add(hollow.group);
-const hollowObs = hollow.obstacles.map(o => ({ x: o.x + OFF3, z: o.z, r: o.r }));
-const curObs = () => place === 'in' ? (inKind === 'home' ? homeObs : inKind === 'hollow' ? hollowObs : inObstacles) : world.obstacles;
+const curObs = () => place === 'in' ? (inKind === 'home' ? homeObs : inObstacles) : world.obstacles;
 function applyHome() {
   const h = S.home;
   h.items = (h.items || []).filter(it => FURN_BY_ID[it.id]);
@@ -270,12 +266,12 @@ function dist2(a, b) { return Math.hypot(a.root.position.x - b.root.position.x, 
 // ---------- 移動と衝突 ----------
 function collide(pos, rad, hop = false) {
   if (pos.x > OFF / 2) {
-    const hol = pos.x > OFF3 - 200, home = !hol && pos.x > OFF2 - 200, off = hol ? OFF3 : home ? OFF2 : OFF;
-    for (const o of (hol ? hollowObs : home ? homeObs : inObstacles)) {
+    const home = pos.x > OFF2 - 200, off = home ? OFF2 : OFF;
+    for (const o of (home ? homeObs : inObstacles)) {
       const dx = pos.x - o.x, dz = pos.z - o.z, d = Math.hypot(dx, dz), m = o.r + rad;
       if (d < m && d > 0.0001) { pos.x = o.x + dx / d * m; pos.z = o.z + dz / d * m; }
     }
-    const b = hol ? hollow.bounds : home ? room.bounds : interior.bounds;
+    const b = home ? room.bounds : interior.bounds;
     pos.x = Math.min(off + b.x1, Math.max(off + b.x0, pos.x));
     pos.z = Math.min(b.z1, Math.max(b.z0, pos.z));
     return;
@@ -368,32 +364,7 @@ function exitHome() {
   sfx('open');
   updateQuestHud();
 }
-function enterHollow() {
-  if (place === 'in') return;
-  place = 'in'; inKind = 'hollow'; doorCool = 1.2;
-  hollow.group.visible = true; world.treeLabel.visible = false;
-  player.root.position.set(OFF3 + hollow.spawn.x, 0, hollow.spawn.z);
-  player.root.rotation.y = Math.PI;
-  moveTarget = null; talkOnArrive = null; marker.visible = false;
-  yaw = 0; appliedHour = -1; applySky(gameHour());
-  camPos.set(OFF3, 8, hollow.spawn.z + 9); camLook.set(OFF3, 1, 0);
-  sfx('open'); track('hollow-enter');
-  if (!S.seenHollow) { S.seenHollow = true; toast('ここは…ポコを うんでくれた ママが くらしていた ばしょ。<br>やさしい ひかりと、たくさんの おはなが ゆれているよ 🌼', 7000); addDiary('おおきな きの ほらあなに はいった。ポコの うんでくれた ママが くらしていた ばしょ。しずかで、あたたかかった。'); }
-  for (const q of QS()) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && q.where === 'hollow' && !st.p) { st.p = 1; toast(`📍 おもいでの ほらあなに ついたよ！<br>${CHARS[q.giver].name}に おしえてあげよう`, 4200); } }
-  refreshMarkers(); save();
-}
-function exitHollow() {
-  if (place === 'out') return;
-  place = 'out'; doorCool = 1.2;
-  hollow.group.visible = false;
-  player.root.position.set(HOLLOW_DOOR.x, 0, HOLLOW_DOOR.z + 2.0);
-  player.root.rotation.y = 0;
-  moveTarget = null; marker.visible = false;
-  appliedHour = -1; applySky(gameHour());
-  camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
-  sfx('open');
-}
-function exitAny() { if (inKind === 'home') exitHome(); else if (inKind === 'hollow') exitHollow(); else exitHouse(); }
+function exitAny() { if (inKind === 'home') exitHome(); else exitHouse(); }
 // しょうたいした ともだちを おうちの なかに ならべる
 function placeGuests() {
   const ids = S.home.guests.filter(id => npcs[id]), b = room.bounds, today = todayKey();
@@ -466,7 +437,7 @@ $('btnSound').onclick = () => {
 
 // ---------- おみせ ----------
 let shopTab = 'food', shopBusy = false, enterKind = null;
-$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'home') enterHome(); else if (enterKind === 'hollow') enterHollow(); else if (enterKind === 'out') exitAny(); sfx('tap'); };
+$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'home') enterHome(); else if (enterKind === 'out') exitAny(); sfx('tap'); };
 function refreshPlayerModel() {
   const p = player.root.position.clone(), ry = player.root.rotation.y;
   world.group.remove(player.root);
@@ -736,16 +707,14 @@ function updatePlayer(dt) {
     if (place === 'out' && Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 1.25) enterHouse();
     else if (place === 'out' && hd && Math.hypot(pos.x - hd.x, pos.z - hd.z) < 1.4) enterHome();
     else if (place === 'in' && inKind === 'sei' && pos.z > interior.exit.z && Math.abs(pos.x - OFF) < 1.7) exitHouse();
-    else if (place === 'out' && Math.hypot(pos.x - HOLLOW_DOOR.x, pos.z - HOLLOW_DOOR.z) < 1.5) enterHollow();
     else if (place === 'in' && inKind === 'home' && pos.z > room.exit.z && Math.abs(pos.x - OFF2) < 1.7) exitHome();
-    else if (place === 'in' && inKind === 'hollow' && pos.z > hollow.exit.z && Math.abs(pos.x - OFF3) < 1.9) exitHollow();
   }
   if (place === 'out') {
     doorLabel.visible = Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 14;
     world.shopLabel.visible = Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 14;
     const nearHome = Math.hypot(pos.x - HOME_PLOT.x, pos.z - HOME_PLOT.z) < 16;
     world.homeLabelBuild.visible = nearHome && S.home.stage === 0; world.homeLabelMine.visible = nearHome && S.home.stage > 0;
-    world.treeLabel.visible = Math.hypot(pos.x - GREAT_TREE.x, pos.z - GREAT_TREE.z) < 22; world.farm.label.visible = Math.hypot(pos.x - FARM.x, pos.z - FARM.z) < 14;
+    world.farm.label.visible = Math.hypot(pos.x - FARM.x, pos.z - FARM.z) < 14;
     if (mode === 'play' && doorCool <= 0 && Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 1.3) openShop();
   }
   if (moving) idle = 0;
@@ -928,7 +897,6 @@ function updateCamera(dt) {
     const inn = place === 'in';
     if (inn) yaw = Math.max(-0.6, Math.min(0.6, yaw));
     let dist = inn ? (aspect < 0.8 ? 18 : 12.5) : aspect < 0.8 ? 15.5 : 12.5, h = inn ? (aspect < 0.8 ? 13 : 9.5) : aspect < 0.8 ? 11 : 8.4;
-    if (inn && inKind === 'hollow') { dist = aspect < 0.8 ? 12.5 : 9; h = aspect < 0.8 ? 9.5 : 7; }
     if (inn && inKind === 'home') { const c = STAGES[S.home.stage].cam; dist = c[0] * (aspect < 0.8 ? 1.3 : 1); h = c[1] * (aspect < 0.8 ? 1.3 : 1); }
     desired = new THREE.Vector3(pp.x + Math.sin(yaw) * dist, h, pp.z + Math.cos(yaw) * dist);
     look = new THREE.Vector3(pp.x, 1.2, pp.z);
@@ -984,7 +952,7 @@ function chooseChatSide(id) {
       for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + (o.r < 1.3 ? 2.4 : 1.3)) score += 1;
       for (const q of others) if (Math.hypot(q.x - x, q.z - z) < 2.4) score += 2;
       if (place === 'out' && landDepth(x, z) < -6) score += 3;
-      if (place === 'in') { const b = inKind === 'hollow' ? hollow.bounds : inKind === 'home' ? room.bounds : interior.bounds, of = inKind === 'hollow' ? OFF3 : inKind === 'home' ? OFF2 : OFF; if (x < of + b.x0 - 1 || x > of + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
+      if (place === 'in') { const b = inKind === 'home' ? room.bounds : interior.bounds, of = inKind === 'home' ? OFF2 : OFF; if (x < of + b.x0 - 1 || x > of + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
     }
     if (score < bestScore) { bestScore = score; best = ang; }
   }
@@ -2210,7 +2178,6 @@ function frame(now) {
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
-    if (place === 'in' && inKind === 'hollow') hollow.update(clock);
     $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
@@ -2235,14 +2202,12 @@ function frame(now) {
           if (Math.hypot(pp.x - world.door.x, pp.z - world.door.z) < 4) ent = 'house';
           else if (Math.hypot(pp.x + 9, pp.z - 12.2) < 5.5) ent = 'shop';
           else if (S.home.stage > 0 && Math.hypot(pp.x - world.homeDoorPos(S.home.stage).x, pp.z - world.homeDoorPos(S.home.stage).z) < 4) ent = 'home';
-          else if (Math.hypot(pp.x - HOLLOW_DOOR.x, pp.z - HOLLOW_DOOR.z) < 4.5) ent = 'hollow';
-        } else if (inKind === 'hollow') { if (pp.z > hollow.exit.z - 2.2 && Math.abs(pp.x - OFF3) < 2.6) ent = 'out'; }
-        else if (inKind === 'home') { if (pp.z > room.exit.z - 2.5 && Math.abs(pp.x - OFF2) < 2.6) ent = 'out'; }
+        } else if (inKind === 'home') { if (pp.z > room.exit.z - 2.5 && Math.abs(pp.x - OFF2) < 2.6) ent = 'out'; }
         else if (pp.z > interior.exit.z - 2.5 && Math.abs(pp.x - OFF) < 2.6) ent = 'out';
       }
       enterKind = ent;
       $('btnEnter').classList.toggle('hidden', !ent);
-      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 セイママの おうちに はいる' : ent === 'home' ? '🏡 わたしの おうちに はいる' : ent === 'hollow' ? '🌳 ほらあなに はいる' : '🚪 そとに でる';
+      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 セイママの おうちに はいる' : ent === 'home' ? '🏡 わたしの おうちに はいる' : '🚪 そとに でる';
     }
     if (mode === 'play' && nearNpc) $('btnTalk').textContent = `💬 ${CHARS[nearNpc].name}と はなす`;
     updateFx(dt);
@@ -2271,4 +2236,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, enterHollow, exitHollow, hollow, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
