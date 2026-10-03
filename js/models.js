@@ -312,6 +312,28 @@ function longTailedTit() {
   return P;
 }
 
+// ---- キジ (チャオ / はたけの トラブルメーカー) ----
+function pheasant() {
+  const P = chibi({ body: '#4f9a62', belly: '#3f8a78', headC: '#2f6f6a', leg: '#d8b070', arm: '#b8743a', br: 0.46, hr: 0.4, legH: 0.2, legR: 0.05, armR: 0.14, scale: 1.1 });
+  const hr = P.hr;
+  for (const sd of [-1, 1]) {
+    const x = sd * hr * 0.5, y = -0.02 * hr;
+    add(P.head, sph(0.11, '#e8383d', 1.15, 1.0, 0.4), x * 1.05, y - 0.01, surfZ(hr, x, y) - 0.035);
+    const tuft = sph(0.1, '#2f6f6a', 0.7, 1.7, 0.7); add(P.head, tuft, sd * hr * 0.55, hr * 0.78, 0.0); tuft.rotation.z = -sd * 0.5;
+  }
+  eyes(P, { y: 0.02, sp: hr * 0.46, r: 0.05, color: '#1a1a22' });
+  for (const e of P.eyes) e.position.z += 0.05;
+  for (const sd of [-1, 1]) { const br = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.03, 0.03), mat('#2a1a10')); br.position.set(sd * hr * 0.46, 0.17 * hr + 0.04, surfZ(hr, sd * hr * 0.46, 0.17 * hr) + 0.005); br.rotation.z = -sd * 0.35; P.head.add(br); }
+  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 8), mat('#e8d070'));
+  beak.rotation.x = Math.PI / 2; beak.position.set(0, -0.22 * hr, surfZ(hr, 0, -0.22 * hr) + 0.05); P.head.add(beak);
+  ringNeck(P, '#f6f6f2', 0.34, 0.06);
+  add(P.body, sph(0.3, '#b8743a', 1.2, 0.5, 0.9), 0, P.cy + 0.22, -0.2);
+  const tail = new THREE.Group(); tail.position.set(0, P.cy * 0.9, -P.br * 0.7); P.body.add(tail);
+  for (let i = 0; i < 7; i++) { const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.07 - i * 0.004, 0.08 - i * 0.004, 0.2, 8), mat(i % 2 ? '#6a4a30' : '#d8b070')); seg.rotation.x = Math.PI / 2 + 0.22; seg.position.set(0, 0.06 + i * 0.035, -0.12 - i * 0.2); tail.add(seg); }
+  P.tail = tail; P.bird = true;
+  return P;
+}
+
 // ---- くろねこ (ナミ / クロ) ----
 function cat(o) {
   const P = chibi({ body: '#35353f', belly: o.baby ? '#3f3f4b' : null, leg: '#2c2c35', arm: '#2c2c35', br: o.br, hr: o.hr, legH: 0.26, scale: o.scale });
@@ -388,6 +410,7 @@ export const SPECIES = {
   nami: () => cat({ baby: true, br: 0.4, hr: 0.58, scale: 0.9 }),
   kuro: () => cat({ baby: false, br: 0.55, hr: 0.56, scale: 1.45 }),
   pon: tanuki,
+  chao: pheasant,
 };
 export function makeAnimal(id) {
   const P = SPECIES[id]();
@@ -593,7 +616,7 @@ export function animate(P, dt, st) {
   P.body.scale.y = 1 + breathe * (1 - w);
   P.body.rotation.x = damp(P.body.rotation.x, w * 0.06 + (st.bow || 0), dt, 10);
   P.head.rotation.z = Math.sin(t * 1.3 + P.phase) * 0.04 + (st.tilt || 0);
-  P.head.rotation.x = damp(P.head.rotation.x, st.nod ? Math.sin(t * 8) * 0.12 : 0, dt, 12);
+  P.head.rotation.x = damp(P.head.rotation.x, st.peck ? 0.5 + Math.sin(t * 14) * 0.35 : st.nod ? Math.sin(t * 8) * 0.12 : 0, dt, st.peck ? 20 : 12);
   if (P.tail) P.tail.rotation.y = Math.sin(t * 3 + P.phase) * (P.bird ? 0.15 : 0.35) + (st.tailBig ? Math.sin(t * 8) * 0.3 : 0);
   if (P.ears) P.ears.forEach((e, i) => { e.rotation.x = Math.sin(t * 2.2 + i) * 0.08 + (st.scared ? Math.sin(t * 20) * 0.08 : 0); });
   // まばたき

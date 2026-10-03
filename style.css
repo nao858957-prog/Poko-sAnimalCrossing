@@ -296,3 +296,10 @@ h2 { margin: 0; font-size: 1.25rem; text-align: center; }
 /* さかなの SVG アイコン */
 svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible; }
 .cc-e svg.fi { height: 1em; width: 1.5em; filter: drop-shadow(0 4px 4px #0003); }
+
+/* はたけ */
+.talk.farmbtn { bottom: calc(env(safe-area-inset-bottom) + 16.8rem); background: #6aa84f; box-shadow: 0 5px 0 #4a7f36, 0 8px 14px #0003; text-shadow: 0 1px 0 #4a7f36; animation: none; }
+@media (max-height: 520px) and (orientation: landscape) { .talk.farmbtn { bottom: calc(env(safe-area-inset-bottom) + 10.4rem); } }
+#seedList { display: flex; flex-direction: column; gap: .5rem; }
+#seedList button { display: flex; align-items: center; gap: .6rem; text-align: left; background: #fff; border: 3px solid var(--blue); border-radius: 1.1rem; padding: .5rem .8rem; font-size: 1rem; min-height: 3rem; }
+#seedList button small { opacity: .7; margin-left: auto; }

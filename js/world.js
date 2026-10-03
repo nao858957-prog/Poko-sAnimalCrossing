@@ -9,8 +9,11 @@ function rng(seed) {
 
 export const ISLAND_R = 48;
 // 島のかたち: 本島 + にしの「くらしのはま」(おうちを たてる ばしょ)。g = しばふの はんけい
-export const LAND = [{ x: 0, z: 0, r: ISLAND_R, g: 39 }, { x: -64, z: 2, r: 26, g: 19 }];
+export const LAND = [{ x: 0, z: 0, r: ISLAND_R, g: 39 }, { x: -66, z: 4, r: 30, g: 23 }];
 export const HOME_PLOT = { x: -68, z: -10 };
+export const FARM = { x: -58, z: 14 };          // はたけ
+export const GREAT_TREE = { x: -87, z: 7 };     // おもいでの おおきな き
+export const HOLLOW_DOOR = { x: -87, z: 11.4 }; // ほらあなの いりぐち
 export const landDepth = (x, z) => { let d = -1e9; for (const c of LAND) d = Math.max(d, c.r - Math.hypot(x - c.x, z - c.z)); return d; };
 // 海に出ないよう 島の中へ もどす (m = へりから あける きょり)
 export function clampLand(pos, m = 0) {
@@ -29,10 +32,12 @@ export function shoreNormal(x, z) {
 }
 export const HOMES = {
   sei: [3.5, -11], poko: [-2, -8.5], mei: [1.5, -8],
-  rin: [-14, -1], pa: [13, -3], ku: [15.5, -6.5],
-  nami: [-3, 41], kuro: [3, 42.5], haru: [7, -6.5], pon: [-6.2, 12.7],
+  rin: [-76, 9], pa: [32, 9], ku: [27, -19],
+  nami: [-3, 41], kuro: [3, 42.5], haru: [-12, -26], pon: [-6.2, 12.7],
+  chao: [-48, 12],
 };
 
+function cyl3(parent, rt, rb, h, color, x, y, z) { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, 10), mat(color)); m.position.set(x, y, z); parent.add(m); return m; }
 function box3(parent, w, h, d, color, x, y, z) { const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat(color)); m.position.set(x, y, z); parent.add(m); return m; }
 
 export function buildWorld() {
@@ -309,9 +314,9 @@ export function buildWorld() {
   const bridge = new THREE.Mesh(new THREE.CircleGeometry(10, 40), grassMat); bridge.rotation.x = -Math.PI / 2; bridge.position.set(-44, 0, -1); g.add(bridge);
   const lp = new THREE.Mesh(new THREE.PlaneGeometry(36, 2.4), mat('#ead7a4')); lp.rotation.x = -Math.PI / 2; lp.position.set(-52, 0.016, -2); g.add(lp);
   const lp2 = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 5), mat('#ead7a4')); lp2.rotation.x = -Math.PI / 2; lp2.position.set(HP.x, 0.017, HP.z + 5.8); g.add(lp2);
-  for (let n = 0, t = 0; n < 24 && t++ < 900;) {
-    const x = -64 + (r2() - 0.5) * 40, z = 2 + (r2() - 0.5) * 40;
-    if (x > -40 || !onGrass(x, z, 3.5) || Math.hypot(x - HP.x, z - HP.z) < 10.5 || (Math.abs(z + 2) < 2.8 && x < -33) || Math.hypot(x + 31, z - 8) < 6) continue;
+  for (let n = 0, t = 0; n < 34 && t++ < 1500;) {
+    const x = -66 + (r2() - 0.5) * 46, z = 4 + (r2() - 0.5) * 46;
+    if (x > -40 || !onGrass(x, z, 3.5) || Math.hypot(x - HP.x, z - HP.z) < 10.5 || (Math.abs(z + 2) < 2.8 && x < -33) || Math.hypot(x + 31, z - 8) < 6 || Math.hypot(x - FARM.x, (z - FARM.z) * 1.1) < 10.5 || Math.hypot(x - GREAT_TREE.x, z - GREAT_TREE.z) < 12 || (Math.abs(x + 80) < 3.2 && z < 13 && z > -3) || (Math.abs(z - 11.4) < 3.2 && x < -77)) continue;
     if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < 3.4)) continue;
     tree(x, z, 0.85 + r2() * 0.5, r2() < 0.25, r2); n++;
   }
@@ -325,6 +330,116 @@ export function buildWorld() {
     const l = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); l.position.set(x, 2.5, z); g.add(l); lamps.push(l);
   }
   scatter('herb', 6, -64, 2, 14, 14, 120); scatter('feather', 4, -64, 2, 14, 14, 120); scatter('mushroom', 3, -70, 10, 8, 5, 80);
+  // ---- にしの おおきな き (ほらあな) と おもいでの おはなばたけ ----
+  const T = GREAT_TREE;
+  const lampW = (x, z) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.2, 6), mat('#6b5a4a')); p.position.set(x, 1.1, z); g.add(p); const l = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); l.position.set(x, 2.3, z); g.add(l); lamps.push(l); };
+  const tg = new THREE.Group(); tg.position.set(T.x, 0, T.z); g.add(tg);
+  const moss = new THREE.Mesh(new THREE.CircleGeometry(8, 36), mat('#69b358')); moss.rotation.x = -Math.PI / 2; moss.position.y = 0.011; tg.add(moss);
+  const trunk = new THREE.Mesh(new THREE.CylinderGeometry(3.3, 3.6, 10, 22), mat('#7a5230')); trunk.position.y = 5; tg.add(trunk);
+  for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2 + 0.3; const rt = add(tg, sph(0.9, '#6a4528', 2.4, 0.5, 0.9), Math.cos(a) * 3.8, 0.22, Math.sin(a) * 3.8); rt.rotation.y = -a; }
+  for (const [x, y, z, rr, c] of [[0, 12, 0, 5.4, '#4aa84a'], [-3.8, 11, 1.6, 3.9, '#58b84a'], [4, 11.2, -1, 4.0, '#6cc455'], [1.5, 14.2, 2, 3.7, '#58b84a'], [-2, 13.6, -2.6, 3.5, '#4aa84a'], [-5.2, 12.4, -2.2, 3.0, '#6cc455']]) add(tg, sph(rr, c, 1, 0.85, 1), x, y, z);
+  for (let i = 0; i < 18; i++) { const a = r2() * 6.28, h = 10 + r2() * 5; add(tg, sph(0.18, i % 3 ? '#ffe0ea' : '#ffffff'), Math.cos(a) * (3.5 + r2() * 2), h, Math.sin(a) * (3.5 + r2() * 2.5) + 1); }
+  { // ほらあなの いりぐち (みなみ むき)
+    const sh = new THREE.Shape(); sh.moveTo(-1.25, 0); sh.lineTo(-1.25, 1.7); sh.absarc(0, 1.7, 1.25, Math.PI, 0, true); sh.lineTo(1.25, 0); sh.closePath();
+    const hole = new THREE.Mesh(new THREE.ShapeGeometry(sh, 16), new THREE.MeshBasicMaterial({ color: '#1a0f08' })); hole.position.set(0, 0.02, 3.58); tg.add(hole);
+    const arch = new THREE.Mesh(new THREE.TorusGeometry(1.3, 0.24, 8, 22, Math.PI), mat('#a9774a')); arch.position.set(0, 1.7, 3.6); tg.add(arch);
+    for (const sx of [-1.3, 1.3]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.28, 1.7, 8), mat('#a9774a')); po.position.set(sx, 0.85, 3.6); tg.add(po); }
+    add(tg, new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd890' })), -2.0, 0.5, 4.2);
+    add(tg, new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), new THREE.MeshBasicMaterial({ color: '#ffd890' })), 2.0, 0.5, 4.2);
+  }
+  obstacles.push({ x: T.x, z: T.z, r: 3.9 });
+  const treeLabel = makeLabel('🌳 おもいでの おおきな き', '#6a9a50'); treeLabel.position.set(T.x, 16.6, T.z); treeLabel.visible = false; g.add(treeLabel);
+  // 小みち: みち → おおきな き
+  for (const [w, d, x, z] of [[2.4, 14, -80, 4.5], [8, 2.4, -83.5, 11.2]]) { const pp = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat('#ead7a4')); pp.rotation.x = -Math.PI / 2; pp.position.set(x, 0.016, z); g.add(pp); }
+  lampW(-78.5, 11.2 + 1.8); lampW(-84.5, 11.2 + 1.8);
+  { // おもいでの おはなばたけ (かざり。たくさんの おはなを まとめて えがく)
+    const FL = [];
+    for (let t = 0; FL.length < 300 && t < 4000; t++) {
+      const x = -78 + (r2() - 0.5) * 26, z = 3 + (r2() - 0.5) * 17;
+      if (Math.hypot(x - T.x, z - T.z) < 5.4 || (Math.abs(x + 80) < 1.7 && z < 12) || (Math.abs(z - 11.2) < 1.7 && x < -79) || landDepth(x, z) < 6 || Math.hypot(x - HP.x, z - HP.z) < 7.5) continue;
+      FL.push([x, z]);
+    }
+    const n = FL.length;
+    const stemI = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.03, 0.4, 5), new THREE.MeshLambertMaterial({ color: '#5aa84a' }), n);
+    const petI = new THREE.InstancedMesh(new THREE.SphereGeometry(0.1, 6, 5), new THREE.MeshLambertMaterial({ color: 0xffffff }), n * 5);
+    const cenI = new THREE.InstancedMesh(new THREE.SphereGeometry(0.07, 6, 5), new THREE.MeshLambertMaterial({ color: '#ffb020' }), n);
+    const m4 = new THREE.Matrix4(), q0 = new THREE.Quaternion(), p0 = new THREE.Vector3(), s0 = new THREE.Vector3(), cc = new THREE.Color();
+    const PET = ['#ffffff', '#fff2a8', '#ffd0e0', '#d9c8ff', '#ffffff', '#ffb3c6', '#b8dcff'];
+    FL.forEach(([x, z], i) => {
+      const s = 0.8 + r2() * 0.8;
+      m4.compose(p0.set(x, 0.2 * s, z), q0, s0.set(1, s, 1)); stemI.setMatrixAt(i, m4);
+      m4.compose(p0.set(x, 0.44 * s, z), q0, s0.set(1, 0.8 * s, 1)); cenI.setMatrixAt(i, m4);
+      cc.set(PET[Math.floor(r2() * PET.length)]);
+      for (let k = 0; k < 5; k++) { const a = k / 5 * Math.PI * 2; m4.compose(p0.set(x + Math.cos(a) * 0.12 * s, 0.42 * s, z + Math.sin(a) * 0.12 * s), q0, s0.set(s, 0.6 * s, s)); petI.setMatrixAt(i * 5 + k, m4); petI.setColorAt(i * 5 + k, cc); }
+    });
+    for (const m of [stemI, petI, cenI]) { m.frustumCulled = false; m.instanceMatrix.needsUpdate = true; g.add(m); }
+    petI.instanceColor.needsUpdate = true;
+  }
+
+  // ---- はたけ ----
+  const FM = FARM, farmG = new THREE.Group(); farmG.position.set(FM.x, 0, FM.z); g.add(farmG);
+  box3(farmG, 11.8, 0.06, 8.6, '#a98b60', 0, 0.03, 0);
+  for (const [w, d, x, z] of [[2.4, FM.z - 4.7 + 2, FM.x, (FM.z - 4.7 - 2) / 2], [13, 2.4, -76.5, -2]]) { const pp = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat('#ead7a4')); pp.rotation.x = -Math.PI / 2; pp.position.set(x, 0.016, z); g.add(pp); }
+  const soilDry = mat('#8a6a44'), soilWet = mat('#4e3624');
+  const farmPlots = [];
+  for (const pz of [-2.1, 2.1]) for (const px of [-3.6, 0, 3.6]) {
+    const soil = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.14, 2.7), soilDry); soil.position.set(px, 0.1, pz); farmG.add(soil);
+    box3(farmG, 2.9, 0.18, 0.1, '#7a5a30', px, 0.09, pz - 1.4); box3(farmG, 2.9, 0.18, 0.1, '#7a5a30', px, 0.09, pz + 1.4); box3(farmG, 0.1, 0.18, 2.9, '#7a5a30', px - 1.4, 0.09, pz); box3(farmG, 0.1, 0.18, 2.9, '#7a5a30', px + 1.4, 0.09, pz);
+    const cg = new THREE.Group(); cg.position.set(px, 0.17, pz); farmG.add(cg);
+    farmPlots.push({ x: FM.x + px, z: FM.z + pz, soil, cg, sig: '' });
+  }
+  for (let i = -4; i <= 4; i++) { // さく (きたの まんなかは でいりぐち)
+    for (const [fx, fz] of [[i * 1.4, 4.7], [i * 1.4, -4.7]]) {
+      if (fz < 0 && Math.abs(fx) < 1.5) continue;
+      box3(farmG, 0.18, 0.9, 0.18, '#c8935a', fx, 0.45, fz); obstacles.push({ x: FM.x + fx, z: FM.z + fz, r: 0.32 });
+    }
+    box3(farmG, 1.4, 0.1, 0.1, '#c8935a', i * 1.4 + 0.7, 0.65, 4.7); if (Math.abs(i * 1.4 + 0.7) > 1.5) box3(farmG, 1.4, 0.1, 0.1, '#c8935a', i * 1.4 + 0.7, 0.65, -4.7);
+  }
+  for (const sx of [-6.3, 6.3]) for (let k = -3; k <= 3; k++) { box3(farmG, 0.18, 0.9, 0.18, '#c8935a', sx, 0.45, k * 1.4); obstacles.push({ x: FM.x + sx, z: FM.z + k * 1.4, r: 0.32 }); }
+  for (const sx of [-6.3, 6.3]) { box3(farmG, 0.1, 0.1, 9.4, '#c8935a', sx, 0.65, 0); }
+  { // かかし
+    const sc = new THREE.Group(); sc.position.set(-4.8, 0, 0.4 + 0); farmG.add(sc);
+    box3(sc, 0.12, 2.0, 0.12, '#8a5a36', 0, 1.0, 0); box3(sc, 1.5, 0.1, 0.1, '#8a5a36', 0, 1.5, 0);
+    add(sc, sph(0.28, '#f2d8a8'), 0, 2.15, 0); const hat = new THREE.Mesh(new THREE.ConeGeometry(0.42, 0.4, 12), mat('#d9b050')); hat.position.y = 2.5; sc.add(hat); box3(sc, 0.9, 0.05, 0.9, '#d9b050', 0, 2.33, 0).scale.set(1, 1, 1);
+    add(sc, sph(0.34, '#c26a4a', 1, 1.3, 0.7), 0, 1.3, 0.04);
+  }
+  box3(farmG, 0.7, 0.45, 0.5, '#c8935a', 5.3, 0.22, 3.6); add(farmG, sph(0.28, '#ff7a3a'), 5.1, 0.55, 3.6); add(farmG, sph(0.24, '#e8453a'), 5.55, 0.52, 3.55);
+  { const wc = new THREE.Group(); wc.position.set(5.2, 0, -3.4); farmG.add(wc); cyl3(wc, 0.3, 0.3, 0.5, '#5aa0d8', 0, 0.25, 0); box3(wc, 0.5, 0.06, 0.06, '#5aa0d8', 0.4, 0.5, 0).rotation.z = -0.5; }
+  const farmLabel = makeLabel('🌱 はたけ', '#7aa84f'); farmLabel.position.set(FM.x, 3.4, FM.z + 5.8); farmLabel.visible = false; g.add(farmLabel);
+  lampW(FM.x - 2.6, FM.z - 6.0);
+  const CROPV = {
+    carrot: { leaf: '#6cc455', fruit: '#ff8a2a', shape: 'cone' },
+    tomato: { leaf: '#4fa850', fruit: '#e8352f', shape: 'ball' },
+    strawberry: { leaf: '#58b84a', fruit: '#ff4a6a', shape: 'berry' },
+    pumpkin: { leaf: '#4aa04a', fruit: '#ff9a2a', shape: 'pump' },
+  };
+  function buildCrop(cg, crop, stage, bug) {
+    while (cg.children.length) cg.remove(cg.children[0]);
+    const v = CROPV[crop]; if (!v) return;
+    if (stage === 0) { add(cg, sph(0.28, '#5a3e28', 1.6, 0.5, 1.6), 0, 0.05, 0); return; }
+    const sc = [0, 0.45, 0.8, 1][stage];
+    const nL = v.shape === 'pump' ? 3 : 5;
+    for (let i = 0; i < nL; i++) { const a = i / nL * Math.PI * 2; add(cg, sph(0.34 * sc, v.leaf, 1.4, 0.35, 0.9), Math.cos(a) * 0.4 * sc, 0.25 * sc, Math.sin(a) * 0.4 * sc).rotation.y = -a; }
+    if (v.shape === 'ball') { box3(cg, 0.05, 1.2 * sc, 0.05, '#8a5a36', 0.5, 0.6 * sc, 0.5); }
+    if (stage >= 3) {
+      for (let i = 0; i < 4; i++) {
+        const a = i / 4 * Math.PI * 2 + 0.5, x = Math.cos(a) * 0.55, z = Math.sin(a) * 0.55;
+        if (v.shape === 'cone') { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.42, 8), mat(v.fruit)); c.position.set(x * 0.7, 0.14, z * 0.7); c.rotation.x = Math.PI; cg.add(c); add(cg, sph(0.15, v.leaf, 1, 0.5, 1), x * 0.7, 0.33, z * 0.7); }
+        else if (v.shape === 'ball') add(cg, sph(0.17, v.fruit), x, 0.45 + (i % 2) * 0.25, z);
+        else if (v.shape === 'berry') { add(cg, sph(0.13, v.fruit, 1, 1.15, 1), x, 0.16, z); add(cg, sph(0.05, '#ffffff'), x, 0.2, z + 0.09); }
+        else if (i < 2) { add(cg, sph(0.5, v.fruit, 1.15, 0.8, 1.15), x * 0.9, 0.3, z * 0.9); }
+      }
+    }
+    if (bug && stage >= 1) for (let i = 0; i < 3; i++) add(cg, sph(0.07, i % 2 ? '#2a2a2a' : '#7a2a2a', 1, 0.8, 1.3), 0.25 - i * 0.22, 0.34 * sc + 0.08, 0.18 + i * 0.1);
+  }
+  function setFarmPlot(i, crop, stage, wet, bug) {
+    const p = farmPlots[i]; if (!p) return;
+    const sig = `${crop}|${stage}|${wet ? 1 : 0}|${bug ? 1 : 0}`; if (sig === p.sig) return;
+    p.sig = sig; p.soil.material = wet ? soilWet : soilDry;
+    if (!crop) { while (p.cg.children.length) p.cg.remove(p.cg.children[0]); return; }
+    buildCrop(p.cg, crop, stage, bug);
+  }
+
 
   // ---- わたしの おうち (たてる たびに おおきく なる) ----
   const hx = new THREE.Group(); hx.position.set(HP.x, 0, HP.z); g.add(hx);
@@ -543,7 +658,7 @@ export function buildWorld() {
     o.material.polygonOffsetFactor = -2 - o.position.y * 200;
     o.material.polygonOffsetUnits = -2 - o.position.y * 200;
   });
-  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, treeLabel, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台
@@ -759,4 +874,44 @@ export function buildInterior() {
     spawn: { x: 0, z: 3.2 },
     homes: { sei: [4.6, -2.7], poko: [-3.8, 0.9], mei: [0.8, 0.6] },
   };
+}
+
+// ---- おもいでの ほらあな (おおきな きの なか。ポコの うまれた ママが くらしていた ばしょ) ----
+export function buildHollow() {
+  const g = new THREE.Group();
+  const obstacles = [];
+  const R = 4.7;
+  const floor = new THREE.Mesh(new THREE.CircleGeometry(R, 40), mat('#5a4630')); floor.rotation.x = -Math.PI / 2; g.add(floor);
+  const moss = new THREE.Mesh(new THREE.CircleGeometry(3.7, 36), mat('#6aa850')); moss.rotation.x = -Math.PI / 2; moss.position.y = 0.012; g.add(moss);
+  const wall = new THREE.Mesh(new THREE.CylinderGeometry(R, R, 7, 36, 1, true), new THREE.MeshLambertMaterial({ color: '#6a4528', side: THREE.BackSide })); wall.position.y = 3.5; g.add(wall);
+  for (let i = 0; i < 9; i++) { const d = (i / 8 - 0.5) * Math.PI * 1.0; add(g, sph(0.7, '#5a3a20', 2.2, 0.5, 1), Math.sin(d) * (R - 0.5), 0.2, -Math.cos(d) * (R - 0.5)).rotation.y = -d; }
+  // うえから ひかりが さす
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(2.4, 1.2, 7, 24, 1, true), new THREE.MeshBasicMaterial({ color: '#fff3c0', transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false })); shaft.position.set(0, 3.5, -0.4); g.add(shaft);
+  const glow = new THREE.PointLight(0xffe2a8, 8, 14, 1.8); glow.position.set(0, 3.2, 0); g.add(glow);
+  // おはなの じゅうたん
+  const petal = ['#ffffff', '#fff2a8', '#ffd0e0', '#d9c8ff', '#ffb3c6', '#b8dcff'];
+  const rr2 = rng(31);
+  for (let i = 0; i < 38; i++) {
+    const a = rr2() * Math.PI * 2, d = 0.9 + rr2() * 2.9, x = Math.cos(a) * d, z = Math.sin(a) * d * 0.95;
+    if (Math.hypot(x, z + 2.4) < 1.3 || (z > 2.2 && Math.abs(x) < 1.4)) continue;
+    const f = new THREE.Group(); f.position.set(x, 0, z);
+    const stm = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.42, 5), mat('#5aa84a')); stm.position.y = 0.21; f.add(stm);
+    const c = petal[Math.floor(rr2() * petal.length)];
+    for (let k = 0; k < 5; k++) { const b = k / 5 * Math.PI * 2; add(f, sph(0.1, c, 1, 0.6, 1), Math.cos(b) * 0.12, 0.44, Math.sin(b) * 0.12); }
+    add(f, sph(0.07, '#ffb020'), 0, 0.46, 0); g.add(f);
+  }
+  // おもいでの いし と しゃしん
+  const stone = add(g, sph(0.95, '#b9b5ad', 1.5, 0.85, 0.9), 0, 0.4, -2.4);
+  add(g, sph(0.5, '#a8a49c', 1, 0.7, 0.9), 1.4, 0.2, -2.1); void stone;
+  const P = pictures();
+  const fr = new THREE.Group(); fr.position.set(0, 1.25, -1.78); fr.rotation.x = -0.18; g.add(fr);
+  box3(fr, 1.0, 1.0, 0.07, '#8a5a34', 0, 0, 0);
+  const ph = new THREE.Mesh(new THREE.PlaneGeometry(0.82, 0.82), new THREE.MeshBasicMaterial({ map: P.panda })); ph.position.z = 0.045; fr.add(ph);
+  for (const sx of [-0.7, 0.7]) { cyl3(g, 0.09, 0.09, 0.3, '#f4ead8', sx, 0.15 + 0.5, -2.0); const fl = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.18, 8), new THREE.MeshBasicMaterial({ color: '#ffb84a' })); fl.position.set(sx, 0.95, -2.0); g.add(fl); (g.userData.flames = g.userData.flames || []).push(fl); }
+  add(g, sph(0.26, '#ffffff', 1, 1, 1), -0.2, 0.28, -1.45); add(g, sph(0.2, '#ffffff', 1, 1, 1), -0.2, 0.66, -1.45); add(g, sph(0.08, '#2a2a30'), -0.28, 0.72, -1.27); add(g, sph(0.08, '#2a2a30'), -0.12, 0.72, -1.27);
+  obstacles.push({ x: 0, z: -2.4, r: 1.25 });
+  const l2 = new THREE.PointLight(0xffc878, 4, 7, 1.8); l2.position.set(0, 1.3, -1.6); g.add(l2);
+  const ex = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.0), mat('#6aa850')); ex.rotation.x = -Math.PI / 2; ex.position.set(0, 0.02, 3.9); g.add(ex);
+  function update(t) { (g.userData.flames || []).forEach((f, i) => { f.scale.y = 1 + Math.sin(t * 9 + i * 2) * 0.25; }); l2.intensity = 4 + Math.sin(t * 7) * 0.5; }
+  return { group: g, obstacles, update, bounds: { x0: -3.3, x1: 3.3, z0: -3.4, z1: 3.9 }, exit: { x: 0, z: 3.5 }, spawn: { x: 0, z: 2.5 } };
 }

@@ -12,6 +12,10 @@ export const ITEMS = {
   mushroom: { emoji: '🍄', name: 'ひかる キノコ' },
   herb: { emoji: '🌿', name: 'やわらかい くさ' },
   flower: { emoji: '🌼', name: 'おはな' },
+  carrot: { emoji: '🥕', name: 'ニンジン' },
+  tomato: { emoji: '🍅', name: 'トマト' },
+  strawberry: { emoji: '🍓', name: 'いちご' },
+  pumpkin: { emoji: '🎃', name: 'かぼちゃ' },
 };
 export const PLACES = {
   beach: { name: 'うみべ', x: 0, z: 41 },
@@ -20,6 +24,8 @@ export const PLACES = {
   hut: { name: 'うみの いえ', x: 12, z: 40 },
   grove: { name: 'たけやぶの ひみつきち', x: -20, z: -13 },
   lake: { name: 'みずうみ', x: 25, z: 17 },
+  hollow: { name: 'おもいでの おおきな き', x: -87, z: 11.4 },
+  farm: { name: 'はたけ', x: -58, z: 14 },
 };
 
 export const QUESTS = [
@@ -196,6 +202,27 @@ export const QUESTS = [
     ask: '{n}さん、テントも すてきだけど、そろそろ ちゃんとした おうちは どうかしら。屋根と かべが あると、ゆっくり やすめるわよ。',
     hint: 'おみせの「おうち」で「こじんまりの おうち」を たてよう', thanks: 'まあ、すてきな おうち。{n}さんの くらしが ここから はじまるのね。おいわいに、おちゃでも しましょう。',
     diary: 'セイママに すすめられて、かべと やねの ある おうちに たてなおした。', reward: { flowers: 60, friend: 8 } },
+  // ================= はたけ・おおきな き =================
+  { id: 'pon8', giver: 'pon', lv: 1, title: 'はじめての はたけ', type: 'plant',
+    ask: '{n}さん、島の にしに はたけが あるぽん。種は お店の「どうぐ」で 売っているぽん。たねを まいて、水を やって、育ててみないかぽん？',
+    hint: 'おみせで たねを かって、にしの はたけに まいてみよう', thanks: 'おお、まいたぽんね！ あとは 水を やって、のんびり 待つだけだぽん。収穫したら お店でも 買い取るぽん！',
+    diary: 'ポンに すすめられて、はじめて はたけに たねを まいた。', reward: { flowers: 15, friend: 3 } },
+  { id: 'chao1', giver: 'chao', lv: 1, title: 'はたけの しゅうかく', type: 'harvest', n: 2,
+    ask: 'ケーン！ …おい、{n}。はたけ、そだってるか？ べつに オレが たべたいわけじゃ ないぜ。しゅうかく、2こ みせてみろ。',
+    hint: 'はたけで やさいを 2こ しゅうかくしよう', thanks: 'おお、ちゃんと そだてたな！ …オレの つまみぐい ぶんも、ちゃんと のこしてくれたか？ ケーン！',
+    diary: 'チャオに はたけの しゅうかくを みせた。ちょっと ほめてくれた。', reward: { flowers: 15, friend: 5 } },
+  { id: 'chao2', giver: 'chao', lv: 2, after: 'chao1', title: 'むしとり めいじん', type: 'bug', n: 3,
+    ask: '…なあ、{n}。はたけの むし、とってくれないか。オレ ひとりじゃ おいつかなくてよ。…むしを たべるのは すきだけど、さいきん おなかいっぱい なんだ。',
+    hint: 'はたけの「むしを とる」を 3かい やろう', thanks: 'ケーン！ たすかったぜ、{n}。…むしを たべてる ことは、みんなには ないしょだぞ。',
+    diary: 'チャオと いっしょに はたけの むしとりを した。', reward: { flowers: 20, friend: 6 } },
+  { id: 'chao3', giver: 'chao', lv: 3, after: 'chao2', title: 'おわびの トマト', type: 'collect', item: 'tomato', n: 3,
+    ask: '…{n}、ききたいことが ある。オレが はたけを つついたとき、おこらなかったよな。…どうして だ？ いや、いい。かわりに おわびの しるしに、トマトを 3こ、いっしょに たべたい。もってきて くれ。',
+    hint: 'トマトを 3こ そだてて もっていこう', thanks: 'おお、まっかだな！ …いっしょに たべるぜ。…うまい。…ありがとな、{n}。オレ、この はたけの みんなが すきだぜ。',
+    diary: 'チャオと いっしょに トマトを たべた。いたずらっこは、ほんとは さびしがりやだった。', reward: { flowers: 30, friend: 8 } },
+  { id: 'poko6', giver: 'poko', lv: 4, title: 'ポコの たいせつな ばしょ', type: 'visit', where: 'hollow', r: 6,
+    ask: '…{n}ちゃん、あのね。ポコ、{n}ちゃんに つれていきたい ばしょが あるの。にしの おおきな きの ほらあな…。ポコを うんでくれた ママが いた ばしょなの。いっしょに、いってくれる…？',
+    hint: 'にしの「おもいでの おおきな き」の ほらあなへ いこう', thanks: 'ありがとうなの…。ここね、ポコの ママの おはなが さく ばしょなの。ポコ、{n}ちゃんと こられて、うれしいの。ママも、きっと よろこんでるの。',
+    diary: 'ポコの たいせつな ばしょ、おおきな きの ほらあなへ いった。おはなが いっぱい さいていた。', reward: { flowers: 25, friend: 10 } },
   // ================= つり (つりざおを かうと) =================
   { id: 'pon5', giver: 'pon', lv: 1, title: 'はじめての つりざお', type: 'buyrod',
     ask: 'ポンのお店には、つりざおもあるぽん。{n}さん、島にはため池とみずうみと海があるから、釣りを始めてみないかぽん？ 最初の一本、お店で買ってみてほしいぽん。',
@@ -232,5 +259,6 @@ export const DAILY = {
   nami: { type: 'collect', items: ['shell', 'stone'], ask: 'ニャ！ きょうは {item}が {count}こ ほしいニャ！ ひろってきてニャ！' },
   sei: { type: 'buy', foods: ['soup', 'dango', 'lemonade'], ask: '{n}さん、今日のお茶の時間に、お店の{item}を買ってきてもらえるかしら？' },
   kuro: { type: 'buy', foods: ['lemonade', 'cake', 'pancake'], ask: '{n}さん、{item}を買ってきてくださる？ 少し甘いものが恋しくて。' },
+  chao: { type: 'collect', items: ['tomato', 'strawberry', 'carrot'], ask: 'ケーン！ {n}、{item}を {count}こ もってこい！ …オレが たべるんじゃ ないぜ。ほんとうは たべるけど。' },
   pon: { type: 'collect', items: ['shell', 'stone', 'sasa'], ask: '{n}さん、お店の仕入れで{item}が {count}こ ほしいぽん。たのめるかぽん？' },
 };

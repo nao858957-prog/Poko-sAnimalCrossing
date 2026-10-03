@@ -1,13 +1,14 @@
 import * as THREE from 'three';
 import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
 import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } from './home.js';
-import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, landDepth, clampLand, shoreNormal } from './world.js';
+import { buildWorld, buildInterior, buildHollow, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, GREAT_TREE, HOLLOW_DOOR, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
+import { CROPS, CROP_IDS, PLOT_N, newPlot, plotInfo, harvestYield } from './farm.js';
 import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch, slipChance, fishIcon } from './fish.js';
 
 const $ = id => document.getElementById(id);
@@ -17,7 +18,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0, home: { stage: 0, style: 'log', styles: ['log'], have: {}, items: [], guests: [], visit: {} } };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0, home: { stage: 0, style: 'log', styles: ['log'], have: {}, items: [], guests: [], visit: {} }, farm: { plots: Array(PLOT_N).fill(null), seeds: {}, harvested: 0, bugs: 0 } };
 }
 function loadSave() {
   try {
@@ -30,7 +31,7 @@ function loadSave() {
 function save() {
   if (!S || !S.created) return;
   try {
-    S.pos = place === 'in' ? (inKind === 'home' ? { x: world.homeDoorPos(S.home.stage).x, z: world.homeDoorPos(S.home.stage).z + 1.8, ry: 0 } : { x: 0, z: -11.4, ry: 0 }) : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
+    S.pos = place === 'in' ? (inKind === 'home' ? { x: world.homeDoorPos(S.home.stage).x, z: world.homeDoorPos(S.home.stage).z + 1.8, ry: 0 } : inKind === 'hollow' ? { x: HOLLOW_DOOR.x, z: HOLLOW_DOOR.z + 2.0, ry: 0 } : { x: 0, z: -11.4, ry: 0 }) : { x: player.root.position.x, z: player.root.position.z, ry: player.root.rotation.y };
     localStorage.setItem(SAVE_KEY, JSON.stringify(S));
   } catch (e) { /* 保存できない環境でも遊べる */ }
 }
@@ -62,7 +63,11 @@ const OFF2 = 1000; // わたしの おうちの なかは さらに とおくに
 const room = new HomeRoom();
 room.group.position.set(OFF2, 0, 0); room.group.visible = false; world.group.add(room.group);
 let homeObs = [];
-const curObs = () => place === 'in' ? (inKind === 'home' ? homeObs : inObstacles) : world.obstacles;
+const OFF3 = 1400; // おもいでの ほらあな
+const hollow = buildHollow();
+hollow.group.position.set(OFF3, 0, 0); hollow.group.visible = false; world.group.add(hollow.group);
+const hollowObs = hollow.obstacles.map(o => ({ x: o.x + OFF3, z: o.z, r: o.r }));
+const curObs = () => place === 'in' ? (inKind === 'home' ? homeObs : inKind === 'hollow' ? hollowObs : inObstacles) : world.obstacles;
 function applyHome() {
   const h = S.home;
   h.items = (h.items || []).filter(it => FURN_BY_ID[it.id]);
@@ -263,19 +268,20 @@ function showMarker(v) { marker.position.set(v.x, 0.06, v.y); marker.visible = t
 function dist2(a, b) { return Math.hypot(a.root.position.x - b.root.position.x, a.root.position.z - b.root.position.z); }
 
 // ---------- 移動と衝突 ----------
-function collide(pos, rad) {
+function collide(pos, rad, hop = false) {
   if (pos.x > OFF / 2) {
-    const home = pos.x > OFF2 - 200, off = home ? OFF2 : OFF;
-    for (const o of (home ? homeObs : inObstacles)) {
+    const hol = pos.x > OFF3 - 200, home = !hol && pos.x > OFF2 - 200, off = hol ? OFF3 : home ? OFF2 : OFF;
+    for (const o of (hol ? hollowObs : home ? homeObs : inObstacles)) {
       const dx = pos.x - o.x, dz = pos.z - o.z, d = Math.hypot(dx, dz), m = o.r + rad;
       if (d < m && d > 0.0001) { pos.x = o.x + dx / d * m; pos.z = o.z + dz / d * m; }
     }
-    const b = home ? room.bounds : interior.bounds;
+    const b = hol ? hollow.bounds : home ? room.bounds : interior.bounds;
     pos.x = Math.min(off + b.x1, Math.max(off + b.x0, pos.x));
     pos.z = Math.min(b.z1, Math.max(b.z0, pos.z));
     return;
   }
   for (const o of world.obstacles) {
+    if (hop && o.r < 0.4) continue; // チャオは さくを ひょいっと とびこえる
     const dx = pos.x - o.x, dz = pos.z - o.z;
     const d = Math.hypot(dx, dz), m = o.r + rad;
     if (d < m && d > 0.0001) { pos.x = o.x + dx / d * m; pos.z = o.z + dz / d * m; }
@@ -362,7 +368,32 @@ function exitHome() {
   sfx('open');
   updateQuestHud();
 }
-function exitAny() { if (inKind === 'home') exitHome(); else exitHouse(); }
+function enterHollow() {
+  if (place === 'in') return;
+  place = 'in'; inKind = 'hollow'; doorCool = 1.2;
+  hollow.group.visible = true; world.treeLabel.visible = false;
+  player.root.position.set(OFF3 + hollow.spawn.x, 0, hollow.spawn.z);
+  player.root.rotation.y = Math.PI;
+  moveTarget = null; talkOnArrive = null; marker.visible = false;
+  yaw = 0; appliedHour = -1; applySky(gameHour());
+  camPos.set(OFF3, 8, hollow.spawn.z + 9); camLook.set(OFF3, 1, 0);
+  sfx('open'); track('hollow-enter');
+  if (!S.seenHollow) { S.seenHollow = true; toast('ここは…ポコを うんでくれた ママが くらしていた ばしょ。<br>やさしい ひかりと、たくさんの おはなが ゆれているよ 🌼', 7000); addDiary('おおきな きの ほらあなに はいった。ポコの うんでくれた ママが くらしていた ばしょ。しずかで、あたたかかった。'); }
+  for (const q of QS()) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && q.where === 'hollow' && !st.p) { st.p = 1; toast(`📍 おもいでの ほらあなに ついたよ！<br>${CHARS[q.giver].name}に おしえてあげよう`, 4200); } }
+  refreshMarkers(); save();
+}
+function exitHollow() {
+  if (place === 'out') return;
+  place = 'out'; doorCool = 1.2;
+  hollow.group.visible = false;
+  player.root.position.set(HOLLOW_DOOR.x, 0, HOLLOW_DOOR.z + 2.0);
+  player.root.rotation.y = 0;
+  moveTarget = null; marker.visible = false;
+  appliedHour = -1; applySky(gameHour());
+  camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
+  sfx('open');
+}
+function exitAny() { if (inKind === 'home') exitHome(); else if (inKind === 'hollow') exitHollow(); else exitHouse(); }
 // しょうたいした ともだちを おうちの なかに ならべる
 function placeGuests() {
   const ids = S.home.guests.filter(id => npcs[id]), b = room.bounds, today = todayKey();
@@ -435,7 +466,7 @@ $('btnSound').onclick = () => {
 
 // ---------- おみせ ----------
 let shopTab = 'food', shopBusy = false, enterKind = null;
-$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'home') enterHome(); else if (enterKind === 'out') exitAny(); sfx('tap'); };
+$('btnEnter').onclick = () => { if (enterKind === 'shop') openShop(); else if (enterKind === 'house') enterHouse(); else if (enterKind === 'home') enterHome(); else if (enterKind === 'hollow') enterHollow(); else if (enterKind === 'out') exitAny(); sfx('tap'); };
 function refreshPlayerModel() {
   const p = player.root.position.clone(), ry = player.root.rotation.y;
   world.group.remove(player.root);
@@ -493,22 +524,30 @@ function renderShop() {
       else { b.textContent = 'かう'; if (S.flowers < r.price) b.classList.add('dis'); b.onclick = () => buyRod(r); }
       d.appendChild(b); box.appendChild(d);
     }
+    shopHead(box, '🌱 たね（にしの はたけで そだてよう）');
+    for (const id of CROP_IDS) {
+      const c = CROPS[id], have = S.farm.seeds[id] || 0;
+      shopRow(box, c.emoji, `${c.name}の たね`, `🌼 ${c.seed}　${c.note}${have ? `　もっている ×${have}` : ''}`, 'かう', () => buySeed(c), S.flowers < c.seed);
+    }
     const tip = document.createElement('p'); tip.className = 'fine2'; tip.textContent = 'つりざおを かうと、ため池・みずうみ・うみの そばで「つり」が できるよ。さかなは ここで うれるよ。'; box.appendChild(tip);
   } else if (shopTab === 'home') {
     renderHomeShop(box);
   } else if (shopTab === 'sell') {
-    const list = Object.entries(S.fish).filter(([, n]) => n > 0);
-    if (!list.length) { const e = document.createElement('p'); e.className = 'fine2'; e.textContent = 'うれる さかなが ないよ。つりざおで つってこよう！'; box.appendChild(e); }
+    const rows = [
+      ...Object.entries(S.fish).filter(([, n]) => n > 0).map(([id, n]) => ({ kind: 'fish', id, n, f: FISH_BY_ID[id], price: FISH_BY_ID[id].price })),
+      ...CROP_IDS.filter(id => (S.inv[id] || 0) > 0).map(id => ({ kind: 'crop', id, n: S.inv[id], f: CROPS[id], price: CROPS[id].price })),
+    ];
+    if (!rows.length) { const e = document.createElement('p'); e.className = 'fine2'; e.textContent = 'うれる ものが ないよ。つりや はたけで あつめてこよう！'; box.appendChild(e); }
     else {
-      const total = list.reduce((a, [id, n]) => a + FISH_BY_ID[id].price * n, 0);
+      const total = rows.reduce((a2, r) => a2 + r.price * r.n, 0);
       const all = document.createElement('div'); all.className = 'item';
       all.innerHTML = `<span class="e">💰</span><div class="n">ぜんぶ うる<small>🌼 ${total}</small></div>`;
-      const ab = document.createElement('button'); ab.textContent = 'ぜんぶ うる'; ab.onclick = () => sellFish(null);
+      const ab = document.createElement('button'); ab.textContent = 'ぜんぶ うる'; ab.onclick = () => sellItem(null);
       all.appendChild(ab); box.appendChild(all);
-      for (const [id, n] of list) {
-        const f = FISH_BY_ID[id], d = document.createElement('div'); d.className = 'item';
-        d.innerHTML = `<span class="e">${fishIcon(f)}</span><div class="n">${f.name} ×${n}<small>1ひき 🌼 ${f.price}</small></div>`;
-        const b = document.createElement('button'); b.textContent = 'うる'; b.onclick = () => sellFish(id);
+      for (const r of rows) {
+        const d = document.createElement('div'); d.className = 'item';
+        d.innerHTML = `<span class="e">${r.kind === 'fish' ? fishIcon(r.f) : r.f.emoji}</span><div class="n">${r.f.name} ×${r.n}<small>1こ 🌼 ${r.price}</small></div>`;
+        const b = document.createElement('button'); b.textContent = 'うる'; b.onclick = () => sellItem(r);
         d.appendChild(b); box.appendChild(d);
       }
     }
@@ -591,12 +630,21 @@ function buyRod(r) {
   addDiary(`${r.name}を かった。`);
   save(); renderShop();
 }
-function sellFish(id) {
+function buySeed(c) {
+  if (S.flowers < c.seed) { $('shopMsg').textContent = 'おはなが たりないぽん…'; sfx('tap'); return; }
+  S.flowers -= c.seed; S.farm.seeds[c.id] = (S.farm.seeds[c.id] || 0) + 1; sfx('pick');
+  $('shopMsg').textContent = `${c.emoji} ${c.name}の たね、まいどありぽん！ にしの はたけに まくぽん`;
+  $('flowerCount').textContent = '🌼 ' + S.flowers; save(); renderShop();
+}
+// r = {kind,id} を 1こ / null = ぜんぶ
+function sellItem(r) {
   let sum = 0;
-  for (const [fid, n] of Object.entries(S.fish)) { if ((id && fid !== id) || n <= 0) continue; sum += FISH_BY_ID[fid].price * (id ? 1 : n); S.fish[fid] -= id ? 1 : n; }
+  for (const [fid, n] of Object.entries(S.fish)) { if ((r && (r.kind !== 'fish' || fid !== r.id)) || n <= 0) continue; sum += FISH_BY_ID[fid].price * (r ? 1 : n); S.fish[fid] -= r ? 1 : n; }
+  for (const id of CROP_IDS) { const n = S.inv[id] || 0; if ((r && (r.kind !== 'crop' || id !== r.id)) || n <= 0) continue; sum += CROPS[id].price * (r ? 1 : n); S.inv[id] -= r ? 1 : n; }
   if (!sum) return;
   S.flowers += sum; sfx('pick');
   $('shopMsg').textContent = `💰 🌼 ${sum} で かいとったぽん！ まいどありぽん！`;
+  $('flowerCount').textContent = '🌼 ' + S.flowers;
   save(); renderShop();
 }
 function eatFood(f, takeout) {
@@ -688,13 +736,16 @@ function updatePlayer(dt) {
     if (place === 'out' && Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 1.25) enterHouse();
     else if (place === 'out' && hd && Math.hypot(pos.x - hd.x, pos.z - hd.z) < 1.4) enterHome();
     else if (place === 'in' && inKind === 'sei' && pos.z > interior.exit.z && Math.abs(pos.x - OFF) < 1.7) exitHouse();
+    else if (place === 'out' && Math.hypot(pos.x - HOLLOW_DOOR.x, pos.z - HOLLOW_DOOR.z) < 1.5) enterHollow();
     else if (place === 'in' && inKind === 'home' && pos.z > room.exit.z && Math.abs(pos.x - OFF2) < 1.7) exitHome();
+    else if (place === 'in' && inKind === 'hollow' && pos.z > hollow.exit.z && Math.abs(pos.x - OFF3) < 1.9) exitHollow();
   }
   if (place === 'out') {
     doorLabel.visible = Math.hypot(pos.x - world.door.x, pos.z - world.door.z) < 14;
     world.shopLabel.visible = Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 14;
     const nearHome = Math.hypot(pos.x - HOME_PLOT.x, pos.z - HOME_PLOT.z) < 16;
     world.homeLabelBuild.visible = nearHome && S.home.stage === 0; world.homeLabelMine.visible = nearHome && S.home.stage > 0;
+    world.treeLabel.visible = Math.hypot(pos.x - GREAT_TREE.x, pos.z - GREAT_TREE.z) < 22; world.farm.label.visible = Math.hypot(pos.x - FARM.x, pos.z - FARM.z) < 14;
     if (mode === 'play' && doorCool <= 0 && Math.hypot(pos.x - world.shopDoor.x, pos.z - world.shopDoor.z) < 1.3) openShop();
   }
   if (moving) idle = 0;
@@ -728,6 +779,8 @@ function updatePlayer(dt) {
   }
 }
 
+// あるきまわる はんいを ひろげて、しまの いろんな ばしょで ともだちに あえるように
+const WANDER_R = { rin: 6, pa: 8, ku: 6, nami: 7, kuro: 4.5, poko: 5, mei: 5, chao: 5 };
 function updateNpcs(dt) {
   const ppos = player.root.position;
   const prevNear = nearNpc;
@@ -768,20 +821,20 @@ function updateNpcs(dt) {
     } else if (mode === 'play' || mode === 'title' || mode === 'creator') {
       P.wait -= dt;
       if (!P.target && P.wait <= 0) {
-        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : 3.5);
+        const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : (WANDER_R[id] || 3.5));
         P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
       if (P.target) {
         const dx = P.target.x - pos.x, dz = P.target.y - pos.z, d = Math.hypot(dx, dz);
         if (d < 0.2) { P.target = null; P.wait = 2 + Math.random() * 5; }
-        else { const sp = 1.4 * dt; pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 8); moving = true; }
+        else { const sp = (id === 'chao' && chaoAI.mode === 'walk' ? 2.8 : 1.4) * dt; pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 8); moving = true; }
       }
     }
-    if (id !== 'haru') {
-      collide(pos, P.radius * 0.6);
+    if (id !== 'haru' && !(id === 'chao' && chaoAI.mode !== 'idle')) {
+      collide(pos, P.radius * 0.6, id === 'chao');
       separate(P, [player, ...Object.values(npcs)], P.radius * 0.7);
     }
-    animate(P, dt, { t: clock, walk: moving, speed: 0.6, pose: id === 'haru' ? P.pose : 'stand', hop: talking && P.hop > 0 });
+    animate(P, dt, { t: clock, walk: moving, speed: 0.6, pose: id === 'haru' ? P.pose : 'stand', hop: talking && P.hop > 0, peck: id === 'chao' && chaoAI.mode === 'act' });
     if (P.hop > 0) P.hop -= dt;
     if (P.marks) for (const s of Object.values(P.marks)) if (s.visible) s.position.y = (P.headY + P.hr) * P.scale + 1.9 + Math.sin(clock * 3) * 0.12;
     const lim = id === prevNear ? 4.9 : 4.2;
@@ -875,6 +928,7 @@ function updateCamera(dt) {
     const inn = place === 'in';
     if (inn) yaw = Math.max(-0.6, Math.min(0.6, yaw));
     let dist = inn ? (aspect < 0.8 ? 18 : 12.5) : aspect < 0.8 ? 15.5 : 12.5, h = inn ? (aspect < 0.8 ? 13 : 9.5) : aspect < 0.8 ? 11 : 8.4;
+    if (inn && inKind === 'hollow') { dist = aspect < 0.8 ? 12.5 : 9; h = aspect < 0.8 ? 9.5 : 7; }
     if (inn && inKind === 'home') { const c = STAGES[S.home.stage].cam; dist = c[0] * (aspect < 0.8 ? 1.3 : 1); h = c[1] * (aspect < 0.8 ? 1.3 : 1); }
     desired = new THREE.Vector3(pp.x + Math.sin(yaw) * dist, h, pp.z + Math.cos(yaw) * dist);
     look = new THREE.Vector3(pp.x, 1.2, pp.z);
@@ -930,7 +984,7 @@ function chooseChatSide(id) {
       for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + (o.r < 1.3 ? 2.4 : 1.3)) score += 1;
       for (const q of others) if (Math.hypot(q.x - x, q.z - z) < 2.4) score += 2;
       if (place === 'out' && landDepth(x, z) < -6) score += 3;
-      if (place === 'in') { const b = inKind === 'home' ? room.bounds : interior.bounds, of = inKind === 'home' ? OFF2 : OFF; if (x < of + b.x0 - 1 || x > of + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
+      if (place === 'in') { const b = inKind === 'hollow' ? hollow.bounds : inKind === 'home' ? room.bounds : interior.bounds, of = inKind === 'hollow' ? OFF3 : inKind === 'home' ? OFF2 : OFF; if (x < of + b.x0 - 1 || x > of + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
     }
     if (score < bestScore) { bestScore = score; best = ang; }
   }
@@ -1165,6 +1219,7 @@ function qProgress(q) {
   if (q.type === 'catch') return { have: Math.min(q.n, st.c || 0), need: q.n };
   if (q.type === 'collect') return { have: Math.min(q.n, q.item === 'flower' ? S.flowers : (S.inv[q.item] || 0)), need: q.n };
   if (q.type === 'talk') return { have: (st.talked || []).length, need: q.who.length };
+  if (q.type === 'harvest' || q.type === 'bug') return { have: Math.min(q.n, st.c || 0), need: q.n };
   if (q.type === 'build' && S.home.stage >= q.stage) return { have: 1, need: 1 };   // もう その おうちを たてていれば そのまま クリア
   if (q.type === 'invite' && S.home.guests.includes(q.who)) return { have: 1, need: 1 };
   if (q.type === 'buyrod' && S.rod > 0) return { have: 1, need: 1 };   // もう つりざおを もっている人は そのまま クリア
@@ -1248,6 +1303,18 @@ function questEvent(type, what) {
     if (hit) { refreshMarkers(); save(); }
     return;
   }
+  if (type === 'harvest' || type === 'bug') {
+    for (const q of QS()) {
+      const st = qState(q);
+      if (!st || st.s === 'done' || q.type !== type) continue;
+      st.c = (st.c || 0) + (type === 'harvest' ? what.n : 1);
+      const p = qProgress(q);
+      toast(p.have >= p.need ? `📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！` : `📜 ${q.title}　${p.have}/${p.need}`, 2600);
+      hit = true;
+    }
+    if (hit) { refreshMarkers(); save(); }
+    return;
+  }
   if (type === 'none') { refreshMarkers(); return; }
   for (const q of QS()) {
     const st = qState(q);
@@ -1317,7 +1384,7 @@ function askQuest(q) {
 }
 // ともだちの「おねがい」の はなし (ひらくとき/「おねがい」ボタン)
 // まいにちの「ごようきき」: しんゆう(なかよし)になると、小さな おねがいを まいにち してくれる
-const DAILY_THANKS = { poko: 'ありがとうなの！ たすかったの〜', mei: '…ありがとう。助かったわ。', sei: 'ありがとう、{n}さん。助かったわ。', rin: 'ありがとう！ 助かっちゃった。', pa: 'キュッ！ ありがとう！', ku: 'ありがとう…！ うれしい…。', haru: 'チュリ！ ありがとう！', nami: 'ありがとニャ！', kuro: 'ありがとう、{n}さん。助かるわ。', pon: 'まいどありがとうだぽん！' };
+const DAILY_THANKS = { chao: 'ケーン！ おう、たすかったぜ。', poko: 'ありがとうなの！ たすかったの〜', mei: '…ありがとう。助かったわ。', sei: 'ありがとう、{n}さん。助かったわ。', rin: 'ありがとう！ 助かっちゃった。', pa: 'キュッ！ ありがとう！', ku: 'ありがとう…！ うれしい…。', haru: 'チュリ！ ありがとう！', nami: 'ありがとニャ！', kuro: 'ありがとう、{n}さん。助かるわ。', pon: 'まいどありがとうだぽん！' };
 function dailyPossible(id) {
   if (level(S.friend[id] || 0) < 2) return false;
   const t = todayStr();
@@ -1479,6 +1546,13 @@ function openChat(id) {
   if (place === 'in' && inKind === 'home' && S.home.guests.includes(id) && HOME_LINES[id]) {
     const txt = fillN(HOME_LINES[id][S.home.items.length >= 6 ? 1 : 0], id);
     if (!(S.logs[id] || []).some(l => l[1] === txt)) { setTimeout(() => { if (chatNpc === id) npcSay(id, txt); }, d); d += 2600; }
+  }
+  if (id === 'chao' && chaoAI.mode !== 'idle') {
+    const raid = chaoShooed();
+    if (raid) {
+      setTimeout(() => { if (chatNpc === id) { npcSay(id, 'ケーン！？ …バレたか。ちぇっ、きょうは やめておくぜ。むしを たべてやってるんだからな！ ほんとだぞ！'); S.friend.chao = Math.min(MAX_PTS, (S.friend.chao || 0) + 1); updateHearts(id); save(); } }, d);
+      d += 2800;
+    }
   }
   setTimeout(() => { if (chatNpc === id && !waiting) questTalk(id, false); }, d);
   renderChips(id);
@@ -1856,6 +1930,128 @@ function applySettings() {
   applyHome();
 }
 
+// ---------- はたけ ----------
+function farmNearIdx() {
+  if (place !== 'out' || !player) return -1;
+  const pp = player.root.position; let best = -1, bd = 2.6;
+  world.farm.plots.forEach((pl, i) => { const d = Math.hypot(pp.x - pl.x, pp.z - pl.z); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function farmActionAt(i) {
+  const inf = plotInfo(S.farm.plots[i]);
+  if (inf.empty) return { text: '🌱 たねを まく', fn: () => openSeedPick(i) };
+  if (inf.ripe) return { text: `🧺 ${inf.crop.name}を しゅうかく`, fn: () => harvestPlot(i) };
+  if (inf.bug) return { text: '🪲 むしを とる', fn: () => removeBug(i) };
+  if (inf.dry) return { text: '💧 みずを やる', fn: () => waterPlot(i) };
+  return { text: `${inf.crop.emoji} そだってるよ（あと ${Math.max(1, Math.ceil(inf.leftMs / 60000))}ふん）`, fn: null };
+}
+let farmSig = '', farmT = 0, farmAct = null;
+function refreshFarm(force) {
+  for (let i = 0; i < PLOT_N; i++) { const inf = plotInfo(S.farm.plots[i]); world.farm.setPlot(i, inf.empty ? null : inf.crop.id, inf.stage, !inf.empty && !inf.dry, !inf.empty && inf.bug); }
+}
+function updateFarmBtn(dt) {
+  farmT -= dt;
+  if (farmT <= 0) { farmT = 0.6; refreshFarm(); }
+  const idx = mode === 'play' && !sleeping ? farmNearIdx() : -1;
+  const act = idx >= 0 ? farmActionAt(idx) : null;
+  farmAct = act && act.fn ? act.fn : null;
+  const b = $('btnFarm');
+  b.classList.toggle('hidden', !act);
+  if (act) { b.textContent = act.text; b.style.opacity = act.fn ? '' : '.75'; }
+}
+$('btnFarm').onclick = () => { if (farmAct) { initAudio(); farmAct(); } };
+function openSeedPick(i) {
+  const box = $('seedList'); box.innerHTML = '';
+  const have = CROP_IDS.filter(id => (S.farm.seeds[id] || 0) > 0);
+  if (!have.length) { toast('たねが ないよ。ポンの おみせ「どうぐ」で かえるよ 🌱', 3000); return; }
+  for (const id of have) {
+    const c = CROPS[id], b = document.createElement('button');
+    b.innerHTML = `<span>${c.emoji}</span><span>${c.name}の たね ×${S.farm.seeds[id]}</span><small>${c.note}</small>`;
+    b.onclick = () => { $('seedPick').classList.add('hidden'); mode = 'play'; sowPlot(i, id); };
+    box.appendChild(b);
+  }
+  mode = 'menu'; $('seedPick').classList.remove('hidden'); sfx('open');
+}
+$('seedCancel').onclick = () => { $('seedPick').classList.add('hidden'); mode = 'play'; sfx('tap'); };
+function farmFx(i, kind) { const q = world.farm.plots[i]; tmp.set(q.x, 1.0, q.z); spawnFx(world.group, kind, tmp, 0.8); }
+function sowPlot(i, id) {
+  if ((S.farm.seeds[id] || 0) <= 0 || S.farm.plots[i]) return;
+  S.farm.seeds[id]--; S.farm.plots[i] = newPlot(id);
+  sfx('pick'); farmFx(i, 'star'); track('farm-plant'); questEvent('plant');
+  toast(`${CROPS[id].emoji} ${CROPS[id].name}の たねを まいたよ。つぎは「みずを やる」！`, 2600);
+  refreshFarm(); save();
+}
+function waterPlot(i) {
+  const p = S.farm.plots[i]; if (!p || p.w) return;
+  p.w = Date.now(); sfx('splash'); farmFx(i, 'note');
+  toast('💧 みずを やったよ！ のんびり まっていれば そだつよ', 2400);
+  refreshFarm(); save();
+}
+function removeBug(i) {
+  const p = S.farm.plots[i]; if (!p) return;
+  p.bg = true; S.farm.bugs++; sfx('pick'); farmFx(i, 'sweat');
+  toast('🪲 むしを とったよ！', 1800); questEvent('bug');
+  refreshFarm(); save();
+}
+function harvestPlot(i) {
+  const p = S.farm.plots[i], inf = plotInfo(p); if (!inf.ripe) return;
+  const y = harvestYield(p, inf);
+  S.inv[p.c] = (S.inv[p.c] || 0) + y; S.farm.harvested += y; S.farm.plots[i] = null;
+  sfx('heart'); farmFx(i, 'heart'); track('farm-harvest');
+  toast(`${inf.crop.emoji} ${inf.crop.name}を ${y}こ しゅうかく！${inf.bug ? '<br><small>（むしに すこし かじられていた…）</small>' : p.pk ? '<br><small>（チャオに すこし つつかれた…）</small>' : ''}`, 3000);
+  questEvent('harvest', { id: p.c, n: y });
+  if (S.farm.harvested === y) addDiary('はたけで はじめての しゅうかく。');
+  refreshFarm(); updateQuestHud(); save();
+}
+// チャオの いたずら (じつは むしも たべている)
+const chaoAI = { mode: 'idle', kind: '', plot: -1, t: 0, cd: 80 + Math.random() * 80, bugcd: 40 };
+function startChao(kind, i) {
+  const A = chaoAI; A.mode = 'walk'; A.kind = kind; A.plot = i; A.t = 0;
+  const pp = player.root.position;
+  if (kind === 'raid' && Math.hypot(pp.x - FARM.x, pp.z - FARM.z) < 40) { toast('ケーン！ チャオが はたけに むかっているよ 🐦<br><small>はなしかけて とめよう！</small>', 4200); sfx('bite'); }
+}
+function updateChao(dt) {
+  const P = npcs.chao, A = chaoAI;
+  if (!P || !player || !S || !S.created) return;
+  const active = place === 'out' && (mode === 'play' || mode === 'chat' || mode === 'fish');
+  if (!active) return;
+  const pp = player.root.position, near = Math.hypot(pp.x - FARM.x, pp.z - FARM.z);
+  if (A.mode === 'idle') {
+    A.cd -= dt; A.bugcd -= dt;
+    if (chatNpc === 'chao' || near > 55) return;
+    const infos = S.farm.plots.map((p, i) => ({ i, p, inf: plotInfo(p) }));
+    if (A.bugcd <= 0) { A.bugcd = 50 + Math.random() * 50; const t = infos.find(x => x.inf.bug); if (t) { startChao('eatbug', t.i); return; } }
+    if (A.cd <= 0) { A.cd = 110 + Math.random() * 140; const t = infos.filter(x => !x.inf.empty && x.inf.stage >= 2 && (x.p.pk || 0) < 2); if (t.length) startChao('raid', t[Math.floor(Math.random() * t.length)].i); }
+    return;
+  }
+  const q = world.farm.plots[A.plot], pos = P.root.position;
+  A.t += dt;
+  if (A.mode === 'walk') {
+    P.target = new THREE.Vector2(q.x + 0.9, q.z + 0.9); P.wait = 0;
+    if (Math.hypot(pos.x - q.x, pos.z - q.z) < 1.7 || A.t > 30) { A.mode = 'act'; A.t = 0; P.target = null; P.wait = 99; }
+  } else if (A.mode === 'act') {
+    P.wait = 99; faceDir(P, q.x - pos.x, q.z - pos.z, dt, 8);
+    const p = S.farm.plots[A.plot];
+    if (!p) { A.mode = 'idle'; P.wait = 2; return; }
+    if (A.kind === 'eatbug' && A.t > 2.4) {
+      p.bg = true; A.mode = 'idle'; P.wait = 3; refreshFarm(); save();
+      if (near < 40) { toast('🐦 チャオが むしを たべてくれたよ！<br><small>…たまには やくに たつね</small>', 3200); sfx('recv'); }
+    } else if (A.kind === 'raid' && A.t > 7) {
+      p.pk = (p.pk || 0) + 1; A.mode = 'idle'; P.wait = 3; save();
+      if (near < 40) { toast(`ケーン！ チャオが ${CROPS[p.c].name}を つついちゃった…！<br><small>しゅうかくが ちょっと へるよ</small>`, 3600); sfx('bite'); }
+    }
+  }
+}
+// チャオを おいはらう(はなしかけて とめる)
+function chaoShooed() {
+  const A = chaoAI;
+  if (A.mode === 'idle') return false;
+  const raid = A.kind === 'raid';
+  A.mode = 'idle'; npcs.chao.target = null; npcs.chao.wait = 2;
+  if (raid) A.cd = 240 + Math.random() * 120;
+  return raid;
+}
+
 // ---------- おへやを かざる ----------
 let decoSel = -1, decoTab = 'stock', decoRepeat = null;
 const selRing = new THREE.Mesh(new THREE.RingGeometry(0.55, 0.7, 28), new THREE.MeshBasicMaterial({ color: 0x3dbb6a, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthTest: false }));
@@ -2014,6 +2210,7 @@ function frame(now) {
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
+    if (place === 'in' && inKind === 'hollow') hollow.update(clock);
     $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
@@ -2021,7 +2218,9 @@ function frame(now) {
       saveTimer += dt;
       if (saveTimer > 6) { saveTimer = 0; save(); }
     } else if (player && mode === 'menu') animate(player, dt, { t: clock });
+    updateChao(dt);
     updateNpcs(dt);
+    if (S && S.created) updateFarmBtn(dt);
     if (mode === 'deco') updateDeco();
     if (rot.l) yaw -= dt * 1.8;
     if (rot.r) yaw += dt * 1.8;
@@ -2035,13 +2234,15 @@ function frame(now) {
         if (place === 'out') {
           if (Math.hypot(pp.x - world.door.x, pp.z - world.door.z) < 4) ent = 'house';
           else if (Math.hypot(pp.x + 9, pp.z - 12.2) < 5.5) ent = 'shop';
-          else if (S.home.stage > 0) { const hd = world.homeDoorPos(S.home.stage); if (Math.hypot(pp.x - hd.x, pp.z - hd.z) < 4) ent = 'home'; }
-        } else if (inKind === 'home') { if (pp.z > room.exit.z - 2.5 && Math.abs(pp.x - OFF2) < 2.6) ent = 'out'; }
+          else if (S.home.stage > 0 && Math.hypot(pp.x - world.homeDoorPos(S.home.stage).x, pp.z - world.homeDoorPos(S.home.stage).z) < 4) ent = 'home';
+          else if (Math.hypot(pp.x - HOLLOW_DOOR.x, pp.z - HOLLOW_DOOR.z) < 4.5) ent = 'hollow';
+        } else if (inKind === 'hollow') { if (pp.z > hollow.exit.z - 2.2 && Math.abs(pp.x - OFF3) < 2.6) ent = 'out'; }
+        else if (inKind === 'home') { if (pp.z > room.exit.z - 2.5 && Math.abs(pp.x - OFF2) < 2.6) ent = 'out'; }
         else if (pp.z > interior.exit.z - 2.5 && Math.abs(pp.x - OFF) < 2.6) ent = 'out';
       }
       enterKind = ent;
       $('btnEnter').classList.toggle('hidden', !ent);
-      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 セイママの おうちに はいる' : ent === 'home' ? '🏡 わたしの おうちに はいる' : '🚪 そとに でる';
+      if (ent) $('btnEnter').textContent = ent === 'shop' ? '🛍 おみせに はいる' : ent === 'house' ? '🏠 セイママの おうちに はいる' : ent === 'home' ? '🏡 わたしの おうちに はいる' : ent === 'hollow' ? '🌳 ほらあなに はいる' : '🚪 そとに でる';
     }
     if (mode === 'play' && nearNpc) $('btnTalk').textContent = `💬 ${CHARS[nearNpc].name}と はなす`;
     updateFx(dt);
@@ -2070,4 +2271,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, enterHollow, exitHollow, hollow, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

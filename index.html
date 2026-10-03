@@ -9,8 +9,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐼%3C/text%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="style.css?v=202610031240">
-<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202610031240", "./js/audio.js": "./js/audio.js?v=202610031240", "./js/config.js": "./js/config.js?v=202610031240", "./js/dialogue.js": "./js/dialogue.js?v=202610031240", "./js/fish.js": "./js/fish.js?v=202610031240", "./js/home.js": "./js/home.js?v=202610031240", "./js/missions.js": "./js/missions.js?v=202610031240", "./js/models.js": "./js/models.js?v=202610031240", "./js/shop.js": "./js/shop.js?v=202610031240", "./js/theater.js": "./js/theater.js?v=202610031240", "./js/world.js": "./js/world.js?v=202610031240"}}</script>
+<link rel="stylesheet" href="style.css?v=202610031314">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202610031314", "./js/audio.js": "./js/audio.js?v=202610031314", "./js/config.js": "./js/config.js?v=202610031314", "./js/dialogue.js": "./js/dialogue.js?v=202610031314", "./js/fish.js": "./js/fish.js?v=202610031314", "./js/home.js": "./js/home.js?v=202610031314", "./js/missions.js": "./js/missions.js?v=202610031314", "./js/models.js": "./js/models.js?v=202610031314", "./js/shop.js": "./js/shop.js?v=202610031314", "./js/theater.js": "./js/theater.js?v=202610031314", "./js/world.js": "./js/world.js?v=202610031314", "./js/farm.js": "./js/farm.js?v=202610031314"}}</script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -54,6 +54,7 @@
   <button id="btnEnter" class="talk enter hidden">🏠 はいる</button>
   <button id="btnWake" class="talk wake hidden">☀ おきる</button>
   <button id="btnDeco" class="hud-btn deco hidden">🛋 おへやを かざる</button>
+  <button id="btnFarm" class="talk farmbtn hidden">🌱 たねを まく</button>
   <div id="questBar" class="hidden"></div>
   <div id="hint">ゆびで うごかそう！ おはなを あつめて ともだちに あげよう</div>
 </section>
@@ -201,6 +202,14 @@
   </div>
 </section>
 
+<section id="seedPick" class="screen modal hidden">
+  <div class="panel">
+    <h2>🌱 なにを まく？</h2>
+    <div id="seedList"></div>
+    <button id="seedCancel" class="big">やめる</button>
+  </div>
+</section>
+
 <section id="deco" class="hidden">
   <header><b>🛋 おへやを かざる</b><button id="decoDone" class="close">✓ おわる</button></header>
   <div id="decoMsg">かぐを えらぶと おへやに ならぶよ。おいた かぐを タップすると うごかせるよ</div>
@@ -234,6 +243,6 @@
   <div id="thEnd" class="hidden"><div class="panel"><h2>おしまい</h2><button id="thAgain" class="big primary">もういちど みる</button><button id="thBack" class="big">もどる</button></div></div>
 </section>
 
-<script type="module" src="js/main.js?v=202610031240"></script>
+<script type="module" src="js/main.js?v=202610031314"></script>
 </body>
 </html>
