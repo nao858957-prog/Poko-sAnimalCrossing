@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
-import { buildWorld, buildInterior, ISLAND_R, HOMES } from './world.js';
+import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
@@ -238,8 +238,7 @@ canvas.addEventListener('pointerup', e => {
   }
   const pt = new THREE.Vector3();
   if (ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), pt)) {
-    const r = Math.hypot(pt.x, pt.z);
-    if (r > ISLAND_R) { pt.x *= ISLAND_R / r; pt.z *= ISLAND_R / r; }
+    clampLand(pt);
     moveTarget = new THREE.Vector2(pt.x, pt.z); talkOnArrive = null; showMarker(moveTarget); sfx('tap');
   }
 });
@@ -263,8 +262,7 @@ function collide(pos, rad) {
     const d = Math.hypot(dx, dz), m = o.r + rad;
     if (d < m && d > 0.0001) { pos.x = o.x + dx / d * m; pos.z = o.z + dz / d * m; }
   }
-  const r = Math.hypot(pos.x, pos.z);
-  if (r > ISLAND_R) { pos.x *= ISLAND_R / r; pos.z *= ISLAND_R / r; }
+  clampLand(pos);
 }
 function separate(P, others, rad) {
   for (const O of others) {
@@ -597,7 +595,7 @@ function updatePlayer(dt) {
   // おはな
   if (place === 'out') for (const f of world.flowers) {
     if (f.mesh.visible && Math.hypot(pos.x - f.x, pos.z - f.z) < 1.1) {
-      f.mesh.visible = false; f.back = 50;
+      f.mesh.visible = false; f.back = 300;
       S.flowers++; $('flowerCount').textContent = '🌼 ' + S.flowers;
       sfx('pick'); if (QS().some(q => q.item === 'flower')) refreshMarkers();
       tmp.set(f.x, 1.2, f.z); spawnFx(world.group, 'star', tmp, 0.7);
@@ -796,7 +794,7 @@ function chooseChatSide(id) {
       const x = mx + Math.sin(ang) * 11 * t, z = mz + Math.cos(ang) * 11 * t;
       for (const o of obs) if (o.r > 0.25 && Math.hypot(o.x - x, o.z - z) < o.r + (o.r < 1.3 ? 2.4 : 1.3)) score += 1;
       for (const q of others) if (Math.hypot(q.x - x, q.z - z) < 2.4) score += 2;
-      if (place === 'out' && Math.hypot(x, z) > ISLAND_R + 6) score += 3;
+      if (place === 'out' && landDepth(x, z) < -6) score += 3;
       if (place === 'in') { const b = interior.bounds; if (x < OFF + b.x0 - 1 || x > OFF + b.x1 + 1 || z < b.z0 - 1 || z > b.z1 + 2) score += 1.5; }
     }
     if (score < bestScore) { bestScore = score; best = ang; }
@@ -854,8 +852,8 @@ function rodObject(tier) {
   return g;
 }
 function fishSpotAt(p) {
-  const rr = Math.hypot(p.x, p.z);
-  if (rr > ISLAND_R - 2.6) return { spot: 'sea', dx: p.x / rr, dz: p.z / rr, dist: 5.6 };
+  const sn = shoreNormal(p.x, p.z);
+  if (sn.depth < 2.6) return { spot: 'sea', dx: sn.dx, dz: sn.dz, dist: 5.6 };
   const L = world.landmarks.lake, dl = Math.hypot(p.x - L.x, p.z - L.z);
   if (dl < 6.2 + 3.4) return { spot: 'lake', dx: (L.x - p.x) / dl, dz: (L.z - p.z) / dl, dist: Math.max(2.4, dl - 1.8) };
   const dp = Math.hypot(p.x - 9, p.z - 9);
@@ -1193,7 +1191,7 @@ function makeDaily(id) {
   let def;
   if (tpl.type === 'buy') {
     const fid = tpl.foods[Math.floor(Math.random() * tpl.foods.length)], f = FOODS.find(x => x.id === fid);
-    def = { id: `d_${id}_${t}`, daily: true, giver: id, lv: 0, title: `きょうの ごようきき：${f.name}`, type: 'buy', what: fid, ask: tpl.ask.replace('{item}', f.name), hint: `おみせで ${f.name}を かおう`, thanks: DAILY_THANKS[id], reward: { flowers: 4, friend: 1 } };
+    def = { id: `d_${id}_${t}`, daily: true, giver: id, lv: 0, title: `きょうの ごようきき：${f.name}`, type: 'buy', what: fid, ask: tpl.ask.replace('{item}', f.name), hint: `おみせで ${f.name}を かおう`, thanks: DAILY_THANKS[id], reward: { flowers: f.price + 4, friend: 1 } };
   } else {
     const k = tpl.items[Math.floor(Math.random() * tpl.items.length)], it = ITEMS[k];
     def = { id: `d_${id}_${t}`, daily: true, giver: id, lv: 0, title: `きょうの ごようきき：${it.name}`, type: 'collect', item: k, n: cnt, ask: tpl.ask.replace('{item}', it.name).replace('{count}', cnt), hint: `${it.name}を ${cnt}こ あつめよう`, thanks: DAILY_THANKS[id], reward: { flowers: 3 + cnt * 2, friend: 1 } };
@@ -1265,19 +1263,20 @@ function renderQuests() {
 let mapTimer = 0;
 function drawMap() {
   const cv = $('mapCv'), g = cv.getContext('2d');
-  const W = cv.width, R = ISLAND_R + 6, k = W / 2 / R, cx = W / 2;
-  const X = x => cx + x * k, Z = z => cx + z * k;
+  const W = cv.width, MX0 = -94, MX1 = 54, k = W / (MX1 - MX0), mcx = (MX0 + MX1) / 2, cx = W / 2;
+  const X = x => cx + (x - mcx) * k, Z = z => cx + z * k;
   g.clearRect(0, 0, W, W);
   g.fillStyle = '#7fc8f0'; g.fillRect(0, 0, W, W);
-  g.fillStyle = '#f4e2b0'; g.beginPath(); g.arc(cx, cx, (ISLAND_R + 2) * k, 0, 7); g.fill();
-  g.fillStyle = '#8fd36e'; g.beginPath(); g.arc(cx, cx, 39 * k, 0, 7); g.fill();
-  g.fillStyle = '#ead7a4'; g.fillRect(X(-1.5), Z(-12), 3 * k, 52 * k); g.fillRect(X(-32), Z(-3.2), 64 * k, 2.4 * k);
+  g.fillStyle = '#f4e2b0'; for (const c of LAND) { g.beginPath(); g.arc(X(c.x), Z(c.z), (c.r + 2) * k, 0, 7); g.fill(); }
+  g.fillStyle = '#8fd36e'; for (const c of [...LAND.map(c => ({ x: c.x, z: c.z, g: c.g })), { x: -44, z: -1, g: 10 }]) { g.beginPath(); g.arc(X(c.x), Z(c.z), c.g * k, 0, 7); g.fill(); }
+  g.fillStyle = '#ead7a4'; g.fillRect(X(-1.5), Z(-12), 3 * k, 52 * k); g.fillRect(X(-70), Z(-3.2), 140 * k, 2.4 * k);
+  g.fillStyle = '#c8935a'; const hp = HOME_PLOT; g.fillRect(X(hp.x) - 3 * k, Z(hp.z) - 3 * k, 6 * k, 6 * k);
   g.fillStyle = '#7ccdf2'; for (const [x, z, r] of [[9, 9, 3.5], [25, 17, 6.2]]) { g.beginPath(); g.arc(X(x), Z(z), r * k, 0, 7); g.fill(); }
   g.font = `bold ${Math.round(W * 0.034)}px sans-serif`; g.textAlign = 'center'; g.textBaseline = 'middle';
   const lab = (x, z, e, t) => { g.fillText(e, X(x), Z(z)); g.fillStyle = '#5a4636'; g.fillText(t, X(x), Z(z) + 15); };
   g.fillStyle = '#5a4636';
   lab(0, -16, '🏠', 'セイママの いえ'); lab(-9, 9.4, '🛍', 'おみせ'); lab(24, -33, '🗼', 'とうだい'); lab(-31, 8, '⛩', 'じんじゃ');
-  lab(12, 40, '🏖', 'うみの いえ'); lab(-19, -13, '🎋', 'たけやぶ'); lab(-14, -1, '🌼', 'おはなばたけ'); lab(25, 17, '', 'みずうみ'); lab(0, -30, '🍄', 'もり');
+  lab(12, 40, '🏖', 'うみの いえ'); lab(HOME_PLOT.x, HOME_PLOT.z - 5, '🏡', 'わたしの おうち'); lab(-19, -13, '🎋', 'たけやぶ'); lab(-14, -1, '🌼', 'おはなばたけ'); lab(25, 17, '', 'みずうみ'); lab(0, -30, '🍄', 'もり');
   // おねがいの もくてき地
   const t = performance.now() / 300;
   for (const q of QS()) { const st = qState(q); if (st && st.s !== 'done' && q.type === 'visit' && !st.p) { const pl = PLACES[q.where]; g.fillStyle = '#ff8a3d'; g.beginPath(); g.arc(X(pl.x), Z(pl.z), (7 + Math.sin(t) * 2), 0, 7); g.fill(); } }
@@ -1291,7 +1290,7 @@ function drawMap() {
     if (st) { g.fillStyle = st === '！' ? '#ff8a3d' : '#3dbb6a'; g.fillText(st, X(x), Z(z) - 14); }
   }
   // じぶん
-  const p = player.root.position, px = place === 'in' ? 0 : p.x, pz = place === 'in' ? -14 : p.z;
+  const p = player.root.position, px = place === 'in' ? 0 : p.x, pz = place === 'in' ? -14 : p.z;  // (いえの なかは セイママの いえの いちに ひょうじ)
   g.save(); g.translate(X(px), Z(pz)); g.rotate(-player.root.rotation.y + Math.PI);
   g.fillStyle = '#e8455a'; g.strokeStyle = '#fff'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, -11); g.lineTo(8, 8); g.lineTo(-8, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
 }

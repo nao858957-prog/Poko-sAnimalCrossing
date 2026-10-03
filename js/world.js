@@ -8,6 +8,25 @@ function rng(seed) {
 }
 
 export const ISLAND_R = 48;
+// 島のかたち: 本島 + にしの「くらしのはま」(おうちを たてる ばしょ)。g = しばふの はんけい
+export const LAND = [{ x: 0, z: 0, r: ISLAND_R, g: 39 }, { x: -64, z: 2, r: 26, g: 19 }];
+export const HOME_PLOT = { x: -68, z: -10 };
+export const landDepth = (x, z) => { let d = -1e9; for (const c of LAND) d = Math.max(d, c.r - Math.hypot(x - c.x, z - c.z)); return d; };
+// 海に出ないよう 島の中へ もどす (m = へりから あける きょり)
+export function clampLand(pos, m = 0) {
+  let best = null, bd = -1e9;
+  for (const c of LAND) { const d = c.r - Math.hypot(pos.x - c.x, pos.z - c.z); if (d > bd) { bd = d; best = c; } }
+  if (bd >= m) return false;
+  const dx = pos.x - best.x, dz = pos.z - best.z, L = Math.hypot(dx, dz) || 1, k = (best.r - m) / L;
+  pos.x = best.x + dx * k; pos.z = best.z + dz * k; return true;
+}
+// 海にいちばん ちかい へりの むき (つり用)
+export function shoreNormal(x, z) {
+  let best = LAND[0], bd = -1e9;
+  for (const c of LAND) { const d = c.r - Math.hypot(x - c.x, z - c.z); if (d > bd) { bd = d; best = c; } }
+  const dx = x - best.x, dz = z - best.z, L = Math.hypot(dx, dz) || 1;
+  return { dx: dx / L, dz: dz / L, depth: bd };
+}
 export const HOMES = {
   sei: [3.5, -11], poko: [-2, -8.5], mei: [1.5, -8],
   rin: [-14, -1], pa: [13, -3], ku: [15.5, -6.5],
@@ -27,10 +46,12 @@ export function buildWorld() {
   const sandMat = new THREE.MeshLambertMaterial({ color: '#f4e2b0' });
   const grassMat = new THREE.MeshLambertMaterial({ color: '#8fd36e' });
   const patchMats = [new THREE.MeshLambertMaterial({ color: '#82c862' }), new THREE.MeshLambertMaterial({ color: '#9adc78' })];
-  const sand = new THREE.Mesh(new THREE.CircleGeometry(ISLAND_R + 2, 64), sandMat);
-  sand.rotation.x = -Math.PI / 2; sand.position.y = -0.02; g.add(sand);
-  const grass = new THREE.Mesh(new THREE.CircleGeometry(39, 72), grassMat);
-  grass.rotation.x = -Math.PI / 2; grass.position.y = 0; g.add(grass);
+  for (const c of LAND) {
+    const sand = new THREE.Mesh(new THREE.CircleGeometry(c.r + 2, 64), sandMat);
+    sand.rotation.x = -Math.PI / 2; sand.position.set(c.x, -0.02, c.z); g.add(sand);
+    const grass = new THREE.Mesh(new THREE.CircleGeometry(c.g, 72), grassMat);
+    grass.rotation.x = -Math.PI / 2; grass.position.set(c.x, 0, c.z); g.add(grass);
+  }
   // 芝のまだら
   for (let i = 0; i < 44; i++) {
     const a = r() * Math.PI * 2, d = r() * 36;
@@ -45,16 +66,19 @@ export function buildWorld() {
   // うみ
   const sea = new THREE.Mesh(new THREE.PlaneGeometry(700, 700), mat('#5ec0ec'));
   sea.rotation.x = -Math.PI / 2; sea.position.y = -0.25; g.add(sea);
-  const foam = new THREE.Mesh(new THREE.RingGeometry(ISLAND_R + 1.6, ISLAND_R + 3.4, 64), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
-  foam.rotation.x = -Math.PI / 2; foam.position.y = -0.15; g.add(foam);
+  const foamMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 });
+  const foams = LAND.map(c => {
+    const foam = new THREE.Mesh(new THREE.RingGeometry(c.r + 1.6, c.r + 3.4, 64), foamMat);
+    foam.rotation.x = -Math.PI / 2; foam.position.set(c.x, -0.15, c.z); g.add(foam); return foam;
+  });
 
   // 木
   const trunkM = mat('#8a5a36');
-  function tree(x, z, s = 1, fruit = false) {
+  function tree(x, z, s = 1, fruit = false, rr = r) {
     const t = new THREE.Group(); t.position.set(x, 0, z); t.scale.setScalar(s);
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 1.8, 8), trunkM);
     tr.position.y = 0.9; t.add(tr);
-    const col = ['#58b84a', '#6cc455', '#4aa84a'][Math.floor(r() * 3)];
+    const col = ['#58b84a', '#6cc455', '#4aa84a'][Math.floor(rr() * 3)];
     add(t, sph(1.5, col, 1, 0.95, 1), 0, 2.7, 0);
     add(t, sph(1.05, col, 1, 0.9, 1), 0.7, 3.4, 0.2);
     const cap = sph(1.2, '#f4f8fc', 1.0, 0.5, 1.0); add(t, cap, 0, 3.7, 0); cap.visible = false; snowCaps.push(cap);
@@ -157,12 +181,12 @@ export function buildWorld() {
   }
   for (let i = 0; i < 26; i++) {
     const a = r() * Math.PI * 2, d = r() * 7;
-    flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8);
+    flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8, i % 3 === 0);
   }
   for (let i = 0; i < 40; i++) {
     const a = r() * Math.PI * 2, d = 4 + r() * 32;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.9;
-    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z);
+    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z, i % 4 === 0);
   }
   // 草むら
   for (let i = 0; i < 100; i++) {
@@ -269,7 +293,7 @@ export function buildWorld() {
     let k = 0, t = 0;
     while (k < n && t++ < tries) {
       const x = cx + (r() - 0.5) * 2 * rx, z = cz + (r() - 0.5) * 2 * rz;
-      if (Math.hypot(x, z) < ISLAND_R - 3 && free(x, z)) { itemSpot(kind, x, z); k++; }
+      if (landDepth(x, z) > 3 && free(x, z)) { itemSpot(kind, x, z); k++; }
     }
   }
   scatter('shell', 16, 0, 42, 22, 4);
@@ -278,6 +302,104 @@ export function buildWorld() {
   scatter('feather', 10, 0, 0, 30, 24, 200);
   scatter('mushroom', 8, 0, -28, 20, 4); scatter('mushroom', 3, -26, -24, 5, 4);
   scatter('herb', 12, 8, 4, 22, 14, 200);
+
+  // ---- くらしのはま (にしの はま・おうちを たてる ばしょ) ----
+  const r2 = rng(99), HP = HOME_PLOT;
+  const onGrass = (x, z, pad = 2) => LAND.some(c => Math.hypot(x - c.x, z - c.z) < c.g - pad);
+  const bridge = new THREE.Mesh(new THREE.CircleGeometry(10, 40), grassMat); bridge.rotation.x = -Math.PI / 2; bridge.position.set(-44, 0, -1); g.add(bridge);
+  const lp = new THREE.Mesh(new THREE.PlaneGeometry(36, 2.4), mat('#ead7a4')); lp.rotation.x = -Math.PI / 2; lp.position.set(-52, 0.016, -2); g.add(lp);
+  const lp2 = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 5), mat('#ead7a4')); lp2.rotation.x = -Math.PI / 2; lp2.position.set(HP.x, 0.017, HP.z + 5.8); g.add(lp2);
+  for (let n = 0, t = 0; n < 24 && t++ < 900;) {
+    const x = -64 + (r2() - 0.5) * 40, z = 2 + (r2() - 0.5) * 40;
+    if (x > -40 || !onGrass(x, z, 3.5) || Math.hypot(x - HP.x, z - HP.z) < 10.5 || (Math.abs(z + 2) < 2.8 && x < -33) || Math.hypot(x + 31, z - 8) < 6) continue;
+    if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < 3.4)) continue;
+    tree(x, z, 0.85 + r2() * 0.5, r2() < 0.25, r2); n++;
+  }
+  for (let i = 0; i < 60; i++) {
+    const x = -64 + (r2() - 0.5) * 38, z = 2 + (r2() - 0.5) * 38;
+    if (x > -42 || !onGrass(x, z, 2) || (Math.abs(z + 2) < 1.8) || Math.hypot(x - HP.x, z - HP.z) < 5.4 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.5)) continue;
+    if (i % 5 === 0) flower(x, z, true); else add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
+  }
+  for (const [x, z] of [[-40, -4], [-60, -4.2], [-72, 3]]) {
+    const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.4, 6), mat('#6b5a4a')); p.position.set(x, 1.2, z); g.add(p);
+    const l = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); l.position.set(x, 2.5, z); g.add(l); lamps.push(l);
+  }
+  scatter('herb', 6, -64, 2, 14, 14, 120); scatter('feather', 4, -64, 2, 14, 14, 120); scatter('mushroom', 3, -70, 10, 8, 5, 80);
+
+  // ---- わたしの おうち (たてる たびに おおきく なる) ----
+  const hx = new THREE.Group(); hx.position.set(HP.x, 0, HP.z); g.add(hx);
+  const hs = [0, 1, 2, 3].map(() => { const q = new THREE.Group(); q.visible = false; hx.add(q); return q; });
+  const lampOn = (parent, x, z) => { const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.2, 6), mat('#6b5a4a')); p.position.set(x, 1.1, z); parent.add(p); const l = new THREE.Mesh(new THREE.SphereGeometry(0.26, 12, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); l.position.set(x, 2.3, z); parent.add(l); lamps.push(l); };
+  { // 0: たてる ばしょ
+    const b = hs[0];
+    const patch = new THREE.Mesh(new THREE.CircleGeometry(4.6, 28), mat('#b6dd84')); patch.rotation.x = -Math.PI / 2; patch.position.y = 0.012; b.add(patch);
+    for (let i = 0; i < 8; i++) {
+      const a = i / 8 * Math.PI * 2, a2 = (i + 0.5) / 8 * Math.PI * 2;
+      box3(b, 0.16, 0.9, 0.16, '#c8935a', Math.cos(a) * 4.4, 0.45, Math.sin(a) * 4.4);
+      const rp = box3(b, 0.06, 0.06, 3.3, '#efe0b0', Math.cos(a2) * 4.4 * 0.98, 0.75, Math.sin(a2) * 4.4 * 0.98); rp.rotation.y = -a2;
+    }
+    box3(b, 1.6, 0.25, 0.7, '#c8935a', -1.6, 0.13, 0.6); box3(b, 1.6, 0.25, 0.7, '#d4a470', -1.6, 0.38, 0.6).rotation.y = 0.3;
+    const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.3, 6), mat('#6b5a4a')); sh.position.set(1.2, 0.65, 0.4); sh.rotation.z = 0.25; b.add(sh);
+    box3(b, 0.3, 0.4, 0.06, '#9aa0a8', 1.5, 0.15, 0.4);
+    box3(b, 0.1, 1.5, 0.1, '#6b5a4a', 0, 0.75, 2.4); box3(b, 1.5, 0.7, 0.1, '#ffe9a8', 0, 1.5, 2.4); box3(b, 1.3, 0.1, 0.12, '#e8795a', 0, 1.62, 2.4); box3(b, 1.0, 0.1, 0.12, '#e8795a', 0, 1.38, 2.4);
+  }
+  { // 1: テント
+    const b = hs[1];
+    const sheet = new THREE.Mesh(new THREE.CircleGeometry(3.4, 28), mat('#e9d7a8')); sheet.rotation.x = -Math.PI / 2; sheet.position.y = 0.014; b.add(sheet);
+    const cone = new THREE.Mesh(new THREE.ConeGeometry(2.5, 3.0, 8), mat('#ffd9a0')); cone.position.y = 1.5; b.add(cone);
+    for (let i = 0; i < 4; i++) { const st = new THREE.Mesh(new THREE.ConeGeometry(2.52, 3.02, 8, 1, true, i * Math.PI / 2, Math.PI / 4), mat('#ff8a7a')); st.position.y = 1.5; b.add(st); }
+    const flap = box3(b, 1.0, 1.55, 0.1, '#6a4a30', 0, 0.8, 1.9); flap.rotation.x = -0.5;
+    box3(b, 0.05, 1.2, 0.05, '#6b5a4a', 0, 3.4, 0); box3(b, 0.7, 0.4, 0.04, '#e8455a', 0.38, 3.8, 0);
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; add(b, sph(0.2, '#b9b5ad', 1.2, 0.7, 1), 3.2 + Math.cos(a) * 0.5, 0.1, 1.8 + Math.sin(a) * 0.5); }
+    for (const [x, c] of [[0, '#ff9a2a'], [0.1, '#ffd84d']]) { const f = new THREE.Mesh(new THREE.ConeGeometry(0.2, 0.55, 8), new THREE.MeshBasicMaterial({ color: c })); f.position.set(3.2 + x, 0.35, 1.8); b.add(f); }
+    for (const [x, z] of [[2.3, 3.3], [4.2, 3.1]]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.9, 8), mat('#8a5a36')); lg.rotation.z = Math.PI / 2; lg.position.set(x, 0.2, z); b.add(lg); }
+    lampOn(b, -2.6, 2.4);
+  }
+  { // 2: こじんまりした おうち
+    const b = hs[2];
+    box3(b, 6.5, 0.4, 5.1, '#c8b896', 0, 0.2, 0); box3(b, 6.4, 2.8, 5.0, '#fbf1da', 0, 1.8, 0);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(5.3, 2.5, 4), mat('#e8795a')); roof.rotation.y = Math.PI / 4; roof.position.y = 4.4; roof.scale.set(1, 1, 0.84); b.add(roof);
+    box3(b, 1.1, 2.0, 0.14, '#8a5a36', 0, 1.2, 2.55); add(b, sph(0.08, '#ffd84d'), 0.38, 1.15, 2.66);
+    box3(b, 2.0, 0.12, 0.9, '#e8455a', 0, 2.45, 2.9).rotation.x = 0.22;
+    for (const sx of [-2.1, 2.1]) {
+      box3(b, 1.0, 1.0, 0.1, '#cfeeff', sx, 2.0, 2.52); box3(b, 1.2, 0.1, 0.16, '#f4ead8', sx, 1.45, 2.58); box3(b, 0.06, 1.0, 0.12, '#f4ead8', sx, 2.0, 2.58);
+      box3(b, 1.2, 0.3, 0.3, '#c8935a', sx, 1.2, 2.75); for (let k = 0; k < 3; k++) add(b, sph(0.13, ['#ff7a9a', '#ffd84d', '#ffffff'][k], 1, 1, 1), sx - 0.4 + k * 0.4, 1.45, 2.78);
+    }
+    box3(b, 0.8, 2.0, 0.8, '#a8a39a', 1.9, 5.0, -1.0); box3(b, 1.6, 0.04, 0.8, '#c26a4a', 0, 0.03, 3.2);
+    box3(b, 0.1, 1.0, 0.1, '#6b5a4a', 3.7, 0.5, 3.4); box3(b, 0.5, 0.35, 0.35, '#e8455a', 3.7, 1.1, 3.4);
+    for (let i = 0; i < 6; i++) box3(b, 0.16, 0.8, 0.12, '#f4ead8', -4.4 - i * 0.5 + 0.0, 0.4, 3.0);
+    lampOn(b, -3.8, 3.4);
+  }
+  { // 3: おおきな おうち
+    const b = hs[3];
+    box3(b, 9.2, 0.6, 6.6, '#b9ad98', 0, 0.3, -0.4); box3(b, 9.0, 3.4, 6.4, '#f6e6c8', 0, 2.2, -0.4);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(7.6, 2.9, 4), mat('#5b7fb8')); roof.rotation.y = Math.PI / 4; roof.position.y = 5.35; roof.scale.set(1, 1, 0.8); b.add(roof);
+    box3(b, 4.2, 0.25, 1.6, '#c8935a', 0, 0.12, 3.9); for (const sx of [-1.9, 1.9]) { const po = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 2.8, 8), mat('#f4ead8')); po.position.set(sx, 1.5, 4.5); b.add(po); }
+    box3(b, 4.6, 0.18, 1.9, '#5b7fb8', 0, 2.95, 3.9);
+    box3(b, 1.3, 2.3, 0.14, '#6a4328', 0, 1.25, 2.9); add(b, sph(0.08, '#ffd84d'), 0.42, 1.2, 3.0);
+    for (const sx of [-3.3, 3.3, -3.3 - 0.0]) { box3(b, 1.1, 1.3, 0.1, '#cfeeff', sx, 2.2, 2.82); box3(b, 1.3, 0.1, 0.16, '#f4ead8', sx, 1.5, 2.88); box3(b, 0.06, 1.3, 0.12, '#f4ead8', sx, 2.2, 2.88); }
+    box3(b, 0.9, 2.6, 0.9, '#a8a39a', -2.8, 6.0, -1.8); box3(b, 0.9, 2.0, 0.9, '#a8a39a', 3.0, 5.6, -1.8);
+    for (let i = 0; i < 16; i++) { const x = -5.6 + i * 0.75; if (Math.abs(x) < 1.6) continue; box3(b, 0.16, 0.8, 0.12, '#f4ead8', x, 0.4, 5.9); }
+    box3(b, 4.0, 0.1, 0.1, '#f4ead8', -3.7, 0.55, 5.9); box3(b, 4.0, 0.1, 0.1, '#f4ead8', 3.7, 0.55, 5.9);
+    for (const [x, z, c] of [[-4.9, 3.6, '#ff7a9a'], [-4.1, 4.2, '#ffd84d'], [4.1, 4.2, '#b58cff'], [4.9, 3.6, '#ff9d5c'], [-3.0, 4.6, '#ffffff'], [3.0, 4.6, '#ff7a9a']]) { add(b, sph(0.45, '#4fa850', 1, 0.8, 1), x, 0.3, z); add(b, sph(0.2, c), x, 0.7, z); }
+    box3(b, 0.1, 1.1, 0.1, '#6b5a4a', 5.2, 0.55, 5.0); box3(b, 0.55, 0.4, 0.4, '#5b7fb8', 5.2, 1.2, 5.0);
+    lampOn(b, -2.8, 5.0); lampOn(b, 2.8, 5.0);
+  }
+  const HOME_DOOR = [null, 2.9, 3.5, 4.0];
+  const HOME_OBS = [[], [[0, 0, 2.2]], [[-2.2, 0, 2.5], [0, 0, 2.5], [2.2, 0, 2.5]], [[-3.4, -0.4, 3.1], [-1.1, -0.4, 3.1], [1.1, -0.4, 3.1], [3.4, -0.4, 3.1]]];
+  const homeObs = [0, 1, 2, 3].map(() => ({ x: 1e5, z: 1e5, r: 0.01 }));
+  obstacles.push(...homeObs);
+  const homeLabelBuild = makeLabel('🏕 おうちを たてよう（ポンの おみせで）', '#4f9f5a'), homeLabelMine = makeLabel('🏠 わたしの おうち', '#4f86c6');
+  homeLabelBuild.position.set(HP.x, 3.4, HP.z); homeLabelMine.position.set(HP.x, 6, HP.z); homeLabelBuild.visible = homeLabelMine.visible = false; g.add(homeLabelBuild, homeLabelMine);
+  let homeStage = -1;
+  function setHome(stage) {
+    stage = Math.max(0, Math.min(3, stage | 0)); homeStage = stage;
+    hs.forEach((q, i) => { q.visible = i === stage; });
+    homeObs.forEach((o, i) => { const d = HOME_OBS[stage][i]; if (d) { o.x = HP.x + d[0]; o.z = HP.z + d[1]; o.r = d[2]; } else { o.x = 1e5; o.z = 1e5; o.r = 0.01; } });
+    homeLabelMine.position.y = [0, 4.6, 6.6, 8.4][stage];
+  }
+  setHome(0);
+  const homeDoorPos = stage => ({ x: HP.x, z: HP.z + HOME_DOOR[Math.max(1, stage)] });
 
   // ---- 季節の飾り ----
   const decor = { tanabata: new THREE.Group(), obon: new THREE.Group(), newyear: new THREE.Group() };
@@ -308,8 +430,8 @@ export function buildWorld() {
   add(kagami, sph(0.5, '#fffaf0', 1, 0.55, 1), 0, 0.25, 0); add(kagami, sph(0.35, '#fffaf0', 1, 0.55, 1), 0, 0.62, 0); add(kagami, sph(0.12, '#ff9d5c'), 0, 0.85, 0);
   decor.newyear.add(kagami);
   // 雪
-  const NS = 600, snowArr = new Float32Array(NS * 3);
-  for (let i = 0; i < NS; i++) { snowArr[i * 3] = (r() - 0.5) * 70; snowArr[i * 3 + 1] = r() * 22; snowArr[i * 3 + 2] = (r() - 0.5) * 70; }
+  const NS = 1000, snowArr = new Float32Array(NS * 3);
+  for (let i = 0; i < NS; i++) { snowArr[i * 3] = -22 + (r() - 0.5) * 130; snowArr[i * 3 + 1] = r() * 22; snowArr[i * 3 + 2] = (r() - 0.5) * 70; }
   const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowArr, 3));
   const snowPts = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 5, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false }));
   snowPts.visible = false; snowPts.frustumCulled = false; g.add(snowPts);
@@ -384,7 +506,7 @@ export function buildWorld() {
   }
 
   function update(dt, t) {
-    foam.material.opacity = 0.45 + Math.sin(t * 1.4) * 0.15;
+    foamMat.opacity = 0.45 + Math.sin(t * 1.4) * 0.15;
     chimes.forEach((c, i) => { c.rotation.z = Math.sin(t * 2 + i * 1.3) * 0.12; });
     for (const it of items) {
       if (it.back > 0) { it.back -= dt; if (it.back <= 0) it.mesh.visible = true; }
@@ -399,7 +521,7 @@ export function buildWorld() {
       }
       a.needsUpdate = true;
     }
-    foam.scale.setScalar(1 + Math.sin(t * 1.4) * 0.006);
+    for (const f of foams) f.scale.setScalar(1 + Math.sin(t * 1.4) * 0.006);
     for (const c of clouds) { c.position.x += dt * 0.6; if (c.position.x > 140) c.position.x = -140; }
     for (const b of butter) {
       const u = b.userData; u.ph += dt;
@@ -421,7 +543,7 @@ export function buildWorld() {
     o.material.polygonOffsetFactor = -2 - o.position.y * 200;
     o.material.polygonOffsetUnits = -2 - o.position.y * 200;
   });
-  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

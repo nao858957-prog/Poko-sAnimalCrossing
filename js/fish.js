@@ -1,9 +1,9 @@
 // つり: おさかな・つりざお
 // r = めずらしさ(1〜4) / loc = つれる ばしょ(pond ため池 / lake みずうみ / sea うみ) / time = day(ひる)・night(よる)だけ
 export const RODS = [
-  { id: 1, emoji: '🎣', name: 'きの つりざお', price: 8, color: '#b98a5a', wait: [3, 8], window: 1.9, bonus: 0, desc: 'はじめての つりざお。のんびり まとう' },
-  { id: 2, emoji: '🎣', name: 'ぎんの つりざお', price: 25, color: '#c9d2dc', wait: [2, 6], window: 2.3, bonus: 1, desc: 'よく かかる。めずらしい さかなも' },
-  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 60, color: '#ffcf3a', wait: [1.5, 4.5], window: 2.8, bonus: 2, desc: 'すぐ かかる！ おおものも ねらえる' },
+  { id: 1, emoji: '🎣', name: 'きの つりざお', price: 30, color: '#b98a5a', wait: [3, 8], window: 1.9, bonus: 0, desc: 'はじめての つりざお。のんびり まとう' },
+  { id: 2, emoji: '🎣', name: 'ぎんの つりざお', price: 100, color: '#c9d2dc', wait: [2, 6], window: 2.3, bonus: 1, desc: 'よく かかる。めずらしい さかなも' },
+  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 240, color: '#ffcf3a', wait: [1.5, 4.5], window: 2.8, bonus: 2, desc: 'すぐ かかる！ おおものも ねらえる' },
 ];
 export const SPOTS = { pond: 'ため池', lake: 'みずうみ', sea: 'うみ' };
 
