@@ -1,9 +1,9 @@
 // つり: おさかな・つりざお
 // r = めずらしさ(1〜4) / loc = つれる ばしょ(pond ため池 / lake みずうみ / sea うみ) / time = day(ひる)・night(よる)だけ
 export const RODS = [
-  { id: 1, emoji: '🎣', name: 'きの つりざお', price: 30, color: '#b98a5a', wait: [3, 8], window: 1.9, bonus: 0, desc: 'はじめての つりざお。のんびり まとう' },
-  { id: 2, emoji: '🎣', name: 'ぎんの つりざお', price: 100, color: '#c9d2dc', wait: [2, 6], window: 2.3, bonus: 1, desc: 'よく かかる。めずらしい さかなも' },
-  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 240, color: '#ffcf3a', wait: [1.5, 4.5], window: 2.8, bonus: 2, desc: 'すぐ かかる！ おおものも ねらえる' },
+  { id: 1, emoji: '🎣', name: 'きの つりざお', price: 30, color: '#b98a5a', wait: [4, 10], window: 1.5, bonus: 0, desc: 'はじめての つりざお。のんびり まとう' },
+  { id: 2, emoji: '🎣', name: 'ぎんの つりざお', price: 100, color: '#c9d2dc', wait: [3, 8], window: 1.8, bonus: 1, desc: 'よく かかる。めずらしい さかなも' },
+  { id: 3, emoji: '🎣', name: 'きんの つりざお', price: 240, color: '#ffcf3a', wait: [2.5, 6.5], window: 2.2, bonus: 2, desc: 'すぐ かかる！ おおものも ねらえる' },
 ];
 export const SPOTS = { pond: 'ため池', lake: 'みずうみ', sea: 'うみ' };
 
@@ -56,7 +56,7 @@ export function rollCatch(spot, hour, rodTier) {
     return { junk: true, ...j };
   }
   const rod = RODS[Math.max(0, rodTier - 1)] || RODS[0];
-  const base = { 1: 60, 2: 28, 3: 9, 4: 2.2 };
+  const base = { 1: 60, 2: 26, 3: 7, 4: 1.6 };
   const cand = FISH.filter(f => f.loc.includes(spot) && (!f.time || (f.time === 'night') === night));
   const ws = cand.map(f => base[f.r] * (1 + rod.bonus * 0.5 * (f.r - 1)) * (night && f.time === 'night' ? 1.8 : 1));
   const tot = ws.reduce((a, b) => a + b, 0);
@@ -65,4 +65,11 @@ export function rollCatch(spot, hour, rodTier) {
   const [a, b] = pick.size;
   const t = Math.pow(Math.random(), 1.4); // 小さめが ふつう、おおきいのは すくなめ
   return { ...pick, cm: Math.round(a + (b - a) * t) };
+}
+
+// つりあげる とちゅうで ばれる(にげられる)かくりつ: めずらしい さかなほど ひっぱりが つよい
+export function slipChance(fish, rodTier) {
+  if (!fish || fish.junk) return 0;
+  const rod = RODS[Math.max(0, rodTier - 1)] || RODS[0];
+  return Math.max(0, ({ 1: 0, 2: 0.08, 3: 0.22, 4: 0.38 }[fish.r] || 0) - rod.bonus * 0.07);
 }

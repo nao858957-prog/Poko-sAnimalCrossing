@@ -8,7 +8,7 @@ import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isA
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
-import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch } from './fish.js';
+import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch, slipChance } from './fish.js';
 
 const $ = id => document.getElementById(id);
 const SAVE_KEY = 'poko-island-save-v1';
@@ -1073,7 +1073,10 @@ function updateFishing(dt) {
   } else if (f.phase === 'reel') {
     const u = Math.min(1, f.t / 0.7);
     bobber.position.lerpVectors(f.to, tip, u); bobber.position.y += Math.sin(u * Math.PI) * 1.5;
-    if (u >= 1) showCatch();
+    if (u >= 1) {
+      if (Math.random() < slipChance(f.catch, S.rod)) { f.phase = 'escape'; f.t = 0; sfx('splash'); fishMsg(f.catch.r >= 3 ? 'あぁっ、ばれちゃった…！ おおものだったのに！' : 'ぽちゃん…！ ばれちゃった。つぎは がんばろう'); bobber.position.copy(f.to); ripple.visible = true; }
+      else showCatch();
+    }
   }
   if (f.phase !== 'result') {
     const p = lineGeo.attributes.position;
