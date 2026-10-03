@@ -1,11 +1,13 @@
-// ゲームの BGM (js/audio.js と同じ音づくり) を オフラインで 62秒ぶん 書き出す
+// ゲームの BGM (js/audio.js と同じ音づくり) を オフラインで 指定秒ぶん 書き出す
+// 使い方: node render-bgm.mjs 110
 import { chromium } from '/opt/node-tools/node_modules/playwright/index.mjs';
 import fs from 'fs';
 const b = await chromium.launch({ args: ['--no-sandbox'] });
 const page = await b.newPage();
 await page.goto('about:blank');
-const data = await page.evaluate(async () => {
-  const sr = 44100, DUR = 62;
+const DUR_ARG = Number(process.argv[2] || 62);
+const data = await page.evaluate(async (DUR_ARG) => {
+  const sr = 44100, DUR = DUR_ARG;
   const ctx = new OfflineAudioContext(1, sr * DUR, sr);
   const master = ctx.createGain(); master.gain.value = 0.5; master.connect(ctx.destination);
   const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
@@ -31,7 +33,7 @@ const data = await page.evaluate(async () => {
   }
   const buf = await ctx.startRendering();
   return Array.from(buf.getChannelData(0));
-});
+}, DUR_ARG);
 const f = new Float32Array(data);
 // 正規化 (音量を そろえる) + 16bit wav
 let mx = 0; for (const v of f) mx = Math.max(mx, Math.abs(v));
