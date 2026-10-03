@@ -412,6 +412,15 @@ export function buildWorld() {
     }
   }
 
+  // 地面に重ねた平らな板（芝のまだら・道・池のふち等）は、深度の精度が足りないと
+  // 地面とチラついて見える（ポリゴンが扇風機のように回って見える）。高さ順に奥行きを少しずらして防ぐ。
+  g.traverse(o => {
+    if (!o.isMesh || Math.abs(o.rotation.x + Math.PI / 2) > 1e-3 || o.position.y < -0.03 || o.position.y > 0.1) return;
+    o.material = o.material.clone();
+    o.material.polygonOffset = true;
+    o.material.polygonOffsetFactor = -2 - o.position.y * 200;
+    o.material.polygonOffsetUnits = -2 - o.position.y * 200;
+  });
   return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
