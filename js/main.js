@@ -1183,6 +1183,9 @@ $('dailyOk').onclick = () => { $('daily').classList.add('hidden'); mode = 'play'
 
 // ---------- おねがい (ミッション) ----------
 function qState(q) { return S.quests[q.id] || null; }
+// ともだちは 1にちに 1かいだけ あたらしい おねがいを する (うけた日・おわらせた日に そのこの ぶんは おしまい)
+function askedToday(id) { return !!(S.asked && S.asked.date === todayStr() && S.asked[id]); }
+function markAsked(id) { const t = todayStr(); if (!S.asked || S.asked.date !== t) S.asked = { date: t }; S.asked[id] = true; }
 function qProgress(q) {
   const st = qState(q) || {};
   if (q.type === 'catch') return { have: Math.min(q.n, st.c || 0), need: q.n };
@@ -1203,6 +1206,7 @@ function qStatus(q) {
   if (q.needs === 'rod' && !S.rod) return 'locked';
   if (q.needs === 'home' && !S.home.stage) return 'locked';
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
+  if (askedToday(q.giver)) return 'rest'; // きょうは もう おねがい ずみ (また あした)
   return 'available';
 }
 const QS = () => [...QUESTS, ...Object.values(S.dyn || {})];
@@ -1317,7 +1321,7 @@ function addChoices(id, opts) {
 }
 function npcSay(id, text) { addMsg(id, 'npc', text); logPush(id, 'npc', text); speak(text, CHARS[id].voice); npcs[id].hop = 0.7; sfx('recv'); }
 function completeQuest(q) {
-  track('quest-done');
+  track('quest-done'); markAsked(q.giver);
   const st = qState(q);
   if (q.type === 'collect') { if (q.item === 'flower') { S.flowers -= q.n; } else S.inv[q.item] = Math.max(0, (S.inv[q.item] || 0) - q.n); }
   st.s = 'done';
@@ -1342,7 +1346,7 @@ function askQuest(q) {
     if (chatNpc !== q.giver) return;
     addChoices(q.giver, [
       ['✅ ひきうける', () => {
-        S.quests[q.id] = { s: 'active', p: 0, talked: [] };
+        S.quests[q.id] = { s: 'active', p: 0, talked: [] }; markAsked(q.giver);
         addMsg(q.giver, 'sys', `📜 おねがいを ひきうけたよ：${q.title}`);
         npcSay(q.giver, q.type === 'buyrod' && S.rod > 0 ? 'あら、もう つりざおを もっているのね！ それなら おはなし してくれるだけで だいじょうぶよ。' : 'ありがとう！ ' + q.hint + ' ね。おねがいね！');
         refreshMarkers(); save();
@@ -1360,6 +1364,7 @@ function dailyPossible(id) {
   if (S.daily.date !== t) S.daily = { date: t, made: {}, done: S.daily.done || {} };
   if (S.daily.made[id]) return false;
   if (questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length) return false;
+  if (askedToday(id)) return false;
   return !!DAILY[id];
 }
 function makeDaily(id) {
@@ -1387,7 +1392,7 @@ function questTalk(id, manual) {
   if (dailyPossible(id)) { askQuest(makeDaily(id)); return true; }
   const ac = questsOf(id, 'active')[0];
   if (ac && manual) { const p = qProgress(ac); npcSay(id, `「${ac.title}」は ${p.have}/${p.need} だよ。${ac.hint}。むりしないでね。`); return true; }
-  if (manual) { npcSay(id, 'いまは だいじょうぶ！ ありがとう。また こんど おねがいするかも。'); return true; }
+  if (manual) { npcSay(id, askedToday(id) ? 'きょうは もう おねがいを したから、また あしたに ね。ありがとう！' : 'いまは だいじょうぶ！ ありがとう。また こんど おねがいするかも。'); return true; }
   return false;
 }
 function hasQuestTalk(id) { return questsOf(id, 'ready').length || questsOf(id, 'available').length || questsOf(id, 'active').length || dailyPossible(id); }
@@ -2244,4 +2249,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
