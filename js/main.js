@@ -2149,6 +2149,7 @@ function endTheater() {
   theater.stop(); curScene = null;
   world.group.visible = true;
   $('theaterUI').classList.add('hidden');
+  $('hud').classList.remove('hidden'); // シアターで かくした そうさひょうじ(スティック・やじるし)を もどす
   if ('speechSynthesis' in window) speechSynthesis.cancel();
   appliedHour = -1; duck(false);
   mode = 'menu'; renderTheaterList(); showPanel('theaterList'); $('menu').classList.remove('hidden');
