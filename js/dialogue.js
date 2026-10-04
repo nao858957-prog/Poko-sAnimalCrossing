@@ -705,6 +705,8 @@ const RESERVED_LOVE = {
   pon: 'ありがとうだぽん！ これからも、ごひいきにだぽん。',
 };
 
+import { INTENT_LINES } from './intents.js';
+
 // ---- ロジック ----
 const lastIdx = {};
 function pick(id, key, arr) {
@@ -748,46 +750,101 @@ export const CHIPS = [
   ['hello', 'こんにちは'], ['how', 'げんき？'], ['like', 'すきなものは？'], ['praise', 'かわいいね'],
   ['tired', 'つかれたよ…'], ['food', 'おなかすいた？'], ['story', 'おはなしして'], ['weather', 'いいてんきだね'],
   ['happy', 'たのしいね'], ['sleep', 'ねむいね'], ['love', 'だいすき'], ['bye', 'またね'],
-  ['l9', 'はたけの こと'], ['l7', 'おかいもの したい'], ['l8', 'つりは する？'], ['l1', 'ささって すき？'], ['l2', 'おりょうりは？'], ['l3', 'おかあさんの こと'], ['l4', 'うみの おもいで'], ['l5', 'ゆきの ひは？'], ['l6', 'おうちの だんろ'],
+  ['l9', 'はたけの こと'], ['l7', 'おかいもの したい'], ['i1', 'ごめんね'], ['i2', 'あそぼうよ'], ['i3', 'ひまだなぁ'], ['i4', 'がんばるね'], ['i5', 'あいたかったよ'], ['i6', 'あそびかたは？'], ['i7', 'おめでとう！'], ['i8', 'しんぱいごとが…'], ['l8', 'つりは する？'], ['l1', 'ささって すき？'], ['l2', 'おりょうりは？'], ['l3', 'おかあさんの こと'], ['l4', 'うみの おもいで'], ['l5', 'ゆきの ひは？'], ['l6', 'おうちの だんろ'],
 ];
+
+// ---- ことばの しゅるい (キーワード) ----
+// つかう ことばは ひらがな・カタカナ・ぜんかく・はんかく どれでも おなじに あつかう (norm)
+const _nc = new Map();
+const norm = str => { let r = _nc.get(str); if (r === undefined) { r = str.normalize('NFKC').toLowerCase().replace(/[ァ-ヶ]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x60)); _nc.set(str, r); } return r; };
+const has = (tn, w) => tn.includes(norm(w));
+// あたらしい しゅるい (へんじは js/intents.js)。みじかい へんじ しか ひろわない ものは SHORT_KEYS
+const INTENT_KEYS = {
+  sorry: ['ごめん', 'すまん', 'すみません', '申し訳', 'あやまる', '謝'],
+  congrats: ['おめでとう', 'おめでと', 'やったね', 'おいわい', 'お祝い', '合格', 'ごうかく'],
+  play: ['あそぼ', 'あそびたい', 'あそんで', '遊ぼ', '遊びたい', '遊んで', 'いっしょに', '一緒に', 'おでかけ', 'さんぽ', '散歩'],
+  bored: ['ひま', '暇', 'たいくつ', '退屈', 'つまらな', 'あきた', '飽きた'],
+  angry: ['おこって', 'おこった', '怒', 'むかつ', 'いらいら', 'ずるい', 'ひどい', 'さいあく', '最悪', 'ふざけ'],
+  worry: ['ふあん', '不安', 'しんぱい', '心配', 'こわい', '怖い', 'ねむれない', '眠れない', 'どきどき', 'きんちょう', '緊張'],
+  health: ['かぜ', '風邪', 'ねつ', '熱が', 'いたい', '痛', 'びょうき', '病気', 'たいちょう', '体調', 'はきけ', 'ずつう', '頭痛'],
+  agree: ['うん', 'はい', 'そうだね', 'そうだよ', 'そっか', 'そうなんだ', 'なるほど', 'りょうかい', '了解', 'いいよ', 'わかった', '分かった', 'おっけー', 'ok', 'だよね'],
+  disagree: ['いや', 'ちがう', '違う', 'いいえ', 'やだ', 'だめ', 'いらない', 'やめて', 'むり', '無理'],
+  laugh: ['わら', '笑', 'ははは', 'ふふ', 'www', 'うける', 'おもしろい', '面白い', 'あはは', 'えへへ'],
+  cheer: ['がんばって', '頑張って', 'がんばる', '頑張る', '応援', 'おうえん', 'ふぁいと', 'きをつけて', '気をつけて'],
+  miss: ['あいたかった', '会いたかった', 'さみしかった', '寂しかった', 'ひさしぶり', '久しぶり', 'ただいま'],
+  why: ['なんで', 'なぜ', 'どうして', '理由'],
+  meta: ['ゲーム', 'あそびかた', '遊び方', 'へるぷ', 'ヘルプ', 'つかいかた', '使い方', 'どうすれば', 'どうやって', 'やりかた', 'やり方', 'せーぶ', 'セーブ', 'ひきつぎ'],
+  attention: ['ねえ', 'ねぇ', 'ちょっと', 'あのさ', 'あのね', 'きいて', '聞いて', 'おーい'],
+  dislike: ['きらい', '嫌い', 'にがて', '苦手'],
+  age: ['なんさい', '何歳', 'おいくつ', 'としは', '年は', '歳は'],
+  rude: ['ばか', 'あほ', 'きもい', 'うざ', 'しね', '死ね', 'だいきらい', '大嫌い', 'さいてい', '最低'],
+};
+const SHORT_KEYS = new Set(['agree', 'disagree', 'laugh', 'attention', 'bored', 'play']);
+const START_KEYS = new Set(['agree', 'disagree', 'attention']); // ぶんの さいしょに ある ときだけ (「うんどう」「はいる」を ひろわない)
+const ALL_KEYS = { ...INTENT_KEYS, ...KEYS }; // おなじ てんすうなら あたらしい ほうを さきに
+const plain = tn => tn.replace(/[\s!?！？。、,.…〜~ー♪♡♥]/g, '');
+// べつの はなしの しつもんか?
+const isQuestion = t => /[?？]/.test(t) || (/(なに|なん|何|だれ|誰|どこ|いつ|どう|どれ|いくつ|ある|いる|できる)/.test(t) && /(か|の|かな|だっけ|てる|ある)[!！。\s]*$/.test(t));
 
 // ctx: {name, hour, lv}
 export function reply(id, text, ctx) {
   ctx = { ...ctx, cid: id };
   const d = DATA[id];
   const t = text.trim();
+  const tn = norm(t).replace(/ひまわり|向日葵|うんどう|運動|ばかり|はいる|はいって|はいろう|いやし|いやしい|だめおし/g, '□');
   // 他のキャラの話題
   for (const other of Object.keys(ALIAS)) {
     if (other === id) continue;
-    if (ALIAS[other].some(a => t.includes(a)) && d.about[other]) {
+    if (ALIAS[other].some(a => has(tn, a)) && d.about[other]) {
       return { text: fill(d.about[other], ctx), key: 'about:' + other };
     }
   }
-  if (ALIAS[id].some(a => t.includes(a)) && /(だれ|誰|どんな|なに)/.test(t)) {
+  if (ALIAS[id].some(a => has(tn, a)) && /(だれ|誰|どんな|なに)/.test(t)) {
     return { text: fill(pick(id, 'name', d.name), ctx), key: 'name' };
   }
   // 季節の行事
   for (const [ev, words] of Object.entries(EVENT_KEYS)) {
-    if (words.some(w => t.includes(w))) return { text: fill(EVENT[ev][ORDER.indexOf(id)], ctx), key: 'event' };
+    if (words.some(w => has(tn, w))) return { text: fill(EVENT[ev][ORDER.indexOf(id)], ctx), key: 'event' };
   }
   // 動画のエピソード
   for (const lo of LORE) {
-    if (lo.k.some(w => t.includes(w)) && lo.who[id]) {
+    if (lo.k.some(w => has(tn, w)) && lo.who[id]) {
       if ((lo.lv || 0) > (ctx.lv || 0)) return { text: fill(GATE[id], ctx), key: 'gate' };
       return { text: fill(lo.who[id], ctx), key: 'lore' };
     }
   }
-  let best = null, bestScore = 0;
-  for (const [key, words] of Object.entries(KEYS)) {
-    let s = 0;
-    for (const w of words) if (t.toLowerCase().includes(w.toLowerCase())) s += w.length;
-    if (s > bestScore) { best = key; bestScore = s; }
+  // ことばの しゅるい (いちばん ながく ひっかかった もの)
+  const pl = plain(tn).length, scores = [];
+  for (const [key, words] of Object.entries(ALL_KEYS)) {
+    if (SHORT_KEYS.has(key) && pl > 10) continue;
+    let sc = 0;
+    const ptn = plain(tn);
+    for (const w of words) {
+      if (START_KEYS.has(key)) { const nw = norm(w); if (ptn.startsWith(nw) && ptn.length <= nw.length + 3) sc += nw.length; }
+      else if (has(tn, w)) sc += norm(w).length;
+    }
+    if (sc > 0 && (d[key] || (INTENT_LINES[id] && INTENT_LINES[id][key]))) scores.push([key, sc]);
   }
+  scores.sort((a, b) => b[1] - a[1]);
+  let best = scores.length ? scores[0][0] : null;
+  if (best === 'hello' && scores.length > 1) best = scores[1][0]; // あいさつ + なにか → なにかの ほうを こたえる
   if (id === 'pon' && /(おかいもの|お買い物|おみせ|お店|かいたい|買いたい|みせて|見せて|ようふく|服)/.test(t)) return { text: fill('どうぞどうぞ、見ていってほしいぽん！ お店を開けるぽん。', ctx), key: 'shop' };
   if (!best && /(ありがとう|サンキュー)/.test(t)) best = 'thanks';
   if (best === 'story') return story(id, ctx);
   if (best === 'love' && (ctx.lv || 0) < 2) return { text: fill(RESERVED_LOVE[id], ctx), key: 'love-lo' };
-  if (best) return { text: fill(pick(id, best, d[best]), ctx), key: best };
+  if (best === 'hello') { // じかんに あわせた あいさつ
+    const o = d.open;
+    if (has(tn, 'おはよう') && Math.random() < 0.6) return { text: fill(o.m, ctx), key: 'hello' };
+    if (has(tn, 'こんばんは') && Math.random() < 0.6) return { text: fill(o.n, ctx), key: 'hello' };
+    if (has(tn, 'こんにちは') && Math.random() < 0.4) return { text: fill(o.d, ctx), key: 'hello' };
+  }
+  if (best) {
+    const arr = d[best] || INTENT_LINES[id][best];
+    return { text: fill(pick(id, best, arr), ctx), key: best };
+  }
+  // どれにも あてはまらない: しつもんなら「わからない」を、そうでなければ あいづちを
+  const il = INTENT_LINES[id];
+  if (il && il.fq && isQuestion(t) && Math.random() < 0.7) return { text: fill(pick(id, 'fq', il.fq), ctx), key: 'fb' };
   return { text: fill(pick(id, 'fb', d.fallback), ctx), key: 'fb' };
 }
 
@@ -843,7 +900,8 @@ export function chipsFor(id) {
   const base = id === 'pon' ? ['l7', 'hello', 'story'] : ['hello', 'how', 'story'];
   const lore = ['l1', 'l2', 'l3', 'l4', 'l5', 'l6', 'l8', 'l9'].sort(() => Math.random() - 0.5).slice(0, 2);
   const rest = ['like', 'praise', 'tired', 'food', 'weather', 'happy', 'sleep', 'love'].sort(() => Math.random() - 0.5).slice(0, 2);
-  const keys = [...base, ...lore, ...rest];
+  const extra = ['i1', 'i2', 'i3', 'i4', 'i5', 'i6', 'i7', 'i8'].sort(() => Math.random() - 0.5).slice(0, 1);
+  const keys = [...base, ...lore, ...extra, ...rest];
   return keys.map(k => CHIPS.find(c => c[0] === k)).filter(Boolean);
 }
 
