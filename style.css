@@ -306,3 +306,6 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 
 #tfBox { overflow-y: auto; min-height: 5.2rem; }
 .tfRow { display: flex; flex-direction: column; gap: .5rem; }
+
+#transfer .panel > * { flex-shrink: 0; }
+#tfBox { font-family: "Hiragino Sans","Noto Sans JP",sans-serif; word-break: break-all; line-height: 1.35; }

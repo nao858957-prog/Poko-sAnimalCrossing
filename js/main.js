@@ -8,6 +8,7 @@ import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isA
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
+import { makeCode, readCode } from './transfer.js';
 import { CROPS, CROP_IDS, PLOT_N, newPlot, plotInfo, harvestYield } from './farm.js';
 import { RODS, FISH, FISH_BY_ID, SPOTS, rollCatch, slipChance, fishIcon } from './fish.js';
 
@@ -1751,26 +1752,11 @@ $('btnNew').onclick = () => {
 };
 
 // ひきつぎコード（きろくを文字にして コピー／はりつけで うつす）
-const b64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
-const unb64 = t => { t = t.replace(/-/g, '+').replace(/_/g, '/'); while (t.length % 4) t += '='; const s = atob(t), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
-async function pipeBytes(bytes, stream) { return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer()); }
-async function makeCode() {
+async function makeTransferCode() {
   save();
   const raw = localStorage.getItem(SAVE_KEY);
   if (!raw) throw new Error('nosave');
-  const bytes = new TextEncoder().encode(raw);
-  if (typeof CompressionStream === 'function') return 'POKO2-' + b64(await pipeBytes(bytes, new CompressionStream('gzip')));
-  return 'POKO1-' + b64(bytes);
-}
-async function readCode(code) {
-  const t = code.replace(/\s+/g, '');
-  const m = /^POKO([12])-([A-Za-z0-9_-]+)$/.exec(t);
-  if (!m) throw new Error('format');
-  let bytes = unb64(m[2]);
-  if (m[1] === '2') bytes = await pipeBytes(bytes, new DecompressionStream('gzip'));
-  const s = JSON.parse(new TextDecoder().decode(bytes));
-  if (!s || s.v !== 1 || !s.created || !s.avatar) throw new Error('data');
-  return s;
+  return makeCode(raw);
 }
 let tfFrom = 'menu';
 function tfFit() { const t = $('tfBox'); t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 4, Math.round(innerHeight * 0.36)) + 'px'; }
@@ -1788,12 +1774,12 @@ function copyAllText() {
   if (navigator.clipboard && navigator.clipboard.writeText) return navigator.clipboard.writeText(text).then(() => true, () => false);
   return Promise.resolve(false);
 }
-const tfTail = t => t.slice(-4);
+const tfTail = t => [...t].slice(-3).join('');
 $('tfCopy').onclick = async () => {
   sfx('tap');
   const text = $('tfBox').value; if (!text) return;
   const ok = await copyAllText();
-  $('tfMsg').textContent = ok ? `✅ ぜんぶ（${text.length}もじ）コピーしました。さいごの4もじは「${tfTail(text)}」。メモなどに はりつけて とっておいてね` : 'コピーできませんでした。コードを ながおしして「すべてを せんたく」→「コピー」してね';
+  $('tfMsg').textContent = ok ? `✅ ぜんぶ（${text.length}もじ）コピーしました。さいごの3もじは「${tfTail(text)}」。メモなどに はりつけて とっておいてね` : 'コピーできませんでした。コードを ながおしして「すべてを せんたく」→「コピー」してね';
 };
 $('tfShare').onclick = async () => {
   const text = $('tfBox').value; if (!text) return;
@@ -1803,7 +1789,7 @@ $('tfMake').onclick = async () => {
   sfx('tap');
   if (!S || !S.created) { $('tfMsg').textContent = 'まだ ほぞんされた きろくが ありません'; return; }
   try {
-    const code = await makeCode();
+    const code = await makeTransferCode();
     $('tfBox').value = code; tfFit();
     $('tfCopy').classList.remove('hidden'); if (navigator.share) $('tfShare').classList.remove('hidden');
     $('tfMsg').textContent = `コードを つくりました（${code.length}もじ）。つぎに「ぜんぶ コピーする」を おしてね`;
@@ -1822,7 +1808,7 @@ $('tfLoad').onclick = async () => {
     $('transfer').classList.add('hidden'); $('menu').classList.add('hidden');
     applySettings(); showTitle();
     toast(`ふっこう しました！「つづきから」で ${S.avatar.name}さんに あえるよ`, 3600);
-  } catch (e) { $('tfMsg').textContent = 'コードが うまく よめません。「POKO2-」から さいごまで ぜんぶ コピーできているか みてね'; }
+  } catch (e) { $('tfMsg').textContent = 'コードが うまく よめません。「POKO」から さいごまで ぜんぶ コピーできているか みてね（とちゅうで きれていると よめません）'; }
 };
 
 // メニュー
