@@ -90,7 +90,15 @@ export function buildWorld() {
     g.add(t);
     obstacles.push({ x, z, r: 0.6 * s });
   }
+  // 道(はだいろ)の うえには なにも おかない
+  const onPath = (x, z, pad = 1) =>
+    (Math.abs(x) < 1.5 + pad && z > -13 && z < 43) ||
+    (Math.abs(z + 2) < 1.2 + pad && x > -84 && x < 33) ||
+    (x > -9.6 - pad && x < 0.6 + pad && Math.abs(z - 12.6) < 1.1 + pad) ||
+    (Math.abs(x - HOME_PLOT.x) < 1.2 + pad && z > HOME_PLOT.z + 3 && z < -1) ||
+    (Math.abs(x - FARM.x) < 1.2 + pad && z > -3 && z < FARM.z - 4.7 + 1.5);
   const keep = (x, z) => {
+    if (onPath(x, z, 1.2)) return false;
     for (const k of Object.values(HOMES)) if (Math.hypot(x - k[0], z - k[1]) < 4.5) return false;
     if (Math.hypot(x, z - 4) < 5) return false;
     if (Math.abs(x) < 2.2 && z > -5) return false;
@@ -158,7 +166,7 @@ export function buildWorld() {
   const rail = new THREE.Mesh(new THREE.BoxGeometry(5.4, 0.12, 0.12), mat('#c8935a')); rail.position.set(-4.5, 0.7, -12.6); g.add(rail);
   const rail2 = rail.clone(); rail2.position.x = 4.5; g.add(rail2);
   const lamps = [lampOut];
-  for (const [x, z] of [[-2.4, -3.2], [2.4, -3.2], [2.2, 10], [-2.2, 16]]) {
+  for (const [x, z] of [[-2.4, -4.6], [2.4, -4.6], [2.2, 10], [-2.2, 16]]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.4, 6), mat('#6b5a4a')); p.position.set(x, 1.2, z); g.add(p);
     const l = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshLambertMaterial({ color: '#fff3c4', emissive: '#000' })); l.position.set(x, 2.5, z); g.add(l);
     lamps.push(l);
@@ -169,7 +177,7 @@ export function buildWorld() {
   for (let i = 0; i < 3; i++) add(g, sph(0.45, '#4fa850', 1, 0.15, 1), 8 + i * 0.9, 0.06, 8.5 + (i % 2));
   obstacles.push({ x: 9, z: 9, r: 3.5 });
   // いわ
-  for (const [x, z, s] of [[11, -9, 1.6], [17, -1, 1.2], [18, -9, 1.0], [-8, 6, 0.9]]) {
+  for (const [x, z, s] of [[11, -9, 1.6], [17, 4, 1.2], [18, -9, 1.0], [-8, 6, 0.9]]) {
     add(g, sph(s, '#b9b5ad', 1.2, 0.8, 1), x, s * 0.4, z); obstacles.push({ x, z, r: s });
   }
   // 花ばたけ (リンの草原)
@@ -185,18 +193,19 @@ export function buildWorld() {
   }
   for (let i = 0; i < 26; i++) {
     const a = r() * Math.PI * 2, d = r() * 7;
-    flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8, i % 3 !== 2);
+    const fx = -14 + Math.cos(a) * d, fz = -1 + Math.sin(a) * d * 0.8;
+    if (!onPath(fx, fz, 0.8)) flower(fx, fz, i % 3 !== 2);
   }
   for (let i = 0; i < 40; i++) {
     const a = r() * Math.PI * 2, d = 4 + r() * 32;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.9;
-    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z, i % 2 === 0);
+    if (z < 32 && keep(x, z) && !onPath(x, z, 0.8) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z, i % 2 === 0);
   }
   // 草むら
   for (let i = 0; i < 100; i++) {
     const a = r() * Math.PI * 2, d = r() * 36;
     const x = Math.cos(a) * d, z = Math.sin(a) * d;
-    if (z > 32) continue;
+    if (z > 32 || onPath(x, z, 0.9)) continue;
     add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
   }
   // ビーチ
@@ -297,7 +306,7 @@ export function buildWorld() {
     let k = 0, t = 0;
     while (k < n && t++ < tries) {
       const x = cx + (r() - 0.5) * 2 * rx, z = cz + (r() - 0.5) * 2 * rz;
-      if (landDepth(x, z) > 3 && free(x, z)) { itemSpot(kind, x, z); k++; }
+      if (landDepth(x, z) > 3 && free(x, z) && !onPath(x, z, 0.8)) { itemSpot(kind, x, z); k++; }
     }
   }
   scatter('shell', 16, 0, 42, 22, 4);
@@ -315,13 +324,13 @@ export function buildWorld() {
   const lp2 = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 5), mat('#ead7a4')); lp2.rotation.x = -Math.PI / 2; lp2.position.set(HP.x, 0.017, HP.z + 5.8); g.add(lp2);
   for (let n = 0, t = 0; n < 34 && t++ < 1500;) {
     const x = -66 + (r2() - 0.5) * 46, z = 4 + (r2() - 0.5) * 46;
-    if (x > -40 || !onGrass(x, z, 3.5) || Math.hypot(x - HP.x, z - HP.z) < 10.5 || (Math.abs(z + 2) < 2.8 && x < -33) || Math.hypot(x + 31, z - 8) < 6 || Math.hypot(x - FARM.x, (z - FARM.z) * 1.1) < 10.5 || Math.hypot(x - GREAT_TREE.x, z - GREAT_TREE.z) < 13) continue;
+    if (x > -40 || !onGrass(x, z, 3.5) || Math.hypot(x - HP.x, z - HP.z) < 10.5 || onPath(x, z, 1.6) || Math.hypot(x + 31, z - 8) < 6 || Math.hypot(x - FARM.x, (z - FARM.z) * 1.1) < 10.5 || Math.hypot(x - GREAT_TREE.x, z - GREAT_TREE.z) < 13) continue;
     if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < 3.4)) continue;
     tree(x, z, 0.85 + r2() * 0.5, r2() < 0.25, r2); n++;
   }
   for (let i = 0; i < 130; i++) {
     const x = -64 + (r2() - 0.5) * 38, z = 2 + (r2() - 0.5) * 38;
-    if (x > -42 || !onGrass(x, z, 2) || (Math.abs(z + 2) < 1.8) || Math.hypot(x - HP.x, z - HP.z) < 5.4 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.5)) continue;
+    if (x > -42 || !onGrass(x, z, 2) || onPath(x, z, 0.9) || Math.hypot(x - HP.x, z - HP.z) < 5.4 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.5)) continue;
     if (i % 3 !== 2) flower(x, z, true); else add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
   }
   for (const [x, z] of [[-40, -4], [-60, -4.2], [-72, 3]]) {
