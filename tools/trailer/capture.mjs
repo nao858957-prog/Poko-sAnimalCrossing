@@ -50,7 +50,7 @@ const lerp3 = (a, b, u) => a.map((v, i) => lerp(v, b[i], u));
 
 if (ONLY) { // その場面だけ撮りなおす ときの じゅんび (あたらしく はじめて おうちを たてた じょうたいに する)
   await E(() => { document.getElementById('btnContinue').classList.add('hidden'); document.getElementById('btnNew').click(); document.getElementById('nameInput').value = 'みどり'; const d = new Date(); __poko.S.lastDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
-  await E(() => { document.getElementById('btnCreateOk').click(); __poko.S.flowers = 3000; if (ONLY.includes('H3')) { __poko.S.home.stage = 3; __poko.applyHome(); } });
+  await E(withHome => { document.getElementById('btnCreateOk').click(); __poko.S.flowers = 3000; if (withHome) { __poko.S.home.stage = 3; __poko.applyHome(); } }, ONLY.includes('H3'));
   for (let i = 0; i < 20; i++) await E(() => __step(33.3));
 }
 // A: タイトル 5秒
