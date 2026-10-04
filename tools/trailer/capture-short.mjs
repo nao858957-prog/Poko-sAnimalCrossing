@@ -106,9 +106,9 @@ const LAYOUT = [
   ['lamp', -6.75, 3.6, 0], ['rocker', 6.53, 1.8, 3], ['frame', -2.5, 0, 0], ['wreath', -4.5, 0, 0],
 ];
 await stage('6 home', 225, 'おうちを たてて すてきに かざろう', async i => {
-  if (i === 0) await E(() => { __poko.chaoAI.mode = 'idle'; __poko.chaoAI.cd = 999; __poko.player().root.position.set(-72, 0, -2); __poko.world.setHome(1); __poko.debugCam = { pos: [-64, 11, 13], look: [-68, 2, -9] }; });
-  if (i === 22) await E(() => __poko.world.setHome(2));
-  if (i === 44) await E(() => __poko.world.setHome(3));
+  if (i === 0) await E(() => { __poko.chaoAI.mode = 'idle'; __poko.chaoAI.cd = 999; __poko.player().root.position.set(-72, 0, -2); (__poko.S.home.stage = 1, __poko.world.setHome(1)); __poko.debugCam = { pos: [-64, 11, 13], look: [-68, 2, -9] }; });
+  if (i === 22) await E(() => (__poko.S.home.stage = 2, __poko.world.setHome(2)));
+  if (i === 44) await E(() => (__poko.S.home.stage = 3, __poko.world.setHome(3)));
   if (i === 66) {
     await E(() => {
       __poko.debugCam = null; const S = __poko.S;
