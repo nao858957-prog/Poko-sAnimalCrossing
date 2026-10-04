@@ -739,7 +739,7 @@ function updatePlayer(dt) {
   // おはな
   if (place === 'out') for (const f of world.flowers) {
     if (f.mesh.visible && Math.hypot(pos.x - f.x, pos.z - f.z) < 1.1) {
-      f.mesh.visible = false; f.back = 300;
+      f.mesh.visible = false; f.back = 150;
       S.flowers++; $('flowerCount').textContent = '🌼 ' + S.flowers;
       sfx('pick'); if (QS().some(q => q.item === 'flower')) refreshMarkers();
       tmp.set(f.x, 1.2, f.z); spawnFx(world.group, 'star', tmp, 0.7);

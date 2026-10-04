@@ -185,12 +185,12 @@ export function buildWorld() {
   }
   for (let i = 0; i < 26; i++) {
     const a = r() * Math.PI * 2, d = r() * 7;
-    flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8, i % 3 === 0);
+    flower(-14 + Math.cos(a) * d, -1 + Math.sin(a) * d * 0.8, i % 3 !== 2);
   }
   for (let i = 0; i < 40; i++) {
     const a = r() * Math.PI * 2, d = 4 + r() * 32;
     const x = Math.cos(a) * d, z = Math.sin(a) * d * 0.9;
-    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z, i % 4 === 0);
+    if (z < 32 && keep(x, z) && !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.6)) flower(x, z, i % 2 === 0);
   }
   // 草むら
   for (let i = 0; i < 100; i++) {
@@ -319,10 +319,10 @@ export function buildWorld() {
     if (obstacles.some(o => Math.hypot(o.x - x, o.z - z) < 3.4)) continue;
     tree(x, z, 0.85 + r2() * 0.5, r2() < 0.25, r2); n++;
   }
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 130; i++) {
     const x = -64 + (r2() - 0.5) * 38, z = 2 + (r2() - 0.5) * 38;
     if (x > -42 || !onGrass(x, z, 2) || (Math.abs(z + 2) < 1.8) || Math.hypot(x - HP.x, z - HP.z) < 5.4 || obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + 0.5)) continue;
-    if (i % 5 === 0) flower(x, z, true); else add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
+    if (i % 3 !== 2) flower(x, z, true); else add(g, sph(0.35, '#6cc455', 1.2, 0.7, 1.2), x, 0.18, z);
   }
   for (const [x, z] of [[-40, -4], [-60, -4.2], [-72, 3]]) {
     const p = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 2.4, 6), mat('#6b5a4a')); p.position.set(x, 1.2, z); g.add(p);
