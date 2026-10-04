@@ -84,7 +84,7 @@ await stage('4 fishing', 180, 'つりも たのしめる！', async i => {
   }
 });
 // 5: はたけ と チャオ 5.5秒
-await stage('5 farm', 165, 'はたけで そだてよう！ チャオの いたずらも', async i => {
+await stage('5 farm', 165, 'はたけと チャオの いたずら', async i => {
   if (i === 0) {
     await E(() => {
       document.getElementById('ccQuit').click(); Math.random = window.__rnd;
