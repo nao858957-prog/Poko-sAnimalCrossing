@@ -763,7 +763,8 @@ function updateNpcs(dt) {
     const talking = chatNpc === id;
     let moving = false;
     const dp = Math.hypot(ppos.x - pos.x, ppos.z - pos.z);
-    const buddy = sleeping && (id === 'poko' || id === 'mei') && mode === 'play' && P.root.visible;
+    const inOwnHome = place === 'in' && inKind === 'home'; // じぶんの おうちでは しょうたいした ともだちだけ いっしょに ねる
+    const buddy = sleeping && (id === 'poko' || id === 'mei') && mode === 'play' && P.root.visible && (!inOwnHome || S.home.guests.includes(id));
     if (!buddy && P.pose === 'sleep' && id !== 'haru') P.pose = 'stand';
     if (buddy) {
       const side = id === 'poko' ? 1 : -1, delay = id === 'poko' ? 2.5 : 8;
