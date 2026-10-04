@@ -50,7 +50,7 @@ const lerp3 = (a, b, u) => a.map((v, i) => lerp(v, b[i], u));
 
 if (ONLY) { // その場面だけ撮りなおす ときの じゅんび (あたらしく はじめて おうちを たてた じょうたいに する)
   await E(() => { document.getElementById('btnContinue').classList.add('hidden'); document.getElementById('btnNew').click(); document.getElementById('nameInput').value = 'みどり'; const d = new Date(); __poko.S.lastDay = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; });
-  await E(() => { document.getElementById('btnCreateOk').click(); __poko.S.flowers = 3000; __poko.S.home.stage = 3; __poko.applyHome(); });
+  await E(() => { document.getElementById('btnCreateOk').click(); __poko.S.flowers = 3000; if (ONLY.includes('H3')) { __poko.S.home.stage = 3; __poko.applyHome(); } });
   for (let i = 0; i < 20; i++) await E(() => __step(33.3));
 }
 // A: タイトル 5秒
@@ -68,7 +68,7 @@ await stage('B creator', 150, 'あなただけの アバターで 出発！', as
   if (i === 135) await clickNth('#optOutfit button', 2);
 });
 // C: ひろくなった島を ひとめぐり 8秒
-await stage('C tour', 240, 'ひろがった 島を たんけん', async i => {
+await stage('C tour', 240, 'ひろい 島を たんけん', async i => {
   if (i === 0) { await E(() => { document.getElementById('btnCreateOk').click(); document.activeElement && document.activeElement.blur(); __poko.S.flowers = 3000; }); }
   if (i >= 4) {
     const u = ease(Math.min(1, (i - 4) / 220));
