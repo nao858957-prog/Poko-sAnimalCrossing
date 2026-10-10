@@ -7,6 +7,7 @@ import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
+import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
 import { makeCode, readCode } from './transfer.js';
 import { CROPS, CROP_IDS, PLOT_N, newPlot, plotInfo, harvestYield } from './farm.js';
@@ -308,13 +309,11 @@ function enterHouse() {
   player.root.position.set(OFF + interior.spawn.x, 0, interior.spawn.z);
   player.root.rotation.y = Math.PI;
   moveTarget = null; talkOnArrive = null; marker.visible = false;
-  for (const id of HOUSE_NPC) {
-    const P = npcs[id], h = interior.homes[id];
-    P.home.set(OFF + h[0], h[1]); P.root.position.set(OFF + h[0], 0, h[1]); P.target = null; P.wait = 1 + Math.random() * 2;
-  }
+  syncNpcs(true);
   yaw = 0; appliedHour = -1; applySky(gameHour());
-  camPos.set(OFF, 9, 12); camLook.set(OFF, 1, 2);
+  camPos.set(OFF, 9, 15); camLook.set(OFF, 1, 4);
   sfx('open');
+  setTimeout(checkMeal, 900);
   if (!S.seenHouse) { S.seenHouse = true; toast('セイママの おうちだよ 🏠<br>だんろが ぽかぽか あったかいね', 4200); }
 }
 function exitHouse() {
@@ -325,13 +324,69 @@ function exitHouse() {
   player.root.position.set(world.door.x, 0, world.door.z + 1.6);
   player.root.rotation.y = 0;
   moveTarget = null; marker.visible = false;
-  for (const id of HOUSE_NPC) {
-    const P = npcs[id], h = HOMES[id];
-    P.home.set(h[0], h[1]); P.root.position.set(h[0], 0, h[1]); P.target = null;
-  }
+  syncNpcs(true);
   appliedHour = -1; applySky(gameHour());
   camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
   sfx('open');
+}
+
+
+// ---------- ポコたちの 1日 (そと / おうち / ごはん / ねんね) ----------
+const DOOR_OUT = () => ({ x: world.door.x, z: world.door.z + 2.4 });
+function hideNpc(P) { P.root.visible = false; P.leaving = false; P.target = null; P.schedPose = null; P.still = false; P.root.position.y = 0; }
+function syncNpcs(instant = false) {
+  if (!S) return;
+  const h = gameHour(), loc = place === 'out' ? 'out' : inKind;
+  for (const id of HOUSE_NPC) {
+    const P = npcs[id];
+    if (chatNpc === id) continue;
+    if (sleeping && (id === 'poko' || id === 'mei') && P.root.visible) continue; // ねている あいだは ともだちが そばに きて いるので そのまま
+    const w = whereIs(id, h), key = loc + ':' + w;
+    if (P.skey === key && !instant) continue;
+    P.skey = key; P.still = false; P.leaving = false; P.schedPose = null; P.root.position.y = 0;
+    if (loc === 'home') { if (!S.home.guests.includes(id)) hideNpc(P); continue; }
+    if (loc === 'out') {
+      if (w === 'out') {
+        if (!P.root.visible) {
+          const d = DOOR_OUT();
+          P.root.position.set(d.x + (Math.random() - 0.5) * 1.6, 0, d.z); P.root.visible = true; P.home.set(HOMES[id][0], HOMES[id][1]); P.target = new THREE.Vector2(P.home.x, P.home.y); P.wait = 0;
+        } else P.home.set(HOMES[id][0], HOMES[id][1]);
+      } else if (P.root.visible) {
+        const pp = player.root.position;
+        if (instant || Math.hypot(pp.x - P.root.position.x, pp.z - P.root.position.z) > 28) hideNpc(P); else { P.leaving = true; P.target = null; }
+      }
+      continue;
+    }
+    // セイママの おうちの なか
+    if (w === 'out') { hideNpc(P); continue; }
+    P.root.visible = true; P.target = null; P.wait = 1 + Math.random() * 2;
+    if (w === 'sleep') {
+      const b = interior.bed[id];
+      P.root.position.set(OFF + b[0], 0.42, b[1]); P.root.rotation.y = -Math.PI / 2; P.schedPose = 'sleep'; P.lieDir = 1; P.still = true; P.home.set(OFF + b[0], b[1]);
+    } else if (w === 'meal') {
+      const m = interior.meal[id];
+      P.root.position.set(OFF + m[0], 0, m[1]); P.root.rotation.y = m[2]; P.home.set(OFF + m[0], m[1]); P.still = true;
+    } else {
+      const m = interior.homes[id];
+      P.root.position.set(OFF + m[0], 0, m[1]); P.home.set(OFF + m[0], m[1]);
+    }
+  }
+  if (loc === 'sei') interior.setMeal(!!mealAt(h));
+}
+let schedT = 0, schedInit = false;
+function checkMeal() {
+  if (!S || !S.created || place !== 'in' || inKind !== 'sei' || mode !== 'play') return;
+  const m = mealAt(gameHour()), t = todayKey();
+  if (!m) return;
+  if (!S.meals || S.meals.date !== t) S.meals = { date: t };
+  if (S.meals[m.id]) return;
+  S.meals[m.id] = true;
+  const b = MEAL_BONUS[m.id];
+  for (const id of HOUSE_NPC) { S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + b); const p = npcs[id].root.position; tmp.set(p.x, 2.2, p.z); spawnFx(world.group, 'heart', tmp, 0.9); }
+  sfx('heart'); track('meal-' + m.id);
+  toast(`${m.emoji} ${m.id === 'tea' ? m.name : m.name + 'の じかん'}だよ！<br><small>${MEAL_LINES[m.id].poko}</small><br>みんなと なかよし ♥ +${b}`, 5200);
+  questEvent('meal', m.id);
+  save();
 }
 
 const todayKey = () => { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; };
@@ -343,7 +398,7 @@ function enterHome() {
   player.root.position.set(OFF2 + room.spawn.x, 0, room.spawn.z);
   player.root.rotation.y = Math.PI;
   moveTarget = null; talkOnArrive = null; marker.visible = false;
-  placeGuests();
+  syncNpcs(true); placeGuests();
   yaw = 0; appliedHour = -1; applySky(gameHour());
   camPos.set(OFF2, 9, room.spawn.z + 12); camLook.set(OFF2, 1, 0);
   sfx('open');
@@ -359,7 +414,8 @@ function exitHome() {
   player.root.position.set(d.x, 0, d.z + 1.8);
   player.root.rotation.y = 0;
   moveTarget = null; marker.visible = false;
-  for (const id of ORDER) { const P = npcs[id]; if (P.root.position.x > 300) { const h = HOMES[id]; P.home.set(h[0], h[1]); P.root.position.set(h[0], 0, h[1]); P.target = null; P.pose = 'stand'; } }
+  for (const id of ORDER) { const P = npcs[id]; if (P.root.position.x > 300) { const h = HOMES[id]; P.home.set(h[0], h[1]); P.root.position.set(h[0], 0, h[1]); P.target = null; P.pose = 'stand'; P.skey = ''; } }
+  syncNpcs(true);
   appliedHour = -1; applySky(gameHour());
   camPos.set(player.root.position.x, 8, player.root.position.z + 12); camLook.copy(player.root.position);
   sfx('open');
@@ -373,7 +429,7 @@ function placeGuests() {
     const P = npcs[id];
     let x = (k - (ids.length - 1) / 2) * 2.4, z = b.z0 + (b.z1 - b.z0) * 0.38;
     for (let t = 0; t < 30 && homeObs.some(o => Math.hypot(o.x - OFF2 - x, o.z - z) < o.r + 0.9); t++) { x = b.x0 + 1 + Math.random() * (b.x1 - b.x0 - 2); z = b.z0 + 1 + Math.random() * (b.z1 - b.z0 - 3); }
-    P.home.set(OFF2 + x, z); P.root.position.set(OFF2 + x, 0, z); P.root.rotation.y = 0; P.target = null; P.wait = 1 + Math.random() * 2; P.pose = 'stand';
+    P.home.set(OFF2 + x, z); P.root.position.set(OFF2 + x, 0, z); P.root.rotation.y = 0; P.target = null; P.wait = 1 + Math.random() * 2; P.pose = 'stand'; P.schedPose = null; P.still = false; P.leaving = false; P.root.visible = true;
     if (S.home.visit[id] !== today) {
       S.home.visit[id] = today; S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 3);
       setTimeout(() => { if (place === 'in' && inKind === 'home') { tmp.set(OFF2 + x, 1.8, z); spawnFx(world.group, 'heart', tmp, 0.9); toast(`${CHARS[id].name}が あそびに きているよ 💕<br>なかよし ♥ +3`, 3200); sfx('heart'); } }, 700 + k * 500);
@@ -403,8 +459,12 @@ function applyEvent() {
 function startSleep() {
   if (mode !== 'play' || sleeping) return;
   sleeping = true; sleepT = 0; sleepFx = 0; moveTarget = null; marker.visible = false; talkOnArrive = null;
-  for (const id of ['poko', 'mei']) { npcs[id].joined = false; npcs[id].target = null; }
-  toast('ぐっすり… 💤<br>ポコが きてくれるかな？', 3000);
+  const hNow = gameHour(), awake = [];
+  for (const id of ['poko', 'mei']) {
+    const P = npcs[id]; P.joined = false; P.target = null;
+    if (whereIs(id, hNow) !== 'sleep') { awake.push(id); if (place === 'out' && !P.root.visible) { P.root.position.set(HOMES[id][0], 0, HOMES[id][1]); P.root.visible = true; P.leaving = false; } }
+  }
+  toast(awake.length ? 'ぐっすり… 💤<br>ポコが きてくれるかな？' : 'ぐっすり… 💤<br><small>ポコと メイは もう ねているよ</small>', 3000);
   $('btnWake').classList.remove('hidden');
 }
 function wakeUp() {
@@ -764,7 +824,14 @@ function updateNpcs(dt) {
     let moving = false;
     const dp = Math.hypot(ppos.x - pos.x, ppos.z - pos.z);
     const inOwnHome = place === 'in' && inKind === 'home'; // じぶんの おうちでは しょうたいした ともだちだけ いっしょに ねる
-    const buddy = sleeping && (id === 'poko' || id === 'mei') && mode === 'play' && P.root.visible && (!inOwnHome || S.home.guests.includes(id));
+    if (P.schedPose === 'sleep') { // ベッドで ぐっすり
+      P.pose = 'sleep'; P.lieDir = 1;
+      P.sleepFx = (P.sleepFx || 0) - dt;
+      if (P.sleepFx <= 0) { P.sleepFx = 3 + Math.random() * 2; tmp.copy(pos); tmp.y += 1.6; spawnFx(world.group, 'zzz', tmp, 0.7); }
+      animate(P, dt, { t: clock, walk: false, speed: 0.9, pose: 'sleep' });
+      continue;
+    }
+    const buddy = sleeping && (id === 'poko' || id === 'mei') && mode === 'play' && P.root.visible && !P.schedPose && (!inOwnHome || S.home.guests.includes(id));
     if (!buddy && P.pose === 'sleep' && id !== 'haru') P.pose = 'stand';
     if (buddy) {
       const side = id === 'poko' ? 1 : -1, delay = id === 'poko' ? 2.5 : 8;
@@ -789,9 +856,13 @@ function updateNpcs(dt) {
     if (id === 'haru') { updateHaru(dt, P); }
     else if (talking || (mode === 'play' && dp < 2.6)) {
       faceDir(P, ppos.x - pos.x, ppos.z - pos.z, dt, 8);
+    } else if (P.leaving && mode === 'play') { // おうちに かえる
+      const d0 = DOOR_OUT(), dx = d0.x - pos.x, dz = d0.z - pos.z, d = Math.hypot(dx, dz);
+      if (d < 1.3) hideNpc(P);
+      else { const sp = 2.4 * dt; pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 8); moving = true; }
     } else if (mode === 'play' || mode === 'title' || mode === 'creator') {
       P.wait -= dt;
-      if (!P.target && P.wait <= 0) {
+      if (!P.target && P.wait <= 0 && !P.still) {
         const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : (WANDER_R[id] || 3.5));
         P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
@@ -1208,6 +1279,7 @@ function qStatus(q) {
   if (q.needs === 'home' && !S.home.stage) return 'locked';
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
   if (askedToday(q.giver)) return 'rest'; // きょうは もう おねがい ずみ (また あした)
+  if (q.hours && !(gameHour() >= q.hours[0] && gameHour() < q.hours[1])) return 'later'; // じかんたいが あうまで まって
   return 'available';
 }
 const QS = () => [...QUESTS, ...Object.values(S.dyn || {})];
@@ -1296,6 +1368,7 @@ function questEvent(type, what) {
     if (type === 'buy' && q.what !== what) continue;
     if (type === 'build' && what < q.stage) continue;
     if (type === 'invite' && q.who !== what) continue;
+    if (type === 'meal' && q.meal !== what) continue;
     if (!st.p) { st.p = 1; hit = true; toast(`📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！`, 3200); sfx('heart'); }
   }
   if (hit) { refreshMarkers(); save(); }
@@ -1409,7 +1482,7 @@ function dirText(x, z) {
   const i = Math.round(((a + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8;
   return `${DIRS[i]}の ほう（${Math.round(Math.hypot(dx, dz))}m）`;
 }
-function giverPos(id) { const p = npcs[id].root.position; return place === 'in' && p.x > 300 ? [0, -14] : [p.x, p.z]; }
+function giverPos(id) { const P = npcs[id], p = P.root.position; if (HOUSE_NPC.includes(id) && !P.root.visible) return place === 'out' ? [world.door.x, world.door.z] : [0, -14]; return place === 'in' && p.x > 300 ? [0, -14] : [p.x, p.z]; }
 function renderQuests() {
   const box = $('qList'); box.innerHTML = '';
   const inv = Object.entries(ITEMS).filter(([k]) => k !== 'flower').map(([k, v]) => `${v.emoji}${S.inv[k] || 0}`).join('　');
@@ -1431,6 +1504,7 @@ function renderQuests() {
     return card(q, `<p>${q.hint}</p>${where}<p class="pg">${p.have}/${p.need}</p>`);
   });
   sec('❗ ともだちが よんでいるよ', QS().filter(q => qStatus(q) === 'available'), q => { const [gx, gz] = giverPos(q.giver); return card(q, `<p>${CHARS[q.giver].name}に はなしかけよう（${dirText(gx, gz)}）</p>`, 'avail'); });
+  sec('⏰ じかんが あうと はじまるよ', QS().filter(q => qStatus(q) === 'later'), q => card(q, `<p>${hhmm(q.hours[0])}〜${hhmm(q.hours[1])}に ${CHARS[q.giver].name}に はなしかけよう</p>`, 'lock'));
   const locked = ORDER.map(id => { const q = QUESTS.find(x => x.giver === id && qStatus(x) === 'locked'); return q ? [id, q] : null; }).filter(Boolean);
   if (locked.length) {
     const h = document.createElement('h3'); h.textContent = '🔒 もっと なかよくなると…'; box.appendChild(h);
@@ -1485,6 +1559,9 @@ const NPC_POS_DUMMY = 0; void NPC_POS_DUMMY;
 
 function openChat(id) {
   if (mode !== 'play') return;
+  if (HOUSE_NPC.includes(id) && npcs[id].schedPose === 'sleep') {
+    toast(`💤 ${CHARS[id].name}は ぐっすり ねているよ…<br><small>${hhmm(id === 'sei' ? 5.5 : 6.5)}ごろに また きてね</small>`, 2800); sfx('tap'); return;
+  }
   track('chat');
   if (sleeping) wakeUp();
   chooseChatSide(id);
@@ -1521,6 +1598,10 @@ function openChat(id) {
   if (place === 'in' && inKind === 'home' && S.home.guests.includes(id) && HOME_LINES[id]) {
     const txt = fillN(HOME_LINES[id][S.home.items.length >= 6 ? 1 : 0], id);
     if (!(S.logs[id] || []).some(l => l[1] === txt)) { setTimeout(() => { if (chatNpc === id) npcSay(id, txt); }, d); d += 2600; }
+  }
+  if (place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) && mealAt(gameHour()) && npcs[id].still) {
+    const mm = mealAt(gameHour());
+    if (!(S.logs[id] || []).slice(-6).some(l => l[1] === MEAL_LINES[mm.id][id])) { setTimeout(() => { if (chatNpc === id) npcSay(id, MEAL_LINES[mm.id][id]); }, d); d += 2600; }
   }
   if (id === 'chao' && chaoAI.mode !== 'idle') {
     const raid = chaoShooed();
@@ -2188,7 +2269,7 @@ function frame(now) {
     if (S) {
       const h = gameHour();
       applySky(h);
-      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) $('clock').textContent = clockText(h) + (EVENT_NAMES[currentEvent()] ? '　' + EVENT_NAMES[currentEvent()] : '');
+      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) $('clock').textContent = clockText(h) + (EVENT_NAMES[currentEvent()] ? '　' + EVENT_NAMES[currentEvent()] : '') + (mealAt(h) ? '　' + mealAt(h).emoji + mealAt(h).name : '');
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
@@ -2199,6 +2280,7 @@ function frame(now) {
       saveTimer += dt;
       if (saveTimer > 6) { saveTimer = 0; save(); }
     } else if (player && mode === 'menu') animate(player, dt, { t: clock });
+    schedT += dt; if (schedT > 1) { schedT = 0; syncNpcs(!schedInit); schedInit = true; checkMeal(); }
     updateChao(dt);
     updateNpcs(dt);
     if (S && S.created) updateFarmBtn(dt);
@@ -2250,4 +2332,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

@@ -776,16 +776,16 @@ export function buildInterior() {
   const cyl = (rt, rb, h, color, x, y, z, parent = g, seg = 10) => { const m = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(color)); m.position.set(x, y, z); parent.add(m); return m; };
   const WOOD = ['#8a5a34', '#7a4e2c', '#94643a'];
   // 床
-  for (let i = 0; i < 15; i++) box(0.96, 0.1, 10.6, i % 2 ? '#8a5a33' : '#7e5230', -6.7 + i * 0.96, -0.05, 0);
+  for (let i = 0; i < 19; i++) box(0.96, 0.1, 13.2, i % 2 ? '#8a5a33' : '#7e5230', -6.5 + i * 0.96, -0.05, 1.4);
   // かべ (丸太)
-  const logB = new THREE.CylinderGeometry(0.38, 0.38, 7.4, 10);
-  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(logB, mat(WOOD[i % 3])); l.rotation.z = Math.PI / 2; l.position.set(3.7, 0.38 + i * 0.74, -5.0); g.add(l); }
-  box(7.4, 4.5, 0.3, '#ead6a8', -3.3, 2.25, -5.1);
-  box(14.6, 0.5, 0.5, '#5a3a20', 0, 4.55, -5.0);
-  const logS = new THREE.CylinderGeometry(0.38, 0.38, 10.4, 10);
-  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(logS, mat(WOOD[(i + 1) % 3])); l.rotation.x = Math.PI / 2; l.position.set(7.0, 0.38 + i * 0.74, 0); g.add(l); }
-  box(0.3, 4.5, 10.4, '#ead6a8', -7.1, 2.25, 0);
-  box(0.5, 0.5, 10.4, '#5a3a20', -7.0, 4.55, 0); box(0.5, 0.5, 10.4, '#5a3a20', 7.0, 4.55, 0);
+  const logB = new THREE.CylinderGeometry(0.38, 0.38, 2.6, 10);
+  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(logB, mat(WOOD[i % 3])); l.rotation.z = Math.PI / 2; l.position.set(9.7, 0.38 + i * 0.74, -5.0); g.add(l); }
+  box(15.4, 4.5, 0.3, '#ead6a8', 0.7, 2.25, -5.1);   // だんろ・キッチンがわは しっくいの かべ
+  box(18.6, 0.5, 0.5, '#5a3a20', 2.0, 4.55, -5.0);
+  const logS = new THREE.CylinderGeometry(0.38, 0.38, 13.2, 10);
+  for (let i = 0; i < 6; i++) { const l = new THREE.Mesh(logS, mat(WOOD[(i + 1) % 3])); l.rotation.x = Math.PI / 2; l.position.set(11.0, 0.38 + i * 0.74, 1.4); g.add(l); }
+  box(0.3, 4.5, 13.2, '#ead6a8', -7.1, 2.25, 1.4);
+  box(0.5, 0.5, 13.2, '#5a3a20', -7.0, 4.55, 1.4); box(0.5, 0.5, 13.2, '#5a3a20', 11.0, 4.55, 1.4);
   // ---- だんろ ----
   const fp = new THREE.Group(); fp.position.set(-6.2, 0, -1.2); g.add(fp);
   box(1.6, 3.8, 3.6, '#b5573a', 0, 1.9, 0, fp);
@@ -859,9 +859,45 @@ export function buildInterior() {
   for (const [x, z] of [[4.2, 0.4], [5.4, 0.4], [4.2, 2.8], [5.4, 2.8]]) { cyl(0.28, 0.28, 0.1, '#a8733a', x, 0.5, z, g, 12); cyl(0.05, 0.05, 0.5, '#6a4328', x, 0.25, z, g, 6); }
   obstacles.push({ x: 4.2, z: 1.6, r: 1.0 }, { x: 5.6, z: 1.6, r: 1.0 });
   // でぐち
-  for (const sx of [-1.1, 1.1]) box(0.25, 3.2, 0.25, '#5a3a20', sx, 1.6, 4.9);
-  box(2.6, 0.3, 0.3, '#5a3a20', 0, 3.2, 4.9);
-  const dm = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.9), mat('#c26a4a')); dm.rotation.x = -Math.PI / 2; dm.position.set(0, 0.03, 4.3); g.add(dm);
+  for (const sx of [-1.1, 1.1]) box(0.25, 3.2, 0.25, '#5a3a20', sx, 1.6, 7.7);
+  box(2.6, 0.3, 0.3, '#5a3a20', 0, 3.2, 7.7);
+  const stoneFl = new THREE.Mesh(new THREE.PlaneGeometry(5.4, 2.2), mat('#8d8a82')); stoneFl.rotation.x = -Math.PI / 2; stoneFl.position.set(-0.3, 0.02, 6.7); g.add(stoneFl);
+  for (const [x, z] of [[-2.1, 6.1], [-0.9, 6.7], [0.4, 6.1], [1.6, 6.8], [-1.6, 7.3], [0.9, 7.4], [-2.6, 7.0]]) { const st = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 0.9), mat('#a29f96')); st.rotation.x = -Math.PI / 2; st.position.set(x, 0.025, z); g.add(st); }
+  const dm = new THREE.Mesh(new THREE.PlaneGeometry(2.0, 0.9), mat('#c26a4a')); dm.rotation.x = -Math.PI / 2; dm.position.set(0, 0.03, 7.0); g.add(dm);
+  // げんかん: くつばこ・ベンチ・コートかけ
+  box(1.8, 1.0, 0.6, '#6b4328', -3.6, 0.5, 7.4); box(1.9, 0.1, 0.7, '#8a5a34', -3.6, 1.02, 7.4);
+  box(1.4, 0.12, 0.5, '#a8733a', -4.2, 0.5, 6.4); for (const x of [-4.8, -3.6]) box(0.1, 0.45, 0.1, '#6a4328', x, 0.25, 6.4);
+  obstacles.push({ x: -3.6, z: 7.3, r: 0.95 }, { x: -4.2, z: 6.4, r: 0.6 });
+  for (const z of [5.6, 6.5, 7.4]) { cyl(0.04, 0.04, 0.2, '#3a2a20', -6.85, 2.3, z, g, 6).rotation.z = Math.PI / 2; add(g, sph(0.09, ['#c26a4a', '#4a7aa8', '#c9a56a'][Math.round((z - 5.6) / 0.9)]), -6.7, 2.2, z); }
+  // ほんだな・おもちゃばこ (リビングの すみ)
+  box(0.5, 2.2, 1.8, '#6b4328', -6.7, 1.1, 3.4);
+  for (const y of [0.6, 1.2, 1.8]) for (let k = 0; k < 4; k++) box(0.3, 0.4, 0.28, ['#e8795a', '#6ab0d8', '#f2d06a', '#8ac870'][(k + y * 3 | 0) % 4], -6.6, y, 2.7 + k * 0.42);
+  box(0.9, 0.6, 0.7, '#a8733a', -5.2, 0.3, 4.2); add(g, sph(0.22, '#f2d8a8'), -5.2, 0.72, 4.2);
+  obstacles.push({ x: -6.5, z: 3.4, r: 1.0 }, { x: -5.2, z: 4.2, r: 0.7 });
+  // ---- ベッドルーム (ひがしの はしっこ) ----
+  const bedrug = new THREE.Mesh(new THREE.PlaneGeometry(3.6, 11.2), mat('#e6d9b8')); bedrug.rotation.x = -Math.PI / 2; bedrug.position.set(9.2, 0.02, 1.2); g.add(bedrug);
+  const bed = (z, sheet, throwC, label) => {
+    const b = new THREE.Group(); b.position.set(9.5, 0, z); g.add(b);
+    box(1.7, 0.35, 2.7, '#8a5a34', 0, 0.2, 0, b); box(1.6, 0.22, 2.55, sheet, 0, 0.5, 0.0, b);
+    box(1.7, 1.3, 0.14, '#6a4328', 0, 0.8, -1.36, b);
+    box(1.3, 0.2, 0.7, '#fbfbf8', 0, 0.7, -0.9, b);
+    box(1.62, 0.1, 1.2, throwC, 0, 0.64, 0.55, b);
+    void label;
+    obstacles.push({ x: 9.5, z: z - 0.7, r: 1.0 }, { x: 9.5, z: z + 0.7, r: 1.0 });
+  };
+  bed(-2.3, '#b5d5f0', '#8cb8e0');   // ポコ: あおい シーツ
+  bed(1.2, '#f4e2ea', '#e6a8bc');    // メイ
+  bed(4.7, '#ffffff', '#f2c8d4');    // セイ: しろい シーツと うすい ピンクの ブランケット
+  const lampB = (z) => { box(0.5, 0.5, 0.5, '#6a4328', 10.45, 0.25, z); cyl(0.12, 0.16, 0.4, '#f4ead8', 10.45, 0.7, z); };
+  lampB(-0.5); lampB(3.0);
+  box(0.06, 1.5, 1.2, '#f4ead8', 10.92, 2.6, 4.7); const lg = new THREE.Mesh(new THREE.PlaneGeometry(1.0, 1.3), new THREE.MeshBasicMaterial({ color: '#1a2650' })); lg.rotation.y = -Math.PI / 2; lg.position.set(10.86, 2.6, 4.7); g.add(lg);
+  for (const dz of [-0.75, 0.75]) box(0.12, 2.4, 0.5, '#fbf6ee', 10.8, 2.5, 4.7 + dz);
+  const l3 = new THREE.PointLight(0xffd0a0, 4, 9, 1.8); l3.position.set(9, 2.8, 1.2); g.add(l3);
+  // ひがしの すみの かざり (おしはな)
+  for (const z of [-3.2, 0.2]) { box(0.06, 0.9, 0.7, '#5a3a20', 10.92, 2.6, z); const pf = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.75), new THREE.MeshBasicMaterial({ color: ['#ffd0e0', '#d9c8ff'][z > 0 ? 1 : 0] })); pf.rotation.y = -Math.PI / 2; pf.position.set(10.86, 2.6, z); g.add(pf); }
+  // ごはんの ときだけ ならぶ ティーセット
+  const mealProps = new THREE.Group(); mealProps.visible = false; g.add(mealProps);
+  { const tp = cyl(0.18, 0.2, 0.28, '#fbfbf8', 4.8, 0.99, 1.6, mealProps, 12); void tp; cyl(0.04, 0.04, 0.2, '#fbfbf8', 5.0, 1.0, 1.6, mealProps, 6).rotation.z = 1.2; for (const [x, z] of [[4.2, 1.9], [5.4, 1.9], [4.2, 1.3], [5.4, 1.3]]) { cyl(0.1, 0.08, 0.1, '#fbfbf8', x, 0.97, z, mealProps, 10); } for (const [x, z] of [[4.5, 1.6], [5.1, 1.6]]) add(mealProps, sph(0.12, '#e8a85a', 1, 0.6, 1), x, 0.93, z); }
   // 丸い窓の月あかり (うすく)
   const moon = new THREE.Mesh(new THREE.CircleGeometry(0.3, 16), new THREE.MeshBasicMaterial({ color: '#fff6c8' })); moon.position.set(2.3, 2.6, -4.87); g.add(moon);
 
@@ -871,9 +907,12 @@ export function buildInterior() {
   }
   return {
     group: g, obstacles, update,
-    bounds: { x0: -6.4, x1: 6.5, z0: -4.1, z1: 4.8 },
-    exit: { x: 0, z: 4.45 },
-    spawn: { x: 0, z: 3.2 },
+    bounds: { x0: -6.4, x1: 10.4, z0: -4.1, z1: 7.6 },
+    exit: { x: 0, z: 7.25 },
+    spawn: { x: 0, z: 5.6 },
     homes: { sei: [4.6, -2.7], poko: [-3.8, 0.9], mei: [0.8, 0.6] },
+    meal: { poko: [4.2, 0.0, 0], mei: [5.6, 0.0, 0], sei: [4.9, 3.4, Math.PI] },
+    bed: { poko: [9.5, -2.3], mei: [9.5, 1.2], sei: [9.5, 4.7] },
+    setMeal: on => { mealProps.visible = !!on; },
   };
 }
