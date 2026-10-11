@@ -334,7 +334,7 @@ function exitHouse() {
 
 // ---------- ポコたちの 1日 (そと / おうち / ごはん / ねんね) ----------
 const DOOR_OUT = () => ({ x: world.door.x, z: world.door.z + 2.4 });
-function hideNpc(P) { P.root.visible = false; P.leaving = false; P.target = null; P.schedPose = null; P.still = false; P.root.position.y = 0; }
+function hideNpc(P) { P.root.visible = false; P.leaving = false; P.leaveT = 0; P.target = null; P.schedPose = null; P.still = false; P.root.position.y = 0; }
 function syncNpcs(instant = false) {
   if (!S) return;
   const h = gameHour(), loc = place === 'out' ? 'out' : inKind;
@@ -344,7 +344,7 @@ function syncNpcs(instant = false) {
     if (sleeping && (id === 'poko' || id === 'mei') && P.root.visible) continue; // ねている あいだは ともだちが そばに きて いるので そのまま
     const w = whereIs(id, h), key = loc + ':' + w;
     if (P.skey === key && !instant) continue;
-    P.skey = key; P.still = false; P.leaving = false; P.schedPose = null; P.root.position.y = 0;
+    P.skey = key; P.still = false; P.leaving = false; P.leaveT = 0; P.schedPose = null; P.root.position.y = 0;
     if (loc === 'home') { if (!S.home.guests.includes(id)) hideNpc(P); continue; }
     if (loc === 'out') {
       if (w === 'out') {
@@ -859,7 +859,8 @@ function updateNpcs(dt) {
       faceDir(P, ppos.x - pos.x, ppos.z - pos.z, dt, 8);
     } else if (P.leaving && mode === 'play') { // おうちに かえる
       const d0 = DOOR_OUT(), dx = d0.x - pos.x, dz = d0.z - pos.z, d = Math.hypot(dx, dz);
-      if (d < 1.3) hideNpc(P);
+      P.leaveT = (P.leaveT || 0) + dt;
+      if (d < 2.3 || P.leaveT > 9) hideNpc(P);
       else { const sp = 2.4 * dt; pos.x += dx / d * sp; pos.z += dz / d * sp; faceDir(P, dx, dz, dt, 8); moving = true; }
     } else if (mode === 'play' || mode === 'title' || mode === 'creator') {
       P.wait -= dt;
