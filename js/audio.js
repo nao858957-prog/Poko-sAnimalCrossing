@@ -39,7 +39,7 @@ for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) {
   document.addEventListener(ev, () => { if (!isAudioRunning() || (htmlAudio && htmlAudio.paused)) initAudio(); }, { passive: true, capture: true });
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
-export function setSound(on) { soundOn = on; if (master) master.gain.value = on ? 0.5 : 0; if (!on) stopBgm(); else if (ctx && ctx.state === 'running' && bgmOn) startBgm(); }
+export function setSound(on) { soundOn = on; if (!on && 'speechSynthesis' in window) speechSynthesis.cancel(); if (master) master.gain.value = on ? 0.5 : 0; if (!on) stopBgm(); else if (ctx && ctx.state === 'running' && bgmOn) startBgm(); }
 export function isSoundOn() { return soundOn; }
 function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
   const o = ctx.createOscillator(), g = ctx.createGain();
@@ -99,7 +99,7 @@ let voiceOn = false;
 export function setVoice(on) { voiceOn = on; if (!on && 'speechSynthesis' in window) speechSynthesis.cancel(); }
 export function stopSpeak() { if ('speechSynthesis' in window) speechSynthesis.cancel(); }
 export function speak(text, pitch = 1.2) {
-  if (!voiceOn || !('speechSynthesis' in window)) return;
+  if (!voiceOn || !soundOn || !('speechSynthesis' in window)) return;
   const u = new SpeechSynthesisUtterance(text.replace(/[…♪♥]/g, '、'));
   u.lang = 'ja-JP'; u.pitch = pitch; u.rate = 0.95;
   const v = speechSynthesis.getVoices().find(v => v.lang && v.lang.startsWith('ja'));
