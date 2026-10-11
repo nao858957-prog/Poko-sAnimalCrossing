@@ -16,10 +16,14 @@ const PX = 78, PY = 45, PW = 540, PH = 990;       // スマホがめんの い�
 const STEP = 1000 / FPS;
 const lerp = (a, b, u) => a + (b - a) * u, ease = u => u * u * (3 - 2 * u);
 
-const PAGE_HTML = src => `<!doctype html><meta charset="utf-8"><body style="margin:0;width:1920px;height:1080px;overflow:hidden;position:relative;background:linear-gradient(135deg,#fff6dc,#ffe3ec);font-family:'Hiragino Maru Gothic ProN','Noto Sans JP','Noto Sans CJK JP',sans-serif;color:#5a4636">
+// 見出し・字幕の フォント (M PLUS Rounded 1c)。ないと 中国語の字形に なるので ./fetch-fonts.sh で ダウンロード
+const FONT_DIR = new URL('./fonts/', import.meta.url).pathname;
+const fontCss = [700, 800].map(w => { const f = `${FONT_DIR}MPLUSRounded1c-${w}.ttf`; return fs.existsSync(f) ? `@font-face{font-family:'MPR';font-weight:${w};src:url(data:font/ttf;base64,${fs.readFileSync(f).toString('base64')}) format('truetype')}` : ''; }).join('');
+if (!fontCss) console.log('!! fonts/ が ありません。./fetch-fonts.sh を じっこうしてね');
+const PAGE_HTML = src => `<!doctype html><html lang="ja"><meta charset="utf-8"><style>${fontCss}</style><body style="margin:0;width:1920px;height:1080px;overflow:hidden;position:relative;background:linear-gradient(135deg,#fff6dc,#ffe3ec);font-family:'MPR','IPAPGothic','IPAGothic','Hiragino Maru Gothic ProN','Noto Sans JP',sans-serif;color:#5a4636">
 <div style="position:absolute;left:${PX - 14}px;top:${PY - 14}px;width:${PW}px;height:${PH}px;border:14px solid #5a4636;border-radius:54px;overflow:hidden;box-shadow:0 10px 30px #0004;background:#000"><iframe id="g" src="${src}" style="width:${PW}px;height:${PH}px;border:0;display:block"></iframe></div>
 <div id="badge" style="position:absolute;left:720px;top:70px;font-size:44px;font-weight:800;background:#ff8fa3;color:#fff;padding:.12em .9em;border-radius:99px;box-shadow:0 5px 0 #d86a82"></div>
-<div id="head" style="position:absolute;left:720px;top:170px;width:1120px;font-size:84px;font-weight:900;line-height:1.2;color:#5a4636"></div>
+<div id="head" style="position:absolute;left:720px;top:170px;width:1120px;font-size:84px;font-weight:800;line-height:1.2;color:#5a4636"></div>
 <ul id="pts" style="position:absolute;left:720px;top:380px;width:1120px;margin:0;padding:0;list-style:none;font-size:50px;font-weight:700;line-height:1.35"></ul>
 <div id="cap" style="position:absolute;left:720px;bottom:48px;width:1120px;min-height:130px;box-sizing:border-box;background:#fffffff0;border:5px solid #ffd21f;border-radius:30px;padding:18px 28px;font-size:36px;font-weight:700;line-height:1.45;display:none"></div>
 <div id="ring" style="position:absolute;display:none;border:8px solid #ff4d6d;border-radius:22px;box-shadow:0 0 0 4px #fff,0 0 22px #ff4d6d;pointer-events:none;z-index:50"></div>
@@ -64,7 +68,7 @@ async function runScene(sc, build) {
     click: sel => fr.evaluate(sel => { const e = document.querySelector(sel); if (e) e.click(); }, sel),
     clickNth: (sel, n) => fr.evaluate(([sel, n]) => { const e = document.querySelectorAll(sel)[n]; if (e) e.click(); }, [sel, n]),
     key: (type, k) => fr.evaluate(([type, k]) => window.dispatchEvent(new KeyboardEvent(type, { key: k })), [type, k]),
-    hl: sel => { ctl.hl = sel; },
+    hl: sel => { ctl.hl = sel; if (sel && fr) fr.evaluate(sel => { const e = document.querySelector(sel); if (e && e.scrollIntoView) e.scrollIntoView({ block: 'center' }); }, sel).catch(() => {}); },
     rect: sel => fr.evaluate(sel => { const e = document.querySelector(sel); if (!e) return null; const r = e.getBoundingClientRect(); if (!r.width) return null; return [r.left, r.top, r.width, r.height]; }, sel),
     mouse: async (sel, dx = 0, dy = 0) => { const r = await api.rect(sel); return r ? [PX + r[0] + r[2] / 2 + dx, PY + r[1] + r[3] / 2 + dy] : null; },
     once: async (k, cond, f) => { if (cond && !done.has(k)) { done.add(k); await f(); } },
@@ -314,7 +318,7 @@ const BUILD = {
       });
       await a.once('r1', t >= a.A(3) + 3.0, async () => { a.hl(null); await a.click('#btnTransferT'); await a.step(2); a.hl('#tfBox'); });
       await a.once('r2', t >= a.A(3) + 5.0, async () => { await a.E(c => { const e = document.getElementById('tfBox'); e.value = c; e.dispatchEvent(new Event('input', { bubbles: true })); }, a._code); a.hl('#tfLoad'); });
-      await a.once('r3', t >= a.A(3) + 9.5, async () => { await a.click('#tfLoad'); a.hl('#tfMsg'); });
+      await a.once('r3', t >= a.A(3) + 9.5, async () => { await a.click('#tfLoad'); });
     };
   },
   // 12: おしまい
