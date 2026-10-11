@@ -51,8 +51,8 @@ function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
 function startBgm() {
   if (timer || !ctx || !soundOn) return;
   if (!bgm) {   // BGM「となりにいていいですか」の 電子音版 (js/bgm.js)。すこし まるく きこえるよう ローパスを かける
-    bgmBus = ctx.createGain(); bgmBus.gain.value = 0.75;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; lp.Q.value = 0.4;
+    bgmBus = ctx.createGain(); bgmBus.gain.value = 0.55;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200; lp.Q.value = 0.4;
     bgmBus.connect(lp); lp.connect(master);
     bgm = createBgm(ctx, bgmBus);
   }

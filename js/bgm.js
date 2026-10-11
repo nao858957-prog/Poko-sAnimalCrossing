@@ -18,9 +18,9 @@ for (const [a, b, name] of S.sections) for (let i = a - 1; i < b && i < S.bars; 
 const LAYERS = {
   intro:   { lead: 1, arp: 0, bell: 0, bass: 0, strum: 0, hat: 0, kick: 0, flute: 0 },
   verse1:  { lead: 1, arp: 1, bell: 1, bass: 0, strum: 0, hat: 0, kick: 0, flute: 0 },
-  verse2:  { lead: 1, arp: 1, bell: 1, bass: 1, strum: 1, hat: 0, kick: 0, flute: 0 },
-  bridge1: { lead: 0, arp: 1, bell: 0, bass: 1, strum: 1, hat: 0, kick: 0, flute: 1 },
-  verse3:  { lead: 1, arp: 1, bell: 1, bass: 1, strum: 1, hat: 1, kick: 1, flute: 1 },
+  verse2:  { lead: 1, arp: 1, bell: 1, bass: 1, strum: 0, hat: 0, kick: 0, flute: 0 },
+  bridge1: { lead: 0, arp: 1, bell: 0, bass: 1, strum: 0, hat: 0, kick: 0, flute: 1 },
+  verse3:  { lead: 1, arp: 1, bell: 1, bass: 1, strum: 0, hat: 0, kick: 0, flute: 1 },
   bridge2: { lead: 1, arp: 1, bell: 0, bass: 1, strum: 0, hat: 0, kick: 0, flute: 0 },
   outro:   { lead: 1, arp: 0, bell: 0, bass: 0, strum: 0, hat: 0, kick: 0, flute: 0 },
 };
@@ -80,27 +80,28 @@ export function createBgm(ctx, dest) {
     if (ld) {
       const [du, p] = ld, d = du * stepLen;
       if (sec === 'bridge1') {                 // ふえ: ぽんと はずむ
-        osc('triangle', hz(p), t, Math.min(d, stepLen * 2.5), 0.1 * fade, { a: 0.012, sus: 0.7, vib: true });
+        osc('triangle', hz(p), t, Math.min(d, stepLen * 2.5), 0.15 * fade, { a: 0.015, sus: 0.7, vib: true });
       } else if (sec === 'bridge2' && bar < 29) {   // グロッケン ひとり
-        osc('sine', hz(p + 12), t, d * 1.4, 0.07, { a: 0.003, sus: 0.2, dec: 0.5 }); osc('sine', hz(p + 24), t, d * 0.6, 0.02, { a: 0.003 });
+        osc('sine', hz(p + 12), t, d * 1.4, 0.1, { a: 0.003, sus: 0.2, dec: 0.5 }); osc('sine', hz(p + 24), t, d * 0.6, 0.02, { a: 0.003 });
       } else if (L.lead) {
-        osc(W.p25, hz(p), t, Math.max(d, stepLen * 1.2), 0.062 * fade, { sus: 0.45, dec: 0.22 });
+        osc('triangle', hz(p), t, Math.max(d, stepLen * 1.3), 0.15 * fade, { a: 0.012, sus: 0.55, dec: 0.3, rel: 0.09 });
+        osc('sine', hz(p), t, Math.max(d, stepLen * 1.3), 0.03 * fade, { a: 0.012, sus: 0.5, dec: 0.3 });   // まるみ
       }
-      if (L.flute && sec === 'verse3') osc('triangle', hz(p + 12), t, Math.min(d, stepLen * 3), 0.035, { a: 0.02, sus: 0.7, vib: true });
+      if (L.flute && sec === 'verse3') osc('triangle', hz(p + 12), t, Math.min(d, stepLen * 3), 0.025, { a: 0.02, sus: 0.7, vib: true });
     }
     // --- アルペジオ (ピチカート ふう) ---
     if (L.arp && (pos & 1) === 0) {
       const k = (pos >> 1) & 3, idx = [0, 1, 2, 1][k];
       const m = fold(tri[idx], 60) + (k === 3 ? 12 : 0);
-      osc(W.p125, hz(m), t, stepLen * 1.3, 0.022 * fade, { a: 0.003, sus: 0.3, dec: 0.1 });
+      osc('triangle', hz(m), t, stepLen * 1.5, 0.028 * fade, { a: 0.006, sus: 0.3, dec: 0.12 });
     }
     // --- ベル (おんぷの すきま) ---
-    if (L.bell && (pos & 7) === 6) osc('sine', hz(fold(tri[(half + 2) % 3], 72)), t, stepLen * 3, 0.03, { a: 0.003, sus: 0.2, dec: 0.4 });
+    if (L.bell && (pos & 7) === 6) osc('sine', hz(fold(tri[(half + 2) % 3], 72)), t, stepLen * 3, 0.02, { a: 0.003, sus: 0.2, dec: 0.4 });
     // --- ベース (さんかくは) ---
-    if (L.bass && (pos & 7) === 0) osc('triangle', hz(fold(ch.r, 36)), t, stepLen * 3.4, 0.095, { a: 0.01 });
-    if (L.bass && (pos & 7) === 4) osc('triangle', hz(fold(tri[2], 36)), t, stepLen * 2.6, 0.075, { a: 0.01 });
+    if (L.bass && (pos & 7) === 0) osc('triangle', hz(fold(ch.r, 36)), t, stepLen * 3.4, 0.05, { a: 0.015 });
+    if (L.bass && (pos & 7) === 4) osc('triangle', hz(fold(tri[2], 36)), t, stepLen * 2.6, 0.035, { a: 0.015 });
     // --- ストローク (ギターの かわり) ---
-    if (L.strum && (pos & 7) === 4) tri.forEach((pc, i) => osc(W.p25, hz(fold(pc, 55)), t + i * 0.012, stepLen * 2.6, 0.018, { a: 0.004, sus: 0.3, dec: 0.15 }));
+    if (L.strum && (pos & 7) === 4) tri.forEach((pc, i) => osc('triangle', hz(fold(pc, 55)), t + i * 0.012, stepLen * 2.6, 0.014, { a: 0.004, sus: 0.3, dec: 0.15 }));
     // --- リズム (すこしだけ) ---
     if (L.hat && (pos & 3) === 2) noise(t, 0.04, 0.02, 7000);
     if (L.kick && (pos === 0 || pos === 8)) kick(t, 0.09);

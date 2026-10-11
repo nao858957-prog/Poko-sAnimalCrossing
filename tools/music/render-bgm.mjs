@@ -11,8 +11,8 @@ const data = await page.evaluate(async DUR => {
   const sr = 44100, ctx = new OfflineAudioContext(1, sr * DUR, sr);
   const { createBgm } = await import('/js/bgm.js');
   const master = ctx.createGain(); master.gain.value = 0.5;
-  const bus = ctx.createGain(); bus.gain.value = 0.75;
-  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; lp.Q.value = 0.4;
+  const bus = ctx.createGain(); bus.gain.value = 0.55;
+  const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 4200; lp.Q.value = 0.4;
   bus.connect(lp); lp.connect(master); master.connect(ctx.destination);
   const g = createBgm(ctx, bus);
   for (let s = 0, t = 0.1; t < DUR; s++, t += g.stepLen) g.schedule(s % g.steps, t);
