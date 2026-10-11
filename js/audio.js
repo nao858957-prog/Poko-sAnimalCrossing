@@ -1,8 +1,6 @@
 // やさしい BGM / こうかおん / よみあげ (Web Audio・Web Speech)
-let ctx = null, master = null, bgmOn = true, timer = null, step = 0;
-const PENTA = [0, 2, 4, 7, 9, 12, 14, 16];
-const CHORDS = [[0, 4, 7], [-3, 0, 4], [-5, -1, 2], [-7, -3, 0]];
-const midi = n => 261.63 * Math.pow(2, n / 12);
+import { createBgm } from './bgm.js';
+let ctx = null, master = null, bgmOn = true, timer = null, step = 0, bgm = null, bgmBus = null;
 
 // iOS/Android では「ユーザーのタップの中」で音を解禁する必要がある。
 // iPhone は マナーモード(消音スイッチ)だと WebAudio が無音になるため、
@@ -52,19 +50,17 @@ function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
 }
 function startBgm() {
   if (timer || !ctx || !soundOn) return;
-  const beat = 0.62;
-  let next = ctx.currentTime + 0.2;
+  if (!bgm) {   // BGM「となりにいていいですか」の 電子音版 (js/bgm.js)。すこし まるく きこえるよう ローパスを かける
+    bgmBus = ctx.createGain(); bgmBus.gain.value = 0.75;
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 5200; lp.Q.value = 0.4;
+    bgmBus.connect(lp); lp.connect(master);
+    bgm = createBgm(ctx, bgmBus);
+  }
+  let next = ctx.currentTime + 0.25;
   const sched = () => {
-    while (next < ctx.currentTime + 0.6) {
-      const bar = Math.floor(step / 8) % CHORDS.length;
-      const ch = CHORDS[bar];
-      if (step % 8 === 0) ch.forEach(n => tone(midi(n - 12), next, beat * 7, 'triangle', 0.035));
-      if (Math.random() < 0.7) {
-        const n = ch[step % 3] + 12 * (Math.random() < 0.3 ? 1 : 0);
-        const p = Math.random() < 0.5 ? n : PENTA[Math.floor(Math.random() * PENTA.length)];
-        tone(midi(p), next, beat * 1.6, 'sine', 0.06);
-      }
-      next += beat; step++;
+    while (next < ctx.currentTime + 0.8) {
+      bgm.schedule(step % bgm.steps, next);
+      next += bgm.stepLen; step++;
     }
   };
   sched();
