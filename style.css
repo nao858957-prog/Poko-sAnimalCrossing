@@ -309,3 +309,14 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 
 #transfer .panel > * { flex-shrink: 0; }
 #tfBox { font-family: "Hiragino Sans","Noto Sans JP",sans-serif; word-break: break-all; line-height: 1.35; }
+
+/* ---- がめんの まんなかを ふさがない ---- */
+.round.snd { display: none; }
+#toast { top: calc(env(safe-area-inset-top) + 9rem); font-size: .95rem; padding: .55rem .9rem; border-width: 3px; max-width: 86vw; line-height: 1.45; opacity: .96; }
+.talk { min-height: 3.2rem; padding: .4rem 1.05rem; font-size: 1.1rem; }
+.talk.farmbtn { max-width: 78vw; }
+.talk.farmbtn.stat { min-height: 2.4rem; padding: .25rem .9rem; font-size: .95rem; opacity: .8; pointer-events: none; }
+@media (orientation: portrait) {
+  .talk { left: auto; right: .8rem; transform: none; bottom: calc(env(safe-area-inset-bottom) + 11.4rem); max-width: 80vw; animation: none; }
+  .talk.enter, .talk.fishbtn, .talk.farmbtn { bottom: calc(env(safe-area-inset-bottom) + 14.9rem); }
+}

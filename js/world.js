@@ -399,6 +399,9 @@ export function buildWorld() {
   }
   for (const sx of [-6.3, 6.3]) for (let k = -3; k <= 3; k++) { box3(farmG, 0.18, 0.9, 0.18, '#c8935a', sx, 0.45, k * 1.4); obstacles.push({ x: FM.x + sx, z: FM.z + k * 1.4, r: 0.32 }); }
   for (const sx of [-6.3, 6.3]) { box3(farmG, 0.1, 0.1, 9.4, '#c8935a', sx, 0.65, 0); }
+  // さくの よこぼうも とおれないように、ぐるっと すきまなく ならべる (でいりぐちは あける)
+  for (let x = -6.3; x <= 6.31; x += 0.35) { obstacles.push({ x: FM.x + x, z: FM.z + 4.7, r: 0.28 }); if (Math.abs(x) >= 1.5) obstacles.push({ x: FM.x + x, z: FM.z - 4.7, r: 0.28 }); }
+  for (let z = -4.7; z <= 4.71; z += 0.35) for (const sx of [-6.3, 6.3]) obstacles.push({ x: FM.x + sx, z: FM.z + z, r: 0.28 });
   { // かかし
     const sc = new THREE.Group(); sc.position.set(-4.8, 0, 0.4 + 0); farmG.add(sc);
     box3(sc, 0.12, 2.0, 0.12, '#8a5a36', 0, 1.0, 0); box3(sc, 1.5, 0.1, 0.1, '#8a5a36', 0, 1.5, 0);

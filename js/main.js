@@ -7,6 +7,7 @@ import { Theater, SCENES } from './theater.js';
 import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
+import { fanOf, fanLine } from './fans.js';
 import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
 import { makeCode, readCode } from './transfer.js';
@@ -1599,6 +1600,14 @@ function openChat(id) {
     const txt = fillN(HOME_LINES[id][S.home.items.length >= 6 ? 1 : 0], id);
     if (!(S.logs[id] || []).some(l => l[1] === txt)) { setTimeout(() => { if (chatNpc === id) npcSay(id, txt); }, d); d += 2600; }
   }
+  { // いつも コメントを くれる ひとの なまえなら、ひとこと (1にち 1かい / キャラごと)
+    const fan = fanOf(S.avatar.name), t = todayKey();
+    if (fan) {
+      if (!S.fanSeen || S.fanSeen.date !== t) S.fanSeen = { date: t };
+      const fl = fanLine(fan, id, S.avatar.name);
+      if (fl && !S.fanSeen[id]) { S.fanSeen[id] = true; setTimeout(() => { if (chatNpc === id) npcSay(id, fl); }, d); d += 2600; }
+    }
+  }
   if (place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) && mealAt(gameHour()) && npcs[id].still) {
     const mm = mealAt(gameHour());
     if (!(S.logs[id] || []).slice(-6).some(l => l[1] === MEAL_LINES[mm.id][id])) { setTimeout(() => { if (chatNpc === id) npcSay(id, MEAL_LINES[mm.id][id]); }, d); d += 2600; }
@@ -1800,7 +1809,10 @@ $('btnCreateOk').onclick = () => {
   $('creator').classList.add('hidden');
   buildPlayer();
   enterPlay();
-  if (!editingExisting) toast(`ようこそ、${S.avatar.name}さん！<br>ポコたちに あいに いこう 🐼`, 4200);
+  if (!editingExisting) {
+    const fan = fanOf(S.avatar.name);
+    toast(fan ? `ようこそ、${S.avatar.name}さん！<br><small>${fanLine(fan, 'poko', S.avatar.name)}</small>` : `ようこそ、${S.avatar.name}さん！<br>ポコたちに あいに いこう 🐼`, fan ? 6200 : 4200);
+  }
 };
 
 // ---------- 画面遷移 ----------
@@ -1981,6 +1993,7 @@ $('btnSoundTest').onclick = () => { initAudio(); setTimeout(() => { sfx('heart')
 function renderSettings() {
   seg('setSize', S.settings.size, v => { S.settings.size = parseFloat(v); applySettings(); save(); });
   seg('setBgm', S.settings.bgm ? 1 : 0, v => { S.settings.bgm = v === '1'; applySettings(); save(); });
+  seg('setSound', S.settings.sound === false ? 0 : 1, v => { S.settings.sound = v === '1'; setSound(S.settings.sound); refreshSoundBtn(); save(); if (S.settings.sound) setTimeout(() => sfx('heart'), 150); });
   seg('setVoice', S.settings.voice ? 1 : 0, v => { S.settings.voice = v === '1'; applySettings(); save(); if (S.settings.voice) speak('こんにちは、なの！', 1.7); });
   seg('setTime', S.settings.time, v => { S.settings.time = v; save(); });
   seg('setStats', S.settings.stats === false ? 0 : 1, v => { S.settings.stats = v === '1'; setAnalyticsEnabled(S.settings.stats); save(); });
@@ -2019,7 +2032,7 @@ function updateFarmBtn(dt) {
   farmAct = act && act.fn ? act.fn : null;
   const b = $('btnFarm');
   b.classList.toggle('hidden', !act);
-  if (act) { b.textContent = act.text; b.style.opacity = act.fn ? '' : '.75'; }
+  if (act) { b.textContent = act.text; b.classList.toggle('stat', !act.fn); }
 }
 $('btnFarm').onclick = () => { if (farmAct) { initAudio(); farmAct(); } };
 function openSeedPick(i) {

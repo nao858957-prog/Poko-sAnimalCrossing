@@ -270,7 +270,7 @@ export const DAILY = {
   ku: { type: 'collect', items: ['mushroom', 'flower'], ask: 'あ、あの…{item}を {count}こ、さがしてくれる…？' },
   haru: { type: 'collect', items: ['feather', 'sasa'], ask: 'チュリ！ きょうは {item}が {count}こ ほしいな！ おねがい！' },
   nami: { type: 'collect', items: ['shell', 'stone'], ask: 'ニャ！ きょうは {item}が {count}こ ほしいニャ！ ひろってきてニャ！' },
-  sei: { type: 'buy', foods: ['soup', 'dango', 'lemonade'], ask: '{n}さん、今日のお茶の時間に、お店の{item}を買ってきてもらえるかしら？' },
+  sei: { type: 'buy', foods: ['soup', 'dango', 'lemonade'], ask: '{n}さん、今日はお店の{item}を買ってきてもらえるかしら？ ポコたちが食べたがっているの。' },
   kuro: { type: 'buy', foods: ['lemonade', 'cake', 'pancake'], ask: '{n}さん、{item}を買ってきてくださる？ 少し甘いものが恋しくて。' },
   chao: { type: 'collect', items: ['tomato', 'strawberry', 'carrot'], ask: 'ケーン！ {n}、{item}を {count}こ もってこい！ …オレが たべるんじゃ ないぜ。ほんとうは たべるけど。' },
   pon: { type: 'collect', items: ['shell', 'stone', 'sasa'], ask: '{n}さん、お店の仕入れで{item}が {count}こ ほしいぽん。たのめるかぽん？' },

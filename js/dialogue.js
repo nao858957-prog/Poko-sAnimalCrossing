@@ -733,12 +733,12 @@ const fill = (s, ctx) => s.replace(/\{n\}(ちゃん|さん)?/g, () => callName(c
 
 export function timePart(h) { return h < 5 || h >= 20 ? 'n' : h < 11 ? 'm' : h < 17 ? 'd' : 'e'; }
 
-export function openLine(id, ctx) {
+function openLineRaw(id, ctx) {
   ctx = { ...ctx, cid: id };
   const d = DATA[id];
   const o = d.open;
   if (ctx.first) return fill(o.first, ctx);
-  if (ctx.lv >= 1 && OPEN_T[id] && Math.random() < 0.55) return fill(OPEN_T[id][Math.min(4, ctx.lv - 1)], ctx);
+  if (ctx.lv >= 1 && OPEN_T[id] && !ctx.noT && Math.random() < 0.55) return fill(OPEN_T[id][Math.min(4, ctx.lv - 1)], ctx);
   if (ctx.inside && INSIDE[id] && Math.random() < 0.6) return fill(INSIDE[id], ctx);
   if (ctx.event && EVENT[ctx.event] && Math.random() < 0.6) return fill(EVENT[ctx.event][ORDER.indexOf(id)], ctx);
   if (Math.random() < 0.4) return fill(pick(id, 'back', o.back), ctx);
@@ -787,7 +787,7 @@ const plain = tn => tn.replace(/[\s!?！？。、,.…〜~ー♪♡♥]/g, '');
 const isQuestion = t => /[?？]/.test(t) || (/(なに|なん|何|だれ|誰|どこ|いつ|どう|どれ|いくつ|ある|いる|できる)/.test(t) && /(か|の|かな|だっけ|てる|ある)[!！。\s]*$/.test(t));
 
 // ctx: {name, hour, lv}
-export function reply(id, text, ctx) {
+function replyRaw(id, text, ctx) {
   ctx = { ...ctx, cid: id };
   const d = DATA[id];
   const t = text.trim();
@@ -833,10 +833,8 @@ export function reply(id, text, ctx) {
   if (best === 'story') return story(id, ctx);
   if (best === 'love' && (ctx.lv || 0) < 2) return { text: fill(RESERVED_LOVE[id], ctx), key: 'love-lo' };
   if (best === 'hello') { // じかんに あわせた あいさつ
-    const o = d.open;
-    if (has(tn, 'おはよう') && Math.random() < 0.6) return { text: fill(o.m, ctx), key: 'hello' };
-    if (has(tn, 'こんばんは') && Math.random() < 0.6) return { text: fill(o.n, ctx), key: 'hello' };
-    if (has(tn, 'こんにちは') && Math.random() < 0.4) return { text: fill(o.d, ctx), key: 'hello' };
+    const o = d.open, tp = timePart(ctx.hour);
+    if ((has(tn, 'おはよう') || has(tn, 'こんばんは') || has(tn, 'こんにちは')) && Math.random() < 0.6) return { text: fill(o[tp === 'e' ? 'd' : tp], ctx), key: 'hello' };
   }
   if (best) {
     const arr = d[best] || INTENT_LINES[id][best];
@@ -1004,3 +1002,32 @@ LORE.push(
     pon: 'あの大きな木のあたりは、静かにしておくぽん。お店の者も、あまり近づかないぽん。' } },
 );
 { const mu = LORE.find(l => l.k.includes('むし')); if (mu) mu.who.chao = 'ケーン！ む、むし！？ …べ、べつに すきじゃ ないぜ。たまたま たべて、たまたま はたけが たすかってるだけだ！'; }
+
+// ---- じかんに あわない ことばを さける (よるに おちゃの はなし・ひるに こんばんは など) ----
+const T_NIGHT = /お茶|おちゃ|おやつ|焼き菓子|お菓子|おかし|おだんご|お団子|ケーキ|おはよう|こんにちは|おひる|お昼|朝ごはん|あさごはん|今朝|けさ|おさんぽ|お散歩|ひなたぼっこ/;
+const T_MORNING = /こんばんは|おやすみ|夕ごはん|ゆうごはん|夕飯|ばんごはん|晩ごはん|今夜|こんや|夕焼け|ゆうやけ|星空|おやつ|焼き菓子|お菓子|こんにちは/;
+const T_DAY = /こんばんは|おやすみ|今夜|こんや|おはよう|ばんごはん|晩ごはん|夕飯|夕ごはん|星空|今朝|けさ|朝ごはん|あさごはん/;
+const T_EVE = /おはよう|こんにちは|おやつ|焼き菓子|おひる|お昼|今朝|けさ|朝ごはん|あさごはん/;
+function timeBad(text, h) {
+  if (h === undefined || h === null) return false;
+  if (h >= 20 || h < 5) return T_NIGHT.test(text);
+  if (h < 11) return T_MORNING.test(text);
+  if (h < 17) return T_DAY.test(text) || (h >= 14 ? false : /おやつ|焼き菓子/.test(text));
+  return T_EVE.test(text);
+}
+// あいさつだけは じかんに あわせて ことばを いれかえる
+function timeGreet(text, h) {
+  if (h === undefined || h === null) return text;
+  const g = h < 5 || h >= 17.5 ? 'こんばんは' : h < 10 ? 'おはよう' : 'こんにちは';
+  return text.replace(/こんにちは|こんばんは|おはよう/g, g);
+}
+function timed(fn, id, a, b) {
+  const ctx = typeof a === 'object' ? a : b;
+  let r = fn(id, a, b);
+  const get = x => (typeof x === 'string' ? x : x.text);
+  const c2 = { ...ctx, noT: true };
+  for (let i = 0; i < 8 && timeBad(get(r), ctx.hour); i++) r = typeof a === 'object' ? fn(id, c2) : fn(id, a, c2);
+  return typeof r === 'string' ? timeGreet(r, ctx.hour) : { ...r, text: timeGreet(r.text, ctx.hour) };
+}
+export const openLine = (id, ctx) => timed(openLineRaw, id, ctx);
+export const reply = (id, text, ctx) => timed(replyRaw, id, text, ctx);
