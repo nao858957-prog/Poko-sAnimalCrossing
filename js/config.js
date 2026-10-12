@@ -2,5 +2,5 @@
 // 使い方は docs/ANALYTICS.md を見てください。
 //   goatcounter: GoatCounter のサイトコード（例: 'poko-island'）。空のままなら、解析は一切動きません。
 export const ANALYTICS = {
-  goatcounter: '',
+  goatcounter: 'poko-island',
 };
