@@ -1331,10 +1331,10 @@ function updateQuestHud() {
   const q = ready[0] || active[0];
   if (!q || (place === 'in' && inKind === 'home')) { bar.classList.add('hidden'); return; }
   bar.classList.remove('hidden');
-  const p = qProgress(q);
-  const more = ready.length + active.length - 1;
-  bar.innerHTML = qStatus(q) === 'ready' ? `✅ ${CHARS[q.giver].name}に おはなしして おねがいを おわらせよう` : `📜 ${q.title}　${p.have}/${p.need}`;
-  if (more > 0) bar.innerHTML += `　<small>ほか ${more}</small>`;
+  // ずっと ぶんしょうを だすと じゃまなので、ちいさな マークだけ (タップで おねがいノート)
+  bar.classList.toggle('ready', ready.length > 0);
+  bar.innerHTML = ready.length ? `✅<b>${ready.length}</b>` : `📜<b>${active.length}</b>`;
+  bar.title = ready.length ? 'ほうこくできる おねがいが あるよ' : 'おねがいノート';
 }
 function questEvent(type, what) {
   let hit = false;
@@ -2283,7 +2283,7 @@ function frame(now) {
     if (S) {
       const h = gameHour();
       applySky(h);
-      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) $('clock').textContent = clockText(h) + (EVENT_NAMES[currentEvent()] ? '　' + EVENT_NAMES[currentEvent()] : '') + (mealAt(h) ? '　' + mealAt(h).emoji + mealAt(h).name : '');
+      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); }
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
@@ -2346,4 +2346,4 @@ if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); 
 requestAnimationFrame(frame);
 
 // テスト用フック
-window.__poko = { enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

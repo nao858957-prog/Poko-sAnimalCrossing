@@ -320,3 +320,13 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
   .talk { left: auto; right: .8rem; transform: none; bottom: calc(env(safe-area-inset-bottom) + 11.4rem); max-width: 80vw; animation: none; }
   .talk.enter, .talk.fishbtn, .talk.farmbtn { bottom: calc(env(safe-area-inset-bottom) + 14.9rem); }
 }
+
+/* ---- じゃまに ならない HUD ---- */
+#stat span { white-space: nowrap; }
+#evtChip { position: absolute; top: calc(env(safe-area-inset-top) + 3.7rem); right: .6rem; background: #fff3c8f0; border: 3px solid var(--yellow); border-radius: 99px; padding: .15rem .7rem; font-size: .8rem; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px #0002; }
+#evtChip.hidden { display: none; }
+#questBar { left: .6rem; right: auto; top: calc(env(safe-area-inset-top) + 3.7rem); width: auto; min-width: 3.2rem; padding: .2rem .75rem; border-radius: 99px; font-size: 1.05rem; display: flex; gap: .3rem; align-items: center; justify-content: center; cursor: pointer; }
+#questBar b { font-size: .9rem; background: #ff5a7a; color: #fff; border-radius: 99px; min-width: 1.4rem; padding: 0 .35rem; line-height: 1.4rem; }
+#questBar.ready { animation: pulse 1.4s infinite; background: #d9f6c8f0; border-color: #6ac04f; }
+#hint { top: calc(env(safe-area-inset-top) + 7rem) !important; }
+@media (max-height: 520px) and (orientation: landscape) { #questBar { max-width: none; } #evtChip { top: calc(env(safe-area-inset-top) + 3.2rem); } }
