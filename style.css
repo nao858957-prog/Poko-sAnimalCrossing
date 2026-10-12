@@ -343,3 +343,19 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 .qfold[open] > summary::after { content: '▲ とじる'; }
 .qfold[open] > summary { margin-bottom: .4rem; }
 .qfold > summary::after { white-space: nowrap; flex: none; margin-left: .5rem; }
+
+/* ---- アバターづくり: ちいさな スマホでも すがたが みえるように ---- */
+#creator::before { height: var(--formH, 56%); }
+@media (max-width: 480px) and (orientation: portrait) {
+  #creator { gap: .3rem; }
+  #creator .row { flex-direction: column; align-items: flex-start; gap: .1rem; }
+  #creator .lbl { font-size: .72rem; }
+  #creator .opts { gap: .3rem; }
+  #creator .opts button { min-height: 1.9rem; font-size: .8rem; padding: .1rem .5rem; }
+  #creator .opts.sw button { width: 1.8rem; height: 1.8rem; }
+  #creator .field { font-size: .85rem; }
+  #creator .field input { padding: .3rem .7rem; font-size: 1rem; }
+  #creator h2 { font-size: 1rem; padding: .15rem .8rem; }
+  #creator .big { min-height: 2.8rem; padding: .3rem 1rem; }
+}
+@media (max-height: 760px) and (orientation: portrait) { #creator h2 { display: none; } }

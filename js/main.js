@@ -922,10 +922,20 @@ let titleAngle = 0;
 function updateCamera(dt) {
   const aspect = camera.aspect;
   if (mode === 'title' || mode === 'creator' || mode === 'shop') {
-    if (mode === 'shop') { camera.position.set(0, 2.4, camera.aspect < 0.8 ? 17 : 9.5); camera.lookAt(0, 1.2, 0); applyViewShift(dt); return; }
+    if (mode === 'shop') { // パネルで かくれない ぶんの がめんに、ぼうし・かたかざり まで ぜんぶ おさまる きょりに する
+      const pr = $('shop').getBoundingClientRect(), side = pr.width < innerWidth * 0.9, tf = Math.tan(camera.fov * Math.PI / 360);
+      const fy = side ? 1 : Math.max(0.2, 1 - pr.height / innerHeight), fx = side ? Math.max(0.3, 1 - pr.width / innerWidth) : 1;
+      const d = Math.min(46, Math.max(8, 5.2 / (2 * tf * fy), 2.8 / (tf * camera.aspect * fx)));
+      camera.position.set(0, 2.1, d); camera.lookAt(0, 1.9, 0); applyViewShift(dt); return;
+    }
     if (mode === 'creator') {
       const land = $('creator').getBoundingClientRect().width < innerWidth * 0.9;
-      camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, camera.aspect < 0.8 && !land ? -0.9 : 1.2, 0); applyViewShift(dt); return;
+      if (land) { camera.position.set(0, 2.4, camera.aspect < 0.8 ? 11.5 : 9); camera.lookAt(0, 1.2, 0); applyViewShift(dt); return; }
+      // たて がめん: フォームの うえの あきスペースに ぼうしまで おさまるように
+      const ft = creatorTop(), tf = Math.tan(camera.fov * Math.PI / 360), fy = Math.max(0.2, ft / innerHeight);
+      $('creator').style.setProperty('--formH', Math.round(innerHeight - ft + 14) + 'px');
+      const d = Math.min(46, Math.max(8, 5.2 / (2 * tf * fy), 2.8 / (tf * camera.aspect)));
+      camera.position.set(0, 2.1, d); camera.lookAt(0, 1.9, 0); applyViewShift(dt); return;
     }
     titleAngle += dt * 0.12;
     const cx = Math.sin(titleAngle) * 40, cz = Math.cos(titleAngle) * 40;
@@ -984,6 +994,12 @@ function updateCamera(dt) {
 }
 // チャットのパネルに かくれないよう、画面の中心を ずらす
 const shift = { x: 0, y: 0 };
+// アバターづくりの フォームの いちばん うえ (がめんの うえから なんピクセルか)
+function creatorTop() {
+  let top = innerHeight;
+  for (const k of $('creator').children) { const r = k.getBoundingClientRect(); if (r.height > 0 && getComputedStyle(k).display !== 'none') top = Math.min(top, r.top); }
+  return Math.max(120, top);
+}
 function applyViewShift(dt) {
   const W = innerWidth, H = innerHeight;
   let tx = 0, ty = 0;
@@ -992,7 +1008,7 @@ function applyViewShift(dt) {
     if (r.width < W * 0.9) tx = r.width / 2; else ty = r.height / 2;
   } else if (mode === 'creator') {
     const r = $('creator').getBoundingClientRect();
-    if (r.width < W * 0.9) tx = r.width / 2;
+    if (r.width < W * 0.9) tx = r.width / 2; else ty = (H - creatorTop()) / 2;
   }
   shift.x += (tx - shift.x) * Math.min(1, dt * 6); shift.y += (ty - shift.y) * Math.min(1, dt * 6);
   if (Math.abs(shift.x) + Math.abs(shift.y) > 0.5) camera.setViewOffset(W, H, shift.x, shift.y, W, H);
