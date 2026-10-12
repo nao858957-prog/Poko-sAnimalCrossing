@@ -15,3 +15,5 @@
 2. `node ../music/render-bgm.mjs 101 bgm_long.wav 0`（ショートは `36 bgm_short.wav 4`）と `node ../music/render-sfx.mjs`
 3. `node mix-audio.mjs long|short <映像.mp4> <_sfx.json> <bgm.wav> <出力.mp4>`
    … ゲームの効果音（タップ・ハート・つり・チャオなど）＋場面転換の「ふわっ」＋ラストの「きらーん」を BGM に重ね、音量をそろえて映像に付ける。
+
+※ 実写カットを あとで いれる ときは、`mix-audio.mjs` の bgm に `-` を わたすと「効果音だけ」の動画（と、効果音だけの wav）ができます。BGM は `render-bgm.mjs` の出力を、編集ソフトで別トラックにしてください。
