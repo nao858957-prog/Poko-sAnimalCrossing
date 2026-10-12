@@ -9,7 +9,10 @@ const b = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftsha
 const ctx = await b.newContext({ viewport: { width: 540, height: 960 }, deviceScaleFactor: 2, hasTouch: true });
 const page = await ctx.newPage();
 page.on('pageerror', e => console.log('PAGEERR', e.message));
+const cues = []; let lastChao = 'idle'; // どの コマで どの こうかおんが なったか (動画の 効果音づくり用)
+await page.exposeFunction('__sfxLogNode', kind => cues.push([k, kind]));
 await page.addInitScript(() => {
+  window.__sfxLog = kind => window.__sfxLogNode && window.__sfxLogNode(kind);
   let cb = null, t = 0;
   window.requestAnimationFrame = f => { cb = f; return 1; };
   performance.now = () => t;
@@ -39,6 +42,7 @@ async function stage(name, n, caption, per) {
     const capOp = !caption ? 0 : Math.min(1, i / 10, (n - i) / 10);
     const fadeOp = Math.max(0, 1 - i / 6) + (i > n - 5 ? (i - (n - 5)) / 4 : 0);
     await page.evaluate(([c, f]) => { document.getElementById('vcap').style.opacity = c; document.getElementById('vfade').style.opacity = Math.min(1, f); __step(33.333); }, [Math.max(0, capOp), fadeOp]);
+    { const cm = await E(() => (window.__poko ? __poko.chaoAI.mode : 'idle')); if (cm !== lastChao) { cues.push([k, 'chao:' + cm]); lastChao = cm; } }
     if (!process.env.DRY) await page.screenshot({ path: `${OUT}/f${String(k).padStart(4, '0')}.jpg`, type: 'jpeg', quality: 92 });
     k++;
   }
@@ -137,4 +141,5 @@ await E(() => {
 });
 await stage('8 end', 60, '', null);
 console.log('total frames', k);
+fs.writeFileSync(`${OUT}_sfx.json`, JSON.stringify(cues));
 await b.close();

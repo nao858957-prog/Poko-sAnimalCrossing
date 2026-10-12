@@ -9,3 +9,9 @@
 
 ※スクリプト内の出力先・Playwright の読み込みパスは、環境に合わせて書き換えてください。
 キャッチコピーなどの文言は `capture.mjs` の `stage(...)` の引数にあります。
+
+## BGM と こうかおんを いれる（電子音版 BGM）
+1. 撮影のとき、`capture.mjs` / `capture-short.mjs` が「どのコマで どの効果音が鳴ったか」を `<OUT>_sfx.json` に書き出す（`DRY=1` なら画像なしで 短時間でできる）。
+2. `node ../music/render-bgm.mjs 101 bgm_long.wav 0`（ショートは `36 bgm_short.wav 4`）と `node ../music/render-sfx.mjs`
+3. `node mix-audio.mjs long|short <映像.mp4> <_sfx.json> <bgm.wav> <出力.mp4>`
+   … ゲームの効果音（タップ・ハート・つり・チャオなど）＋場面転換の「ふわっ」＋ラストの「きらーん」を BGM に重ね、音量をそろえて映像に付ける。
