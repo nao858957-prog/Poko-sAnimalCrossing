@@ -1485,6 +1485,7 @@ function dirText(x, z) {
   return `${DIRS[i]}の ほう（${Math.round(Math.hypot(dx, dz))}m）`;
 }
 function giverPos(id) { const P = npcs[id], p = P.root.position; if (HOUSE_NPC.includes(id) && !P.root.visible) return place === 'out' ? [world.door.x, world.door.z] : [0, -14]; return place === 'in' && p.x > 300 ? [0, -14] : [p.x, p.z]; }
+const qFold = {};
 function renderQuests() {
   const box = $('qList'); box.innerHTML = '';
   const inv = Object.entries(ITEMS).filter(([k]) => k !== 'flower').map(([k, v]) => `${v.emoji}${S.inv[k] || 0}`).join('　');
@@ -1493,6 +1494,13 @@ function renderQuests() {
     if (!list.length) return;
     const h = document.createElement('h3'); h.textContent = title; box.appendChild(h);
     for (const q of list) box.appendChild(fn(q));
+  };
+  // ながい リストは たたんでおく (タップで ひらく)
+  const fold = (key, title) => {
+    const d = document.createElement('details'); d.className = 'qfold'; d.open = !!qFold[key];
+    const sm = document.createElement('summary'); sm.textContent = title; d.appendChild(sm);
+    d.addEventListener('toggle', () => { qFold[key] = d.open; });
+    box.appendChild(d); return d;
   };
   const card = (q, body, cls = '') => {
     const d = document.createElement('div'); d.className = 'qcard ' + cls;
@@ -1509,16 +1517,16 @@ function renderQuests() {
   sec('⏰ じかんが あうと はじまるよ', QS().filter(q => qStatus(q) === 'later'), q => card(q, `<p>${hhmm(q.hours[0])}〜${hhmm(q.hours[1])}に ${CHARS[q.giver].name}に はなしかけよう</p>`, 'lock'));
   const locked = ORDER.map(id => { const q = QUESTS.find(x => x.giver === id && qStatus(x) === 'locked'); return q ? [id, q] : null; }).filter(Boolean);
   if (locked.length) {
-    const h = document.createElement('h3'); h.textContent = '🔒 もっと なかよくなると…'; box.appendChild(h);
+    const h = fold('lock', `🔒 もっと なかよくなると…（${locked.length}）`);
     for (const [id, q] of locked) {
       const need = Math.max(q.lv, 0);
       const d = document.createElement('div'); d.className = 'qcard lock';
       d.innerHTML = `<img src="${portraits[id]}" alt=""><div><b>${CHARS[id].name}</b><small>${q.needs === 'home' && level(S.friend[id] || 0) >= q.lv ? 'おうちを たてると、あたらしい おねがいが…' : q.needs === 'rod' && level(S.friend[id] || 0) >= q.lv ? 'つりざおを かうと、あたらしい おねがいが…' : '「' + TIERS[need] + '」になると、あたらしい おはなしが…'}</small></div>`;
-      box.appendChild(d);
+      h.appendChild(d);
     }
   }
   const done = QS().filter(q => qStatus(q) === 'done');
-  sec(`🏅 おわった（${done.length}）`, done, q => card(q, '', 'done'));
+  if (done.length) { const h = fold('done', `🏅 おわった（${done.length}）`); for (const q of done) h.appendChild(card(q, '', 'done')); }
   if (!box.children.length) box.innerHTML = '<p class="fine2">まだ おねがいは ないよ。ともだちに はなしかけてみよう（！マークの こ）</p>';
 }
 let mapTimer = 0;

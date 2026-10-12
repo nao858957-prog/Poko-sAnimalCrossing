@@ -330,3 +330,16 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 #questBar.ready { animation: pulse 1.4s infinite; background: #d9f6c8f0; border-color: #6ac04f; }
 #hint { top: calc(env(safe-area-inset-top) + 7rem) !important; }
 @media (max-height: 520px) and (orientation: landscape) { #questBar { max-width: none; } #evtChip { top: calc(env(safe-area-inset-top) + 3.2rem); } }
+
+/* ---- ながい リストでも「もどる」が いつも みえる ---- */
+#quests .panel, #diary .panel, #dex .panel, #notebook .panel { overflow: hidden; }
+#quests .panel > *, #diary .panel > *, #dex .panel > *, #notebook .panel > * { flex-shrink: 0; }
+#qList, #diaryList, #dexList, #nbList { flex: 1 1 auto !important; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding-right: .2rem; }
+#quests .panel > button[data-act="back"], #diary .panel > button[data-act="back"], #dex .panel > button[data-act="back"], #notebook .panel > button[data-act="back"] { box-shadow: 0 -6px 10px #fff8e8; }
+.qfold { margin: .4rem 0; }
+.qfold > summary { list-style: none; cursor: pointer; font-weight: 800; font-size: 1rem; background: #fff; border: 3px solid #f0e2c0; border-radius: 1.1rem; padding: .7rem .9rem; display: flex; justify-content: space-between; align-items: center; min-height: 3rem; }
+.qfold > summary::-webkit-details-marker { display: none; }
+.qfold > summary::after { content: '▼ ひらく'; font-size: .78rem; opacity: .7; }
+.qfold[open] > summary::after { content: '▲ とじる'; }
+.qfold[open] > summary { margin-bottom: .4rem; }
+.qfold > summary::after { white-space: nowrap; flex: none; margin-left: .5rem; }
