@@ -4,7 +4,7 @@ import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } f
 import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
-import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
+import { initAudio, setBgm, setBgmMode, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { fanOf, fanLine } from './fans.js';
@@ -2038,7 +2038,7 @@ function seg(id, cur, onPick) {
 $('btnSoundTest').onclick = () => { initAudio(); setTimeout(() => { sfx('heart'); toast(isAudioRunning() ? '🔊 きこえたかな？ きこえない ときは マナーモードを オフにしてね' : '🔇 おとの じゅんびが まだ… もういちど タップしてね', 3600); }, 200); };
 function renderSettings() {
   seg('setSize', S.settings.size, v => { S.settings.size = parseFloat(v); applySettings(); save(); });
-  seg('setBgm', S.settings.bgm ? 1 : 0, v => { S.settings.bgm = v === '1'; applySettings(); save(); });
+  seg('setBgm', !S.settings.bgm ? 0 : S.settings.bgmMode === 'chip' ? 2 : 1, v => { S.settings.bgm = v !== '0'; if (v !== '0') S.settings.bgmMode = v === '2' ? 'chip' : 'orig'; applySettings(); save(); });
   seg('setSound', S.settings.sound === false ? 0 : 1, v => { S.settings.sound = v === '1'; setSound(S.settings.sound); refreshSoundBtn(); save(); if (S.settings.sound) setTimeout(() => sfx('heart'), 150); });
   seg('setVoice', S.settings.voice ? 1 : 0, v => { S.settings.voice = v === '1'; applySettings(); save(); if (S.settings.voice) speak('こんにちは、なの！', 1.7); });
   seg('setTime', S.settings.time, v => { S.settings.time = v; save(); });
@@ -2047,7 +2047,7 @@ function renderSettings() {
 }
 function applySettings() {
   document.documentElement.style.setProperty('--fs', S.settings.size);
-  setAnalyticsEnabled(S.settings.stats !== false); setSound(S.settings.sound !== false); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
+  setAnalyticsEnabled(S.settings.stats !== false); setSound(S.settings.sound !== false); setBgmMode(S.settings.bgmMode); setBgm(S.settings.bgm); setVoice(S.settings.voice); applyEvent(); if ($('btnSound')) refreshSoundBtn();
   applyHome();
 }
 

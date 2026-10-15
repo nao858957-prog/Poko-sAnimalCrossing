@@ -1,6 +1,7 @@
 // やさしい BGM / こうかおん / よみあげ (Web Audio・Web Speech)
 import { createBgm } from './bgm.js';
 let ctx = null, master = null, bgmOn = true, timer = null, step = 0, bgm = null, bgmBus = null;
+let bgmMode = 'orig', origEl = null, origPlaying = false;   // 'orig' = げんきょく(mp3) / 'chip' = でんしおんばん (js/bgm.js)
 
 // iOS/Android では「ユーザーのタップの中」で音を解禁する必要がある。
 // iPhone は マナーモード(消音スイッチ)だと WebAudio が無音になるため、
@@ -36,7 +37,10 @@ export function initAudio() {
 for (const ev of ['touchend', 'pointerup', 'click', 'keydown']) {
   document.addEventListener(ev, () => { if (!isAudioRunning() || (htmlAudio && htmlAudio.paused)) initAudio(); }, { passive: true, capture: true });
 }
-document.addEventListener('visibilitychange', () => { if (!document.hidden && ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { if (origPlaying) { origEl.pause(); origPlaying = false; } }   // アプリを はなれたら とめる
+  else { if (ctx && ctx.state !== 'running') ctx.resume().catch(() => {}); else if (ctx && bgmOn && soundOn) startBgm(); }
+});
 export function setSound(on) { soundOn = on; if (!on && 'speechSynthesis' in window) speechSynthesis.cancel(); if (master) master.gain.value = on ? 0.5 : 0; if (!on) stopBgm(); else if (ctx && ctx.state === 'running' && bgmOn) startBgm(); }
 export function isSoundOn() { return soundOn; }
 function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
@@ -48,7 +52,23 @@ function tone(freq, t, dur, type = 'sine', vol = 0.12, dest) {
   o.connect(g); g.connect(dest || master);
   o.start(t); o.stop(t + dur + 0.05);
 }
+// げんきょく (assets/tonari.mp3)。HTMLAudio で ストリーミングするので、でんしおんばんより かるい
+function startOrig() {
+  if (origPlaying || !ctx || !soundOn) return;
+  try {
+    if (!origEl) {
+      origEl = new Audio('./assets/tonari.mp3'); origEl.loop = true; origEl.preload = 'auto'; origEl.setAttribute('playsinline', '');
+      const src = ctx.createMediaElementSource(origEl), g = ctx.createGain(); g.gain.value = 0.8; src.connect(g); g.connect(master);
+      origEl.addEventListener('error', () => { bgmMode = 'chip'; origPlaying = false; if (bgmOn && soundOn) startBgm(); });   // よみこめなければ でんしおんばんに
+    }
+    origPlaying = true;
+    const p = origEl.play(); if (p && p.catch) p.catch(() => { origPlaying = false; });
+  } catch (e) { origPlaying = false; bgmMode = 'chip'; startBgm(); }
+}
+function stopOrig() { if (origEl && origPlaying) origEl.pause(); origPlaying = false; }
+export function setBgmMode(m) { const nm = m === 'chip' ? 'chip' : 'orig'; if (nm === bgmMode) return; stopBgm(); bgmMode = nm; if (ctx && ctx.state === 'running' && bgmOn && soundOn) startBgm(); }
 function startBgm() {
+  if (bgmMode === 'orig') { startOrig(); return; }
   if (timer || !ctx || !soundOn) return;
   if (!bgm) {   // BGM「となりにいていいですか」の 電子音版 (js/bgm.js)。すこし まるく きこえるよう ローパスを かける
     bgmBus = ctx.createGain(); bgmBus.gain.value = 0.55;
@@ -66,7 +86,7 @@ function startBgm() {
   sched();
   timer = setInterval(sched, 250);
 }
-function stopBgm() { if (timer) { clearInterval(timer); timer = null; } }
+function stopBgm() { if (timer) { clearInterval(timer); timer = null; } stopOrig(); }
 export function setBgm(on) { bgmOn = on; if (!ctx) return; on && ctx.state === 'running' ? startBgm() : stopBgm(); }
 
 // こうかおんの おとの ならび: [しゅうはすう, はじまり(びょう), ながさ(びょう)]
@@ -104,3 +124,4 @@ export function speak(text, pitch = 1.2) {
   if (v) u.voice = v;
   speechSynthesis.speak(u);
 }
+export function bgmState() { return { mode: bgmMode, on: bgmOn, orig: origEl ? { paused: origEl.paused, t: origEl.currentTime } : null, synth: !!timer }; }
