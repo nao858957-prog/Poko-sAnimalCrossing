@@ -110,6 +110,33 @@ export function sfx(kind) {
   for (const [f, d, l] of SFX_SEQ[kind] || []) tone(f, t + d, l, 'sine', 0.15);
 }
 
+// りょうり ちゅうの おと (ノイズ・あわ・やかん・ちーん)。js/cookact.js から よばれる
+let nbuf = null;
+function noiseBurst(t, dur, vol, ftype, f, q = 1) {
+  if (!nbuf) { nbuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = nbuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+  const s = ctx.createBufferSource(), fl = ctx.createBiquadFilter(), g = ctx.createGain();
+  s.buffer = nbuf; fl.type = ftype; fl.frequency.value = f; fl.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(0.02, dur / 3)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(fl); fl.connect(g); g.connect(master); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.02);
+}
+export function cookSfx(kind, dur = 0.3) {
+  if (window.__sfxLog) window.__sfxLog('cook-' + kind);
+  if (!ctx || !soundOn) return;
+  if (ctx.state !== 'running') { ctx.resume().catch(() => {}); return; }
+  const t = ctx.currentTime;
+  switch (kind) {
+    case 'sizzle': for (let i = 0; i < dur * 26; i++) noiseBurst(t + (i / (dur * 26)) * dur + Math.random() * 0.03, 0.03 + Math.random() * 0.05, 0.05 * (1 - i / (dur * 40)), 'highpass', 3500 + Math.random() * 3500); break;
+    case 'pour': noiseBurst(t, dur, 0.09, 'bandpass', 1500, 0.8); noiseBurst(t + dur * 0.4, dur * 0.7, 0.06, 'bandpass', 2400, 0.8); break;
+    case 'toss': noiseBurst(t, 0.18, 0.07, 'bandpass', 900, 0.7); break;
+    case 'shake': for (let i = 0; i < 9; i++) noiseBurst(t + i * 0.07, 0.04, 0.04, 'highpass', 6000); break;
+    case 'press': noiseBurst(t, 0.1, 0.1, 'lowpass', 500); tone(130, t, 0.12, 'sine', 0.1); break;
+    case 'plop': tone(220, t, 0.14, 'sine', 0.12); tone(330, t + 0.05, 0.12, 'sine', 0.08); break;
+    case 'bubble': { const o = ctx.createOscillator(), g = ctx.createGain(), f = 260 + Math.random() * 180; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 2, t + 0.08); g.gain.setValueAtTime(0.09, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.1); o.connect(g); g.connect(master); o.start(t); o.stop(t + 0.12); break; }
+    case 'ding': tone(1568, t, 1.0, 'sine', 0.13); tone(2349, t + 0.02, 0.8, 'sine', 0.07); break;
+    default: noiseBurst(t, 0.05, 0.1, 'lowpass', 1200);   // tick
+  }
+}
+
 export function duck(v) { if (master) master.gain.value = v ? 0.3 : 0.5; }
 
 // よみあげ

@@ -4,10 +4,11 @@ import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } f
 import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
 import { Theater, SCENES } from './theater.js';
-import { initAudio, setBgm, setBgmMode, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
+import { cookSfx, initAudio, setBgm, setBgmMode, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { fanOf, fanLine } from './fans.js';
+import { playCookAct } from './cookact.js';
 import { INGR, RECIPES, RECIPE_BY_ID, TOOLS, NEED_LABEL, COOK_LV, cookLevel, cookNext, ensureCook, freshCook, homeTools, toolOk, missingIng, cookDish, teachStatus, ingName, ingCount } from './cook.js';
 import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
@@ -2451,6 +2452,12 @@ function makeDish(r) {
   const free = cookCtx === 'sei', tools = cookTools();
   if (!toolOk(r.need, tools)) { toast(`${NEED_LABEL[r.need]}が ひつようだよ`, 2200); sfx('tap'); return; }
   if (!free && missingIng(S, r).length) { toast('ざいりょうが たりないよ。ポンの おみせ「しょくざい」や はたけで そろえよう', 2600); sfx('tap'); return; }
+  if (cookActBusy) return; cookActBusy = true;
+  $('cook').classList.add('hidden');
+  playCookAct(r, { ings: Object.keys(r.ing).map(i => ingName(i).emoji), sound: cookSfx, onDone: () => { cookActBusy = false; finishDish(r, free); } });
+}
+let cookActBusy = false;
+function finishDish(r, free) {
   const res = cookDish(S, r, free);
   sfx('heart'); track('cook-' + r.id);
   tmp.copy(player.root.position); tmp.y += 1.8; spawnFx(world.group, 'heart', tmp, 0.9);
@@ -2458,7 +2465,7 @@ function makeDish(r) {
   if (res.first) addDiary(`${r.name}を はじめて つくった。${free ? 'セイママの だいどころで いっしょに。' : ''}`);
   if (res.levelUp) setTimeout(() => { toast(`🍳 りょうりレベルが ${res.levelUp} に なったよ！<br>「${COOK_LV[res.levelUp - 1].name}」`, 3600); sfx('catch'); }, 1800);
   questEvent('cook', r.id);
-  save(); renderCook();
+  save(); $('cook').classList.remove('hidden'); renderCook();
 }
 function eatDish(r) {
   const c = ensureCook(S); if ((c.dishes[r.id] || 0) <= 0) return;

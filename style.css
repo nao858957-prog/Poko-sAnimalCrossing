@@ -380,3 +380,76 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 input, textarea, select { font-size: max(16px, 1rem) !important; }
 #tfBox { font-size: max(16px, .8rem) !important; }
 html, body, #c { touch-action: none; }
+
+/* ---- りょうり ちゅうの どうさ (js/cookact.js) ---- */
+#cookAct { z-index: 40; background: #000000a0; }
+.ca-card { width: min(92vw, 440px); background: #fff8e8; border: 4px solid #fff; border-radius: 1.6rem; padding: .8rem; box-shadow: 0 10px 30px #0006; display: flex; flex-direction: column; gap: .5rem; align-items: stretch; }
+.ca-title { text-align: center; font-size: 1.05rem; font-weight: 800; }
+.ca-stage { position: relative; aspect-ratio: 3 / 2; border-radius: 1.1rem; overflow: hidden; background: linear-gradient(#ffe9c4, #ffd29a); border: 3px solid #f0d9a8; }
+.ca-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.ca-say { text-align: center; font-size: 1.15rem; font-weight: 800; min-height: 1.8rem; color: #8a4b1f; }
+.ca-say.pop { animation: caPop .35s ease-out; }
+.ca-bar { height: .55rem; background: #f0d9a8; border-radius: 99px; overflow: hidden; }
+.ca-bar i { display: block; height: 100%; width: 100%; background: #6ac04f; border-radius: 99px; transform-origin: left; animation: caBar 3.7s linear forwards; }
+.ca-hint { text-align: center; font-size: .8rem; opacity: .6; }
+.ca-chef { position: absolute; left: 3%; bottom: 14%; font-size: 2.6rem; animation: caBob .6s ease-in-out infinite alternate; }
+.ca-chef::before { content: ''; position: absolute; left: 50%; top: -.55rem; width: 1.5rem; height: 1rem; margin-left: -.75rem; background: #fff; border-radius: .8rem .8rem .2rem .2rem; box-shadow: 0 1px 0 #ccc; }
+.ca-done { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #fff8e8e6; opacity: 0; pointer-events: none; }
+.ca-done b { font-size: 4.6rem; }
+.ca-done span { font-size: 1.1rem; font-weight: 800; color: #3e8c30; }
+.ca-card.done .ca-done { opacity: 1; animation: caDone .5s cubic-bezier(.3, 1.6, .5, 1); }
+.ca-card.done .ca-done b { animation: caSpin .9s ease-out; }
+/* ほのお */
+.ca-flame { transform-box: fill-box; transform-origin: center bottom; animation: caFlame .35s ease-in-out infinite alternate; }
+/* フライパン */
+.ca-pan { transform-origin: 292px 140px; animation: caPan .8s ease-in-out infinite; }
+.ca-food span, .ca-drop span, .ca-bake span { position: absolute; font-size: 1.9rem; }
+.ca-food span { left: calc(34% + var(--i) * 8%); top: 38%; animation: caToss .8s ease-in-out infinite; animation-delay: calc(var(--i) * .12s); }
+.ca-food.small span { left: 44%; top: 8%; font-size: 1.3rem; animation: caFall 1.6s ease-in infinite; }
+/* おなべ */
+.ca-bub circle { animation: caBub .7s ease-in infinite; transform-box: fill-box; transform-origin: center; }
+.ca-bub circle:nth-child(2) { animation-delay: .2s; } .ca-bub circle:nth-child(3) { animation-delay: .4s; } .ca-bub circle:nth-child(4) { animation-delay: .1s; } .ca-bub circle:nth-child(5) { animation-delay: .5s; }
+.ca-spoon { animation: caStir 1s ease-in-out .9s infinite alternate; transform-box: fill-box; }
+.ca-drop span { left: calc(38% + var(--i) * 8%); top: 5%; opacity: 0; animation: caIn .7s ease-in forwards; animation-delay: calc(.35s + var(--i) * .18s); }
+/* やかん */
+.ca-kettle { transform-origin: 60px 60px; animation: caKettle 3s ease-in-out forwards; }
+.ca-stream { transform-box: fill-box; transform-origin: top; transform: scaleY(0); animation: caStream 1.2s ease-in .8s forwards; }
+.ca-water { transform-box: fill-box; transform-origin: bottom; transform: scaleY(.05); animation: caWater 1.1s ease-out 1s forwards; }
+/* おにぎり */
+.ca-rb { transform-box: fill-box; transform-origin: center bottom; animation: caPress .7s ease-in-out 1.4s 3; }
+.ca-salt { position: absolute; left: 55%; top: 6%; font-size: 2rem; opacity: 0; animation: caSalt 1.1s ease-in-out .6s forwards; }
+.ca-hands { position: absolute; left: 41%; top: 32%; font-size: 2.2rem; opacity: 0; animation: caHands 1.6s ease-in-out 1.3s forwards; }
+/* オーブン */
+.ca-glow { animation: caGlow .9s ease-in-out infinite alternate; }
+.ca-bake span { left: calc(34% + var(--i) * 9%); top: 59%; font-size: 1.5rem; animation: caRise 2s ease-out .8s both; }
+.ca-timer { position: absolute; right: 6%; top: 8%; font-size: 1.8rem; animation: caShake .5s ease-in-out infinite alternate; }
+.ca-heat { position: absolute; left: 0; right: 0; top: 0; height: 26%; }
+.ca-heat i { position: absolute; bottom: 0; width: .6rem; height: 1.4rem; border-radius: 99px; background: #ff9d3d66; animation: caSteam 1.2s ease-out infinite; }
+.ca-heat i:nth-child(1) { left: 30%; } .ca-heat i:nth-child(2) { left: 48%; animation-delay: .4s; } .ca-heat i:nth-child(3) { left: 66%; animation-delay: .8s; }
+/* ゆげ */
+.ca-steam { position: absolute; left: 38%; top: 6%; width: 24%; height: 30%; }
+.ca-steam.c { left: 38%; top: 30%; }
+.ca-steam i { position: absolute; bottom: 0; width: .9rem; height: .9rem; border-radius: 50%; background: #ffffffcc; filter: blur(2px); animation: caSteam 1.4s ease-out infinite; }
+.ca-steam i:nth-child(1) { left: 10%; } .ca-steam i:nth-child(2) { left: 45%; animation-delay: .45s; } .ca-steam i:nth-child(3) { left: 75%; animation-delay: .9s; }
+@keyframes caPop { from { transform: scale(.85); opacity: .3; } to { transform: none; opacity: 1; } }
+@keyframes caBar { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes caBob { to { transform: translateY(-.35rem) rotate(4deg); } }
+@keyframes caDone { from { transform: scale(.5); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes caSpin { from { transform: rotate(-30deg) scale(.4); } to { transform: none; } }
+@keyframes caFlame { from { transform: scale(.9, .85); } to { transform: scale(1.08, 1.12); } }
+@keyframes caPan { 0%, 100% { transform: rotate(0); } 18% { transform: translateY(-5px) rotate(-7deg); } 38% { transform: translateY(1px) rotate(2deg); } 60% { transform: none; } }
+@keyframes caToss { 0%, 100% { transform: translateY(0) rotate(0); } 22% { transform: translateY(-3.2rem) rotate(180deg); } 45% { transform: translateY(-.3rem) rotate(360deg); } }
+@keyframes caFall { 0% { transform: translateY(0); opacity: 0; } 15% { opacity: 1; } 60%, 100% { transform: translateY(5.4rem); opacity: 0; } }
+@keyframes caBub { 0% { transform: translateY(2px) scale(.4); opacity: 0; } 50% { opacity: 1; } 100% { transform: translateY(-9px) scale(1.2); opacity: 0; } }
+@keyframes caStir { from { transform: translateX(-34px); } to { transform: translateX(34px); } }
+@keyframes caIn { 0% { transform: translateY(0) rotate(0); opacity: 1; } 80% { opacity: 1; } 100% { transform: translateY(5.2rem) rotate(200deg); opacity: 0; } }
+@keyframes caKettle { 0%, 25% { transform: rotate(0); } 40%, 85% { transform: rotate(-22deg) translate(10px, 0); } 100% { transform: rotate(0); } }
+@keyframes caStream { to { transform: scaleY(1); } }
+@keyframes caWater { to { transform: scaleY(1); } }
+@keyframes caPress { 0%, 100% { transform: none; } 50% { transform: scale(1.18, .8); } }
+@keyframes caSalt { 0% { opacity: 0; transform: rotate(0); } 20%, 80% { opacity: 1; transform: rotate(-25deg); } 50% { transform: rotate(-45deg); } 100% { opacity: 0; } }
+@keyframes caHands { 0% { opacity: 0; transform: translateY(1rem); } 15%, 85% { opacity: 1; } 50% { transform: translateY(-.3rem) scale(.9); } 100% { opacity: 0; } }
+@keyframes caGlow { from { opacity: .55; } to { opacity: 1; } }
+@keyframes caRise { from { transform: scale(.55); } to { transform: scale(1.1) translateY(-.3rem); } }
+@keyframes caShake { from { transform: rotate(-12deg); } to { transform: rotate(12deg); } }
+@keyframes caSteam { 0% { transform: translateY(0) scale(.6); opacity: 0; } 25% { opacity: .9; } 100% { transform: translateY(-3rem) scale(1.4); opacity: 0; } }
