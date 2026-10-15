@@ -2035,6 +2035,7 @@ function seg(id, cur, onPick) {
     b.onclick = () => { onPick(b.dataset.v); for (const x of box.children) x.classList.toggle('on', x === b); sfx('tap'); };
   }
 }
+$('btnZoomReset').onclick = () => { if (window.__resetZoom) window.__resetZoom(); toast('🔍 がめんの おおきさを もどしたよ'); };
 $('btnSoundTest').onclick = () => { initAudio(); setTimeout(() => { sfx('heart'); toast(isAudioRunning() ? '🔊 きこえたかな？ きこえない ときは マナーモードを オフにしてね' : '🔇 おとの じゅんびが まだ… もういちど タップしてね', 3600); }, 200); };
 function renderSettings() {
   seg('setSize', S.settings.size, v => { S.settings.size = parseFloat(v); applySettings(); save(); });

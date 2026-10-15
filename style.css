@@ -375,3 +375,8 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
 .ck-btn.dis { background: #c8c8c8; box-shadow: 0 3px 0 #a8a8a8; opacity: .8; }
 #cookInfo { text-align: center; font-size: .95rem; }
 #shop .tabs button { font-size: .62rem; padding-left: .1rem; padding-right: .1rem; }
+
+/* ズーム対策: 入力欄は 16px 以上 (iOS は 16px 未満の欄を タップすると がめんを ひろげてしまう) */
+input, textarea, select { font-size: max(16px, 1rem) !important; }
+#tfBox { font-size: max(16px, .8rem) !important; }
+html, body, #c { touch-action: none; }
