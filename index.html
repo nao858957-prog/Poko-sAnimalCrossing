@@ -9,8 +9,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐼%3C/text%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="style.css?v=202610121311">
-<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202610121311", "./js/audio.js": "./js/audio.js?v=202610121311", "./js/bgm.js": "./js/bgm.js?v=202610121311", "./js/bgm-score.js": "./js/bgm-score.js?v=202610121311", "./js/fans.js": "./js/fans.js?v=202610121311", "./js/schedule.js": "./js/schedule.js?v=202610121311", "./js/config.js": "./js/config.js?v=202610121311", "./js/dialogue.js": "./js/dialogue.js?v=202610121311", "./js/fish.js": "./js/fish.js?v=202610121311", "./js/home.js": "./js/home.js?v=202610121311", "./js/missions.js": "./js/missions.js?v=202610121311", "./js/models.js": "./js/models.js?v=202610121311", "./js/shop.js": "./js/shop.js?v=202610121311", "./js/theater.js": "./js/theater.js?v=202610121311", "./js/world.js": "./js/world.js?v=202610121311", "./js/farm.js": "./js/farm.js?v=202610121311", "./js/intents.js": "./js/intents.js?v=202610121311", "./js/transfer.js": "./js/transfer.js?v=202610121311"}}</script>
+<link rel="stylesheet" href="style.css?v=202610151043">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202610151043", "./js/audio.js": "./js/audio.js?v=202610151043", "./js/cook.js": "./js/cook.js?v=202610151043", "./js/bgm.js": "./js/bgm.js?v=202610151043", "./js/bgm-score.js": "./js/bgm-score.js?v=202610151043", "./js/fans.js": "./js/fans.js?v=202610151043", "./js/schedule.js": "./js/schedule.js?v=202610151043", "./js/config.js": "./js/config.js?v=202610151043", "./js/dialogue.js": "./js/dialogue.js?v=202610151043", "./js/fish.js": "./js/fish.js?v=202610151043", "./js/home.js": "./js/home.js?v=202610151043", "./js/missions.js": "./js/missions.js?v=202610151043", "./js/models.js": "./js/models.js?v=202610151043", "./js/shop.js": "./js/shop.js?v=202610151043", "./js/theater.js": "./js/theater.js?v=202610151043", "./js/world.js": "./js/world.js?v=202610151043", "./js/farm.js": "./js/farm.js?v=202610151043", "./js/intents.js": "./js/intents.js?v=202610151043", "./js/transfer.js": "./js/transfer.js?v=202610151043"}}</script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -54,6 +54,7 @@
   <button id="btnEnter" class="talk enter hidden">🏠 はいる</button>
   <button id="btnWake" class="talk wake hidden">☀ おきる</button>
   <button id="btnDeco" class="hud-btn deco hidden">🛋 おへやを かざる</button>
+  <button id="btnCook" class="hud-btn cook hidden">🍳 りょうりする</button>
   <button id="btnFarm" class="talk farmbtn hidden">🌱 たねを まく</button>
   <div id="questBar" class="hidden"></div>
   <div id="evtChip" class="hidden"></div>
@@ -81,7 +82,7 @@
 <!-- おみせ -->
 <section id="shop" class="hidden">
   <header><img id="shopFace" alt=""><h2>🛍 ポンの おみせ</h2><span id="shopFlowers">🌼 0</span></header>
-  <div class="tabs"><button data-tab="food" class="on"><i>🍰</i>たべもの</button><button data-tab="cloth"><i>👕</i>きせかえ</button><button data-tab="tool"><i>🎣</i>どうぐ</button><button data-tab="home"><i>🏠</i>おうち</button><button data-tab="sell"><i>💰</i>うる</button></div>
+  <div class="tabs"><button data-tab="food" class="on"><i>🍰</i>たべもの</button><button data-tab="ingr"><i>🥚</i>しょくざい</button><button data-tab="cloth"><i>👕</i>きせかえ</button><button data-tab="tool"><i>🎣</i>どうぐ</button><button data-tab="home"><i>🏠</i>おうち</button><button data-tab="sell"><i>💰</i>うる</button></div>
   <div id="shopMsg">おはなで おかいもの できるよ</div>
   <div id="shopList"></div>
   <button id="shopBack" class="big">おみせを でる</button>
@@ -123,6 +124,15 @@
     <div id="qInv" class="qinv"></div>
     <div id="qList"></div>
     <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="cook" class="screen modal hidden">
+  <div class="panel">
+    <h2>🍳 りょうり</h2>
+    <div id="cookInfo" class="qinv"></div>
+    <div id="cookList"></div>
+    <button class="big" id="cookBack">もどる</button>
   </div>
 </section>
 
@@ -246,6 +256,6 @@
   <div id="thEnd" class="hidden"><div class="panel"><h2>おしまい</h2><button id="thAgain" class="big primary">もういちど みる</button><button id="thBack" class="big">もどる</button></div></div>
 </section>
 
-<script type="module" src="js/main.js?v=202610121311"></script>
+<script type="module" src="js/main.js?v=202610151043"></script>
 </body>
 </html>

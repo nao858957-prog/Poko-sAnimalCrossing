@@ -706,6 +706,7 @@ const RESERVED_LOVE = {
 };
 
 import { INTENT_LINES } from './intents.js';
+import { COOK_PREFS } from './cook.js';
 
 // ---- ロジック ----
 const lastIdx = {};
@@ -888,7 +889,9 @@ const GIFT_LINES = {
   kuro: { love: 'まあ、{item}！ わたしの大好きなものよ。ありがとう、{n}さん。胸が温かくなったわ。', like: '{item}ね、うれしいわ。ありがとう、{n}さん。', neutral: '{item}を？ ありがとう。お気持ちがうれしいわ。', dislike: 'あら、{item}…。ありがとう。{n}さんの気持ちはちゃんと届いているわ。' },
   pon: { love: 'おおっ、{item}だぽん！？ これは商売人も大喜びだぽん！ ありがとうだぽん、{n}さん！', like: '{item}、ありがたいぽん。まいどありぽん！', neutral: '{item}かぽん。ありがとうだぽん。大事にするぽん。', dislike: 'むむ、{item}は苦手だぽん…。でも気持ちはしっかり受け取るぽん。' },
 };
-export function giftPref(id, itemId) { const p = PREFS[id]; return p.love.includes(itemId) ? 'love' : p.like.includes(itemId) ? 'like' : p.dislike.includes(itemId) ? 'dislike' : 'neutral'; }
+export function giftPref(id, itemId) {
+  if (itemId.startsWith('cook_')) { const rid = itemId.slice(5), cp = COOK_PREFS[id]; return cp && cp.love.includes(rid) ? 'love' : cp && cp.dislike.includes(rid) ? 'dislike' : 'like'; } // てづくりは たいてい うれしい
+  const p = PREFS[id]; return p.love.includes(itemId) ? 'love' : p.like.includes(itemId) ? 'like' : p.dislike.includes(itemId) ? 'dislike' : 'neutral'; }
 export function giftReaction(id, itemId, itemName, ctx) {
   const pref = giftPref(id, itemId);
   const c = { ...ctx, cid: id };

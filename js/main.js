@@ -8,6 +8,7 @@ import { initAudio, setBgm, setVoice, sfx, speak, stopSpeak, duck, setSound, isA
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { fanOf, fanLine } from './fans.js';
+import { INGR, RECIPES, RECIPE_BY_ID, TOOLS, NEED_LABEL, COOK_LV, cookLevel, cookNext, ensureCook, freshCook, homeTools, toolOk, missingIng, cookDish, teachStatus, ingName, ingCount } from './cook.js';
 import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
 import { initAnalytics, track, trackDays, setAnalyticsEnabled, analyticsAvailable } from './analytics.js';
 import { makeCode, readCode } from './transfer.js';
@@ -21,7 +22,7 @@ const DEFAULT_AVATAR = { name: '', skin: AVATAR_OPTS.skin[1], hair: 'short', hai
 // ---------- セーブ ----------
 let S = null;
 function freshState() {
-  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0, home: { stage: 0, style: 'log', styles: ['log'], have: {}, items: [], guests: [], visit: {} }, farm: { plots: Array(PLOT_N).fill(null), seeds: {}, harvested: 0, bugs: 0 } };
+  return { v: 1, avatar: { ...DEFAULT_AVATAR }, pos: { x: 0, z: 6, ry: Math.PI }, friend: {}, flowers: 0, seen: [], logs: {}, storyIdx: {}, firstDone: {}, settings: { size: 1, bgm: true, voice: false, time: 'auto', event: 'auto', sound: true, stats: true }, playSec: 0, created: false, owned: [], inv: {}, quests: {}, food: {}, dyn: {}, daily: { date: '', made: {} }, diary: [], chatPts: { date: '' }, giftsToday: { date: '' }, lastDay: '', days: 0, rod: 0, fish: {}, dex: {}, fishTotal: 0, cook: freshCook(), home: { stage: 0, style: 'log', styles: ['log'], have: {}, items: [], guests: [], visit: {} }, farm: { plots: Array(PLOT_N).fill(null), seeds: {}, harvested: 0, bugs: 0 } };
 }
 function loadSave() {
   try {
@@ -547,6 +548,11 @@ function renderShop() {
       b2.onclick = () => eatFood(f, true);
       wrap.append(b, b2); d.appendChild(wrap); box.appendChild(d);
     }
+  } else if (shopTab === 'ingr') {
+    shopHead(box, '🥚 しょくざい（おりょうりの ざいりょう）');
+    const pan = ensureCook(S).pantry;
+    for (const [id, g] of Object.entries(INGR)) shopRow(box, g.emoji, g.name, `🌼 ${g.price}${pan[id] ? `　もっている ×${pan[id]}` : ''}${g.note ? '<br>' + g.note : ''}`, 'かう', () => buyIngr(id), S.flowers < g.price);
+    const tip = document.createElement('p'); tip.className = 'fine2'; tip.textContent = 'おうちに どうぐ（バーナーなど）を ならべて「りょうりする」で つくれるよ。やさいは はたけで そだてたものも つかえるぽん！'; box.appendChild(tip);
   } else if (shopTab === 'tool') {
     for (const r of RODS) {
       const d = document.createElement('div'); d.className = 'item';
@@ -622,7 +628,8 @@ function renderHomeShop(box) {
   shopHead(box, '🛋 かぐ');
   for (const f of FURN) {
     const have = h.have[f.id] || 0;
-    shopRow(box, f.emoji, f.name, `🌼 ${f.price}${have ? `　もっている ×${have}` : ''}`, 'かう', () => buyFurn(f), S.flowers < f.price);
+    const lock = furnLocked(f);
+    shopRow(box, f.emoji, f.name, lock ? `${STAGES[f.minStage].name}から つかえるよ` : `🌼 ${f.price}${have ? `　もっている ×${have}` : ''}`, 'かう', () => buyFurn(f), lock || S.flowers < f.price);
   }
   shopHead(box, '🎨 かべがみ・ゆか');
   for (const st of STYLES) {
@@ -644,7 +651,16 @@ function buildStage(st) {
   $('flowerCount').textContent = '🌼 ' + S.flowers;
   save(); renderShop();
 }
+function buyIngr(id) {
+  const g = INGR[id];
+  if (S.flowers < g.price) { $('shopMsg').textContent = 'おはなが たりないぽん…'; sfx('tap'); return; }
+  S.flowers -= g.price; const pan = ensureCook(S).pantry; pan[id] = (pan[id] || 0) + 1; sfx('pick');
+  $('shopMsg').textContent = id === 'cupnoodle' ? `${g.emoji} ポコキン笹味、まいどありぽん！ ポンの じまんの ラーメンだぽん。おゆを そそげば できあがりぽん！` : `${g.emoji} ${g.name}、まいどありぽん！`;
+  $('flowerCount').textContent = '🌼 ' + S.flowers; save(); renderShop();
+}
+function furnLocked(f) { return f.minStage && S.home.stage < f.minStage; }
 function buyFurn(f) {
+  if (furnLocked(f)) { $('shopMsg').textContent = `${f.name}は ${STAGES[f.minStage].name}から ならべられるぽん。おうちを おおきく してからだぽん`; sfx('tap'); return; }
   if (S.flowers < f.price) { $('shopMsg').textContent = 'おはなが たりないぽん…'; sfx('tap'); return; }
   S.flowers -= f.price; S.home.have[f.id] = (S.home.have[f.id] || 0) + 1; sfx('pick');
   $('shopMsg').textContent = `${f.emoji} ${f.name}、まいどありぽん！ ${S.home.stage ? 'おうちで「かざる」から ならべるぽん' : 'おうちを たてたら ならべられるぽん'}`;
@@ -1073,6 +1089,7 @@ function renderChips(id) {
   box.innerHTML = '';
   const chipList = chipsFor(id);
   if (hasQuestTalk(id)) chipList.unshift(['q', 'おねがい ある？']);
+  if (id === 'sei' || id === 'mei') chipList.unshift(['cooktalk', COOK_CHIP]);
   for (const [key, label] of chipList) {
     const b = document.createElement('button');
     b.textContent = label;
@@ -1387,6 +1404,7 @@ function questEvent(type, what) {
     if (type === 'build' && what < q.stage) continue;
     if (type === 'invite' && q.who !== what) continue;
     if (type === 'meal' && q.meal !== what) continue;
+    if (type === 'cook' && q.what && q.what !== what) continue;
     if (!st.p) { st.p = 1; hit = true; toast(`📜 ${q.title}<br>${CHARS[q.giver].name}に おはなししよう！`, 3200); sfx('heart'); }
   }
   if (hit) { refreshMarkers(); save(); }
@@ -1707,6 +1725,7 @@ function send(text) {
   text = (text || '').trim();
   const id = chatNpc;
   if (!text || !id || waiting) return;
+  if (text === COOK_CHIP && (id === 'sei' || id === 'mei')) { addMsg(id, 'me', text); logPush(id, 'me', text); sfx('send'); waiting = true; setTimeout(() => { waiting = false; if (chatNpc === id) { teachTalk(id); renderChips(id); } }, 600); return; }
   waiting = true; clearTimeout(lvTimer); stopSpeak();
   $('chatInput').value = '';
   addMsg(id, 'me', text); logPush(id, 'me', text);
@@ -1743,6 +1762,7 @@ function giftList() {
   if (S.flowers > 0) out.push({ id: 'flower', emoji: '🌼', name: 'おはな', n: S.flowers, src: 'flowers' });
   for (const [k, def] of Object.entries(ITEMS)) if (k !== 'flower' && (S.inv[k] || 0) > 0) out.push({ id: k, emoji: def.emoji, name: def.name, n: S.inv[k], src: 'inv' });
   for (const f of FOODS) if ((S.food[f.id] || 0) > 0) out.push({ id: f.id, emoji: f.emoji, name: f.name, n: S.food[f.id], src: 'food' });
+  for (const r of RECIPES) { const n = ensureCook(S).dishes[r.id] || 0; if (n > 0) out.push({ id: 'cook_' + r.id, emoji: r.emoji, name: r.name, n, src: 'cook', rid: r.id }); }
   for (const [fid, n] of Object.entries(S.fish)) if (n > 0) { const f = FISH_BY_ID[fid]; out.push({ id: 'fish', fid, emoji: f.emoji, icon: fishIcon(f), name: f.name, n, src: 'fish' }); }
   return out;
 }
@@ -1766,6 +1786,7 @@ function giveGift(id, it) {
   if (it.src === 'flowers') { S.flowers--; $('flowerCount').textContent = '🌼 ' + S.flowers; }
   else if (it.src === 'inv') S.inv[it.id]--;
   else if (it.src === 'fish') S.fish[it.fid]--;
+  else if (it.src === 'cook') S.cook.dishes[it.rid]--;
   else S.food[it.id]--;
   stopSpeak();
   addMsg(id, 'sys', `${it.emoji} ${CHARS[id].name}に ${it.name}を あげたよ！`);
@@ -1926,7 +1947,7 @@ $('tfLoad').onclick = async () => {
   try {
     const s = await readCode(code);
     if (loadSave() && !confirm('いまの きろくは きえて、コードの きろくに かわります。いいですか？')) return;
-    S = Object.assign(freshState(), s, { settings: { ...freshState().settings, ...s.settings } });
+    S = Object.assign(freshState(), s, { settings: { ...freshState().settings, ...s.settings } }); ensureCook(S);
     localStorage.setItem(SAVE_KEY, JSON.stringify(S));
     track('transfer-in');
     $('transfer').classList.add('hidden'); $('menu').classList.add('hidden');
@@ -2202,6 +2223,8 @@ function renderDeco() {
   if (def && def.kind === 'wall') for (const b of document.querySelectorAll('.decoPad [data-mv="0,-1"], .decoPad [data-mv="0,1"], #decoRot')) b.disabled = true;
 }
 function placeNew(id) {
+  const def = FURN_BY_ID[id];
+  if (def && def.minStage && S.home.stage < def.minStage) { toast(`${def.name}は ${STAGES[def.minStage].name}から ならべられるよ`, 2600); sfx('tap'); return; }
   const spot = room.findSpot(id);
   if (!spot) { toast('そこに おけないよ。へやが いっぱい！', 1800); sfx('tap'); return; }
   homeItems().push(spot); decoSel = homeItems().length - 1;
@@ -2312,6 +2335,7 @@ function frame(now) {
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
     $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
+    { const cx = cookCtxNow(); $('btnCook').classList.toggle('hidden', !cx); if (cx) $('btnCook').textContent = cx === 'sei' ? '🍳 セイママと りょうり' : '🍳 りょうりする'; }
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
       S.playSec += dt;
@@ -2357,7 +2381,7 @@ window.addEventListener('pagehide', save);
 window.addEventListener('beforeunload', save);
 
 // 起動
-S = loadSave() || freshState();
+S = loadSave() || freshState(); ensureCook(S);
 try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) { /* 非対応 */ }
 if (S.created) { applySettings(); buildPlayer(); } else { applySettings(); }
 initMarks();
@@ -2369,5 +2393,104 @@ $('btnContinue').classList.toggle('hidden', !loadSave());
 if (!player) { S.avatar = { ...DEFAULT_AVATAR }; player = makeAvatar(S.avatar); player.root.position.set(0, 0, 6); world.group.add(player.root); player.root.visible = false; }
 requestAnimationFrame(frame);
 
+// ---------- りょうり ----------
+// どこで つくるか: 'home' = じぶんの おうち(おいた どうぐ) / 'sei' = セイママの だいどころ(いっしょに。はじめて つくる りょうりは ざいりょうを だしてくれる)
+let cookCtx = null;
+function cookCtxNow() {
+  if (!S || !S.created || mode !== 'play' || sleeping || place !== 'in') return null;
+  if (inKind === 'home') return homeTools(S).size ? 'home' : null;
+  if (inKind === 'sei') { const P = npcs.sei; return P && P.root.visible && !P.schedPose ? 'sei' : null; }
+  return null;
+}
+const cookTools = () => (cookCtx === 'sei' ? new Set(['burner', 'kitchen', 'oven']) : homeTools(S));
+function openCook(ctx) {
+  if (mode !== 'play') return;
+  cookCtx = ctx || cookCtxNow(); if (!cookCtx) return;
+  mode = 'menu'; $('cook').classList.remove('hidden'); renderCook(); sfx('open'); track('cook-open');
+}
+function closeCook() { $('cook').classList.add('hidden'); if (mode === 'menu') mode = 'play'; }
+$('cookBack').onclick = () => { sfx('tap'); closeCook(); };
+$('btnCook').onclick = () => { initAudio(); openCook(); };
+function renderCook() {
+  const c = ensureCook(S), lv = cookLevel(c.xp), nx = cookNext(c.xp), tools = cookTools(), box = $('cookList'), info = $('cookInfo');
+  const total = Object.values(c.made).reduce((a, b) => a + b, 0);
+  info.innerHTML = `🍳 りょうりレベル <b>${lv}</b>「${COOK_LV[lv - 1].name}」　つくった ${total}こ${nx ? `<br><small>あと ${nx.need - c.xp} で レベル ${nx.lv}</small>` : '<br><small>いちばん うえの レベル！</small>'}<br>` +
+    (cookCtx === 'sei' ? '<small>セイママの だいどころ：はじめて つくる りょうりは ざいりょうを だしてくれるよ</small>'
+      : `<small>つかえる どうぐ：${[...tools].map(t => TOOLS[t].emoji + TOOLS[t].name).join('　') || 'なし'}</small>`);
+  box.innerHTML = '';
+  const row = (emoji, title, sub, btn, on, dis, cls = '') => {
+    const d = document.createElement('div'); d.className = 'qcard ' + cls;
+    d.innerHTML = `<div class="ck-e">${emoji}</div><div><b>${title}</b>${sub}</div>`;
+    if (btn) { const b = document.createElement('button'); b.textContent = btn; b.className = 'ck-btn' + (dis ? ' dis' : ''); b.onclick = on; d.appendChild(b); }
+    box.appendChild(d);
+  };
+  const head = t => { const h = document.createElement('h3'); h.textContent = t; box.appendChild(h); };
+  let shown = 0;
+  head('📖 つくれる りょうり');
+  for (const id of c.recipes) {
+    const r = RECIPE_BY_ID[id]; if (!r) continue;
+    const first = !c.made[id];
+    if (cookCtx === 'sei' && !first) continue;
+    const toolIs = toolOk(r.need, tools), miss = missingIng(S, r), free = cookCtx === 'sei';
+    const ing = Object.entries(r.ing).map(([i, n]) => { const g = ingName(i), have = ingCount(S, i), ok = free || have >= n; return `<span style="color:${ok ? '#3e8c30' : '#d04a3a'}">${g.emoji}${g.name.replace(/「.*」/, '')} ${free ? '×' + n : have + '/' + n}</span>`; }).join('　');
+    const reason = !toolIs ? `🔒 ${NEED_LABEL[r.need]}が ひつよう` : (!free && miss.length) ? 'ざいりょうが たりないよ' : '';
+    row(r.emoji, r.name + (first ? ' <small style="color:#ff6f91">★はじめて</small>' : ''), `<small>${r.how}</small><small>${ing}</small>${reason ? `<small style="color:#d04a3a">${reason}</small>` : ''}`, 'つくる', () => makeDish(r), !!reason);
+    shown++;
+  }
+  if (!shown) { const p = document.createElement('p'); p.className = 'fine2'; p.textContent = cookCtx === 'sei' ? 'ぜんぶ つくった ことが あるね！ つぎは おうちの どうぐで つくってみよう。あたらしい レシピは セイママや メイに「りょうりを おしえて」と たのんでね' : 'まだ つくれる りょうりが ないよ'; box.appendChild(p); }
+  const dishes = RECIPES.filter(r => (c.dishes[r.id] || 0) > 0);
+  if (dishes.length) {
+    head('🍽 つくった りょうり（ともだちに プレゼントも できるよ）');
+    for (const r of dishes) row(r.emoji, `${r.name} ×${c.dishes[r.id]}`, '', 'たべる', () => eatDish(r), false, 'done2');
+  }
+  const unk = RECIPES.filter(r => !c.recipes.includes(r.id)).length;
+  if (unk) { const p = document.createElement('p'); p.className = 'fine2'; p.textContent = `❓ まだ おしえてもらって いない レシピ：${unk}こ（セイママや メイに「りょうりを おしえて」）`; box.appendChild(p); }
+}
+function makeDish(r) {
+  const free = cookCtx === 'sei', tools = cookTools();
+  if (!toolOk(r.need, tools)) { toast(`${NEED_LABEL[r.need]}が ひつようだよ`, 2200); sfx('tap'); return; }
+  if (!free && missingIng(S, r).length) { toast('ざいりょうが たりないよ。ポンの おみせ「しょくざい」や はたけで そろえよう', 2600); sfx('tap'); return; }
+  const res = cookDish(S, r, free);
+  sfx('heart'); track('cook-' + r.id);
+  tmp.copy(player.root.position); tmp.y += 1.8; spawnFx(world.group, 'heart', tmp, 0.9);
+  toast(`${r.emoji} ${r.name}、できあがり！<br><small>${r.line}</small>${res.first ? '<br><small>★ はじめて つくったよ！</small>' : ''}`, 3600);
+  if (res.first) addDiary(`${r.name}を はじめて つくった。${free ? 'セイママの だいどころで いっしょに。' : ''}`);
+  if (res.levelUp) setTimeout(() => { toast(`🍳 りょうりレベルが ${res.levelUp} に なったよ！<br>「${COOK_LV[res.levelUp - 1].name}」`, 3600); sfx('catch'); }, 1800);
+  questEvent('cook', r.id);
+  save(); renderCook();
+}
+function eatDish(r) {
+  const c = ensureCook(S); if ((c.dishes[r.id] || 0) <= 0) return;
+  c.dishes[r.id]--; sfx('pick');
+  const near = ORDER.filter(i => npcs[i].root.visible && !npcs[i].schedPose && Math.hypot(npcs[i].root.position.x - player.root.position.x, npcs[i].root.position.z - player.root.position.z) < 9 && npcs[i].root.position.x > 300);
+  let msg = `${r.emoji} ${r.name}を たべたよ。${r.line}`;
+  if (near.length) {
+    for (const id of near) { S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 2); const p = npcs[id].root.position; tmp.set(p.x, 2.2, p.z); spawnFx(world.group, 'heart', tmp, 0.9); }
+    msg += `<br><small>${near.map(i => CHARS[i].name).join('・')}も ひとくち！ ♥</small>`;
+  }
+  toast(msg, 3400); speak(r.line, 1.3); save(); renderCook();
+}
+// りょうりを おしえて (セイママ・メイ)
+const COOK_CHIP = '🍳 りょうりを おしえて';
+function teachTalk(id) {
+  const lv = level(S.friend[id] || 0), st = teachStatus(S, id, lv), mei = id === 'mei';
+  if (st.ready) {
+    const r = st.ready; ensureCook(S).recipes.push(r.id);
+    npcSay(id, mei ? `…しょうがないわね。${r.emoji}${r.name}、おしえてあげる。${r.tl}` : `${r.emoji}${r.name}ね。${r.tl}`);
+    addMsg(id, 'sys', `📖 レシピ「${r.name}」を おぼえたよ！　${NEED_LABEL[r.need]}で つくれるよ`);
+    sfx('heart'); addDiary(`${CHARS[id].name}から「${r.name}」の つくりかたを おそわった。`);
+    if (place === 'in' && inKind === 'sei') addMsg(id, 'sys', '🍳 セイママの だいどころで いっしょに つくれるよ（「りょうりする」ボタン）');
+    track('cook-learn'); save(); return;
+  }
+  if (st.next) {
+    const r = st.next, needF = lv < r.teach.f;
+    npcSay(id, needF ? (mei ? '…まだ おしえられないわ。もうすこし なかよくなってからよ。' : 'そうね…もうすこし なかよくなったら、とっておきを おしえるわね。')
+      : (mei ? '…まだ だめ。もうちょっと おりょうりの れんしゅうを してから きなさいよ。' : 'もうすこし おりょうりに なれてからに しましょう。まずは いまの レシピを たくさん つくってみてね。'));
+    if (!needF) addMsg(id, 'sys', `🍳 つぎは りょうりレベル ${r.lv} で おしえてもらえるよ`);
+    return;
+  }
+  npcSay(id, mei ? '…わたしの レシピは もう ぜんぶ おしえたわよ。あとは じぶんで くふう しなさい。' : 'わたしの レシピは もう ぜんぶ おしえたわ。じょうずに なったわね。');
+}
+
 // テスト用フック
-window.__poko = { refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

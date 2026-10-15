@@ -359,3 +359,19 @@ svg.fi { height: 1.1em; width: 1.6em; vertical-align: -.14em; overflow: visible;
   #creator .big { min-height: 2.8rem; padding: .3rem 1rem; }
 }
 @media (max-height: 760px) and (orientation: portrait) { #creator h2 { display: none; } }
+
+/* ---- りょうり ---- */
+#btnCook { position: absolute; right: .6rem; top: calc(env(safe-area-inset-top) + 9.3rem); background: #ff9a3c; color: #fff; border-color: #fff; box-shadow: 0 3px 0 #d9741c, 0 4px 8px #0002; }
+#btnDeco { top: calc(env(safe-area-inset-top) + 6.4rem); }
+@media (max-height: 520px) and (orientation: landscape) { #btnDeco { top: calc(env(safe-area-inset-top) + 5.6rem); } #btnCook { top: calc(env(safe-area-inset-top) + 8.2rem); } }
+#cook .panel { overflow: hidden; }
+#cook .panel > * { flex-shrink: 0; }
+#cookList { flex: 1 1 auto !important; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
+#cookList h3 { margin: .6rem 0 .3rem; font-size: 1rem; }
+#cookList .qcard > div:nth-child(2) { flex: 1; min-width: 0; }
+#cookList .qcard small { opacity: 1; font-size: .76rem; line-height: 1.5; }
+.ck-e { font-size: 1.8rem; flex: none; width: 2.6rem; text-align: center; }
+.ck-btn { flex: none; background: #6ac04f; color: #fff; border: 3px solid #fff; border-radius: 99px; padding: .5rem .9rem; font-size: 1rem; font-weight: 800; box-shadow: 0 3px 0 #4a9a35; min-height: 2.8rem; }
+.ck-btn.dis { background: #c8c8c8; box-shadow: 0 3px 0 #a8a8a8; opacity: .8; }
+#cookInfo { text-align: center; font-size: .95rem; }
+#shop .tabs button { font-size: .62rem; padding-left: .1rem; padding-right: .1rem; }
