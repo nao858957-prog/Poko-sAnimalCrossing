@@ -1321,6 +1321,7 @@ function qStatus(q) {
   if (st) { const p = qProgress(q); return p.have >= p.need ? 'ready' : 'active'; }
   if (level(S.friend[q.giver] || 0) < q.lv) return 'locked';
   if (q.needs === 'rod' && !S.rod) return 'locked';
+  if (q.season && !q.season.includes(currentEvent())) return 'locked';   // きせつげんてい
   if (q.needs === 'home' && !S.home.stage) return 'locked';
   if (q.after && !(S.quests[q.after] && S.quests[q.after].s === 'done')) return 'locked';
   if (askedToday(q.giver)) return 'rest'; // きょうは もう おねがい ずみ (また あした)
@@ -2413,7 +2414,7 @@ const nearFire = () => place === 'out' && fireOn() && Math.hypot(player.root.pos
 // やきいもタイム: あき・ふゆの ゆうがた、ひろばの たきびに みんなが あつまる
 const FIRE_TIME = [16.5, 18];
 const fireTime = () => fireOn() && gameHour() >= FIRE_TIME[0] && gameHour() < FIRE_TIME[1];
-const FIRE_GUESTS = ['poko', 'mei', 'sei', 'rin', 'pa', 'ku', 'nami', 'kuro'];
+const FIRE_GUESTS = ['poko', 'mei', 'sei', 'pa', 'ku', 'nami', 'kuro'];
 function cookCtxNow() {
   if (!S || !S.created || mode !== 'play' || sleeping) return null;
   if (place === 'out') return nearFire() ? 'fire' : null;
@@ -2532,4 +2533,4 @@ function teachTalk(id) {
 }
 
 // テスト用フック
-window.__poko = { world, fireTime, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { world, fireTime, npcPos: id => { const q = npcs[id].root; return [q.visible, q.position.x, q.position.z]; }, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
