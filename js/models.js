@@ -527,6 +527,32 @@ export function makeAvatar(a) {
     k.scale.set(0.7, 0.58, 0.7); k.position.set(0, 0.66, -0.02); k.rotation.x = -0.1; head.add(k);
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.08, 8, 22), mat('#fff4e0')); band.rotation.x = Math.PI / 2 - 0.1; band.position.set(0, 0.66, -0.02); head.add(band);
     add(head, sph(0.15, '#fff4e0'), 0, 1.28, -0.08);
+  } else if (H === 'acorn') {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat('#8a5a2a'));
+    k.scale.set(0.74, 0.5, 0.74); k.position.set(0, 0.66, -0.02); k.rotation.x = -0.1; head.add(k);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.07, 8, 24), mat('#6a4220')); rim.rotation.x = Math.PI / 2 - 0.1; rim.position.set(0, 0.66, -0.02); head.add(rim);
+    const st = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.06, 0.2, 6), mat('#5a3a18')); st.position.set(0, 1.08, -0.05); st.rotation.x = -0.1; head.add(st);
+    for (let i = 0; i < 8; i++) { const an = i / 8 * Math.PI * 2; add(head, sph(0.05, '#a67238'), Math.cos(an) * 0.45, 0.92 - (i % 2) * 0.1, Math.sin(an) * 0.45 - 0.03); }
+  } else if (H === 'maplecrown') {
+    const rg = new THREE.Mesh(new THREE.TorusGeometry(0.64, 0.045, 6, 24), mat('#b8803a')); rg.rotation.x = Math.PI / 2 - 0.1; rg.position.set(0, 0.7, -0.02); head.add(rg);
+    const LC = ['#e8453a', '#f08a2e', '#e2b72e', '#c9472f', '#f08a2e', '#e8453a', '#e2b72e'];
+    for (let i = 0; i < 7; i++) {
+      const an = i / 7 * Math.PI * 2 + 0.3, gp = new THREE.Group(); gp.position.set(Math.cos(an) * 0.64, 0.72, Math.sin(an) * 0.64 - 0.02); gp.rotation.y = Math.PI / 2 - an;
+      const lf = sph(0.15, LC[i], 1, 0.3, 1.05); lf.position.set(0, 0.04, 0.05); lf.rotation.x = -0.5; gp.add(lf);
+      head.add(gp);
+    }
+  } else if (H === 'beret') {
+    const b = sph(0.8, '#8a2f4a', 1, 0.3, 1); b.position.set(0.1, 0.82, -0.02); b.rotation.z = -0.16; head.add(b);
+    const bd = new THREE.Mesh(new THREE.TorusGeometry(0.63, 0.05, 6, 24), mat('#6a2038')); bd.rotation.x = Math.PI / 2; bd.position.set(0, 0.66, -0.02); head.add(bd);
+    add(head, sph(0.07, '#6a2038'), 0.1, 1.06, -0.02);
+  } else if (H === 'earmuff') {
+    const hb = new THREE.Mesh(new THREE.TorusGeometry(0.74, 0.05, 8, 26, Math.PI), mat('#f4eee4')); hb.position.set(0, 0.05, -0.02); head.add(hb);
+    for (const sd of [-1, 1]) { add(head, sph(0.3, '#ffd6e2', 0.7, 1, 1), sd * 0.74, 0.05, -0.02); add(head, sph(0.2, '#fff0f4', 0.6, 0.9, 0.9), sd * 0.82, 0.05, -0.02); }
+  } else if (H === 'whiteknit') {
+    const k = new THREE.Mesh(new THREE.SphereGeometry(1, 20, 12, 0, Math.PI * 2, 0, Math.PI * 0.5), mat('#f4f1ea'));
+    k.scale.set(0.7, 0.58, 0.7); k.position.set(0, 0.66, -0.02); k.rotation.x = -0.1; head.add(k);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.09, 8, 22), mat('#c9d4e0')); band.rotation.x = Math.PI / 2 - 0.1; band.position.set(0, 0.66, -0.02); head.add(band);
+    add(head, sph(0.19, '#ffffff'), 0, 1.3, -0.08);
   } else if (H === 'ribbon') {
     for (const sd of [-1, 1]) { const w = sph(0.22, '#ff7aa8', 1.4, 0.9, 0.5); add(head, w, sd * 0.26, 0.98, 0.1); w.rotation.z = sd * 0.5; }
     add(head, sph(0.1, '#e8457a'), 0, 0.98, 0.14);
@@ -550,6 +576,17 @@ export function makeAvatar(a) {
     const lf = sph(0.26, '#5cb85c', 1.1, 0.12, 0.7); add(head, lf, 0.05, 1.0, 0.05); lf.rotation.z = -0.25;
     const vn = sph(0.05, '#3f8f3f', 0.5, 0.2, 1.4); add(head, vn, 0.05, 1.03, 0.05); vn.rotation.z = -0.25;
   }
+  if (a.neck === 'creamscarf') {
+    const col = '#e8d4a8';
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.13, 8, 20), mat(col)); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.46, 0.02); body.add(t);
+    const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.1, 8, 20), mat('#d6bd88')); t2.rotation.x = Math.PI / 2; t2.position.set(0, cy + 0.36, 0.02); body.add(t2);
+    const tail = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.62, 0.06), mat(col)); tail.position.set(0.2, cy + 0.1, 0.46); tail.rotation.z = 0.1; body.add(tail);
+    const tail2 = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.05, 0.065), mat('#b8995a')); tail2.position.set(0.2 + 0.03, cy - 0.18, 0.465); tail2.rotation.z = 0.1; body.add(tail2);
+  }
+  if (a.neck === 'fluffy') {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.17, 10, 22), mat('#fff6ec')); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.44, 0.02); body.add(t);
+    for (let i = 0; i < 10; i++) { const an = i / 10 * Math.PI * 2; add(body, sph(0.12, '#ffffff'), Math.cos(an) * 0.45, cy + 0.5 + (i % 2) * 0.04, 0.02 + Math.sin(an) * 0.45); }
+  }
   if (a.neck === 'bell') {
     const t = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.07, 8, 20), mat('#e8455a')); t.rotation.x = Math.PI / 2; t.position.set(0, cy + 0.46, 0.02); body.add(t);
     add(body, sph(0.1, '#ffd84d'), 0, cy + 0.36, 0.42);
@@ -564,6 +601,18 @@ export function makeAvatar(a) {
     const bib = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.55, 0.05), mat(ap)); bib.position.set(0, cy + 0.12, 0.44); body.add(bib);
     const sk = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.32, 0.05), mat(ap)); sk.position.set(0, cy - 0.28, 0.5); body.add(sk);
     for (const sd of [-1, 1]) { const st = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.5, 0.04), mat(ap)); st.position.set(sd * 0.2, cy + 0.42, 0.35); st.rotation.x = -0.5; body.add(st); }
+  } else if (a.body === 'cardigan') {
+    const cg = '#b8703c';
+    for (const sd of [-1, 1]) {
+      const pn = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.72, 0.07), mat(cg)); pn.position.set(sd * 0.25, cy - 0.04, 0.43); pn.rotation.y = sd * 0.42; body.add(pn);
+      const ed = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.72, 0.08), mat('#8a4f24')); ed.position.set(sd * 0.1, cy - 0.04, 0.47); ed.rotation.y = sd * 0.1; body.add(ed);
+      const pk = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.12, 0.03), mat('#9a5c2e')); pk.position.set(sd * 0.3, cy - 0.28, 0.5); pk.rotation.y = sd * 0.42; body.add(pk);
+    }
+    for (let i = 0; i < 3; i++) add(body, sph(0.045, '#f2e0b8'), 0.04, cy + 0.18 - i * 0.22, 0.5);
+  } else if (a.body === 'poncho') {
+    const pc = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.6, 0.55, 18, 1, true), new THREE.MeshLambertMaterial({ color: '#d9a02a', side: THREE.DoubleSide })); pc.position.set(0, cy + 0.14, 0.02); body.add(pc);
+    const fr = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 24), mat('#8a4a1f')); fr.rotation.x = Math.PI / 2; fr.position.set(0, cy - 0.135, 0.02); body.add(fr);
+    const st = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.03, 6, 24), mat('#b8672a')); st.rotation.x = Math.PI / 2; st.position.set(0, cy + 0.02, 0.02); body.add(st);
   } else if (a.body === 'cape') {
     const cp = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.0, 0.05), mat('#5a4a9a')); cp.position.set(0, cy - 0.05, -0.5); cp.rotation.x = 0.1; body.add(cp);
     add(body, sph(0.12, '#ffd21f', 1, 1, 0.3), 0, cy + 0.1, -0.54);

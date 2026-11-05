@@ -427,6 +427,7 @@ export function buildWorld() {
     tomato: { leaf: '#4fa850', fruit: '#e8352f', shape: 'ball' },
     strawberry: { leaf: '#58b84a', fruit: '#ff4a6a', shape: 'berry' },
     pumpkin: { leaf: '#4aa04a', fruit: '#ff9a2a', shape: 'pump' },
+    sweetpotato: { leaf: '#5fb84a', fruit: '#c4506a', shape: 'tuber' },
   };
   function buildCrop(cg, crop, stage, bug) {
     while (cg.children.length) cg.remove(cg.children[0]);
@@ -442,6 +443,7 @@ export function buildWorld() {
         if (v.shape === 'cone') { const c = new THREE.Mesh(new THREE.ConeGeometry(0.13, 0.42, 8), mat(v.fruit)); c.position.set(x * 0.7, 0.14, z * 0.7); c.rotation.x = Math.PI; cg.add(c); add(cg, sph(0.15, v.leaf, 1, 0.5, 1), x * 0.7, 0.33, z * 0.7); }
         else if (v.shape === 'ball') add(cg, sph(0.17, v.fruit), x, 0.45 + (i % 2) * 0.25, z);
         else if (v.shape === 'berry') { add(cg, sph(0.13, v.fruit, 1, 1.15, 1), x, 0.16, z); add(cg, sph(0.05, '#ffffff'), x, 0.2, z + 0.09); }
+        else if (v.shape === 'tuber') { const tb = add(cg, sph(0.2, v.fruit, 1.6, 0.8, 0.9), x * 0.8, 0.1, z * 0.8); tb.rotation.y = a; }
         else if (i < 2) { add(cg, sph(0.5, v.fruit, 1.15, 0.8, 1.15), x * 0.9, 0.3, z * 0.9); }
       }
     }
@@ -586,6 +588,7 @@ export function buildWorld() {
     sandMat.color.set(snowy ? '#f3efe6' : '#f4e2b0');
     const aut = ev === 'autumn';
     leafPts.visible = aut;
+    fireG.visible = aut || ev === 'snow' || ev === 'newyear';
     for (const f of foliage) f.m.material = aut ? (autMats[f.au] || (autMats[f.au] = new THREE.MeshLambertMaterial({ color: f.au }))) : f.baseMat;
     if (aut) { grassMat.color.set('#b4cf68'); patchMats[0].color.set('#a6c45a'); patchMats[1].color.set('#c2d776'); sandMat.color.set('#f0dcaa'); }
     for (const it of items) if (it.season) { it.off = it.season !== ev; if (it.off) it.mesh.visible = false; else if (it.back <= 0) it.mesh.visible = true; }
@@ -673,6 +676,11 @@ export function buildWorld() {
       }
       a.needsUpdate = true;
     }
+    if (fireG.visible) {
+      for (const f of flames) { const k = 0.82 + Math.sin(t * 9 + f.ph) * 0.14 + Math.sin(t * 15 + f.ph * 2) * 0.07; f.m.scale.set(1 + Math.sin(t * 7 + f.ph) * 0.08, k, 1 + Math.cos(t * 8 + f.ph) * 0.08); f.m.position.y = 0.25 + f.h * k / 2; }
+      fireG.userData.glow.material.opacity = 0.24 + Math.sin(t * 6) * 0.05;
+      for (const sm of smoke) { sm.t = (sm.t + dt * 0.22) % 1; sm.m.position.set(Math.sin(sm.t * 6 + sm.t) * 0.25, 1.4 + sm.t * 2.4, 0); sm.m.scale.setScalar(0.5 + sm.t * 1.4); sm.m.material.opacity = Math.sin(sm.t * Math.PI) * 0.22; }
+    }
     for (const f of foams) f.scale.setScalar(1 + Math.sin(t * 1.4) * 0.006);
     for (const c of clouds) { c.position.x += dt * 0.6; if (c.position.x > 140) c.position.x = -140; }
     for (const b of butter) {
@@ -695,9 +703,25 @@ export function buildWorld() {
     o.material.polygonOffsetFactor = -2 - o.position.y * 200;
     o.material.polygonOffsetUnits = -2 - o.position.y * 200;
   });
+  // ---- たきび (あき・ふゆの ひろば。やきいもを つくれる) ----
+  const CF = [[-5.5, 5.5], [5.5, 5.5], [-6, 1], [6, 1.5], [-5, 8], [5, 8]].find(([x, z]) => free(x, z, 1.8) && !onPath(x, z, 1.2)) || [-5.5, 5.5];
+  const fireG = new THREE.Group(); fireG.position.set(CF[0], 0, CF[1]); fireG.visible = false; g.add(fireG);
+  const flames = [], smoke = [];
+  {
+    for (let i = 0; i < 9; i++) { const a = i / 9 * Math.PI * 2; add(fireG, sph(0.2, i % 2 ? '#8a8f96' : '#a3a8ae', 1.2, 0.8, 1), Math.cos(a) * 0.95, 0.12, Math.sin(a) * 0.95); }
+    for (let i = 0; i < 3; i++) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.3, 7), mat('#6b4524')); lg.rotation.z = Math.PI / 2; lg.rotation.y = i * Math.PI / 3; lg.position.y = 0.2; fireG.add(lg); }
+    const glow = new THREE.Mesh(new THREE.CircleGeometry(1.8, 24), new THREE.MeshBasicMaterial({ color: '#ff9a3d', transparent: true, opacity: 0.28, depthWrite: false })); glow.rotation.x = -Math.PI / 2; glow.position.y = 0.03; fireG.add(glow); fireG.userData.glow = glow;
+    for (const [fx, fz, h, c] of [[0, 0, 1.2, '#ff8a2a'], [0.25, 0.1, 0.85, '#ffb23d'], [-0.22, -0.12, 0.9, '#ff6a2a'], [0.05, -0.2, 0.6, '#ffe27a']]) {
+      const fl = new THREE.Mesh(new THREE.ConeGeometry(0.28, h, 8), new THREE.MeshBasicMaterial({ color: c, transparent: true, opacity: 0.92 })); fl.position.set(fx, 0.25 + h / 2, fz); fireG.add(fl); flames.push({ m: fl, h, ph: fx * 9 + fz * 5 });
+    }
+    for (const sx of [-1, 1]) { const lg = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1.6, 9), mat('#a8744a')); lg.rotation.x = Math.PI / 2; lg.rotation.z = 0; lg.position.set(sx * 2.0, 0.22, 0.3); lg.rotation.y = 0; fireG.add(lg); const tp = new THREE.Mesh(new THREE.CircleGeometry(0.22, 9), mat('#d9b98a')); tp.position.set(sx * 2.0, 0.22, 1.11); fireG.add(tp); }
+    for (let i = 0; i < 4; i++) { const sm = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), new THREE.MeshBasicMaterial({ color: '#d8d8dc', transparent: true, opacity: 0, depthWrite: false })); sm.position.y = 1.6; fireG.add(sm); smoke.push({ m: sm, t: i / 4 }); }
+    for (const [lx, lz, lc] of [[-1.5, -1.2, '#e8453a'], [1.3, -1.5, '#f08a2e'], [-0.4, 1.6, '#d9a02a'], [1.6, 1.0, '#e8453a']]) for (let k = 0; k < 3; k++) add(fireG, sph(0.16, lc, 1.2, 0.1, 1), lx + (k - 1) * 0.22, 0.04, lz + (k % 2) * 0.15).rotation.y = k * 1.3;
+  }
+  obstacles.push({ x: CF[0], z: CF[1], r: 1.0 }, { x: CF[0] - 2.0, z: CF[1] + 0.3, r: 0.4 }, { x: CF[0] + 2.0, z: CF[1] + 0.3, r: 0.4 });
   scatter('maple', 16, 0, 0, 30, 24, 300); scatter('maple', 8, -64, 2, 14, 14, 160); scatter('maple', 4, -82, 6, 8, 8, 80);
   scatter('chestnut', 8, 0, -28, 20, 4, 160); scatter('chestnut', 4, -26, -24, 5, 4, 80); scatter('chestnut', 5, -64, 2, 14, 14, 120);
-  return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

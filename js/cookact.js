@@ -1,7 +1,7 @@
 // りょうりを つくる ときの 「おりょうり ちゅう」の どうさ (フライパン・おなべ・やかん・オーブン…)。
 //   playCookAct(r, { ings, sound, onDone })  … 3.7びょうほどの アニメ。タップで すすめる
 //   CSS の アニメだけで うごかす (3D は つかわない ので かるい)
-const KIND = { 'ゆでる': 'pot', 'あたためる': 'pot', 'おゆを そそぐ': 'pour', 'いためる': 'pan', 'やく': 'pan', 'にぎる': 'rice', 'オーブンで やく': 'oven' };
+const KIND = { 'ゆでる': 'pot', 'あたためる': 'pot', 'おゆを そそぐ': 'pour', 'いためる': 'pan', 'やく': 'pan', 'にぎる': 'rice', 'オーブンで やく': 'oven', 'たきびで やく': 'fire', 'あげる': 'pan' };
 const DONE_AT = 2750, END_AT = 3750;
 
 // [はじまり(ms), セリフ] と [はじまり(ms), おと, ながさ(びょう)]
@@ -14,6 +14,8 @@ const PLAN = {
     snd: [[100, 'tick'], [800, 'pour', 1.0], [2000, 'tick']] },
   rice: { say: [[0, 'てを ぬらして…'], [700, 'おしおを ぱらぱら'], [1500, 'ぎゅっ ぎゅっ'], [2300, 'ふんわり できた！']],
     snd: [[300, 'pour', 0.3], [800, 'shake'], [1500, 'press'], [1850, 'press'], [2200, 'press']] },
+  fire: { say: [[0, 'おちばを いれて… ひを つけるよ🔥'], [750, 'ぱちぱち… ひが おおきく なった'], [1500, 'ホイルに くるんで… そ〜っと ほりこむ'], [2300, 'いい におい〜！ もうすこし…']],
+    snd: [[100, 'tick'], [500, 'sizzle', 2.4], [1500, 'plop'], [1900, 'toss'], [2300, 'toss']] },
   oven: { say: [[0, 'オーブンを あっためるよ'], [800, 'ざいりょうを いれて…'], [1600, 'ふくらんできた〜'], [2350, 'チン！']],
     snd: [[100, 'tick'], [900, 'tick'], [2350, 'ding']] },
 };
@@ -47,6 +49,15 @@ const SCENE = {
     <rect class="ca-nori" x="132" y="124" width="36" height="32" rx="4" fill="#2f3b2f"/></svg>
     <div class="ca-salt">🧂</div><div class="ca-hands">🤲</div>
     <div class="ca-food small">${ing.map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>`,
+  fire: ing => `<svg viewBox="0 0 300 200" class="ca-svg"><rect x="0" y="168" width="300" height="32" fill="#8a6a42"/><rect x="0" y="168" width="300" height="5" fill="#a98558"/>
+    <ellipse cx="150" cy="172" rx="86" ry="14" fill="#ff9a3d44" class="ca-ember"/>
+    ${[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => `<ellipse cx="${150 + Math.cos(i / 9 * 6.28) * 74}" cy="${172 + Math.sin(i / 9 * 6.28) * 10}" rx="12" ry="8" fill="${i % 2 ? '#8a8f96' : '#a3a8ae'}"/>`).join('')}
+    <rect x="96" y="160" width="108" height="11" rx="5" fill="#6b4524" transform="rotate(-14 150 165)"/><rect x="96" y="160" width="108" height="11" rx="5" fill="#7d5230" transform="rotate(14 150 165)"/>
+    ${flame(128, 166, 1.25)}${flame(150, 168, 1.7)}${flame(172, 166, 1.25)}
+    <g class="ca-foil"><ellipse cx="150" cy="160" rx="24" ry="13" fill="#d7dde2" stroke="#9aa4ac" stroke-width="2"/><path d="M134 156 Q150 148 166 156" stroke="#fff" stroke-width="3" fill="none"/></g>
+    <g class="ca-poke"><rect x="196" y="76" width="7" height="104" rx="3" fill="#8a5a32" transform="rotate(32 199 150)"/></g></svg>
+    <div class="ca-food small ca-leaves">${['🍁', '🍂', '🍁', '🍂'].map((e, i) => `<span style="--i:${i}">${e}</span>`).join('')}</div>
+    <div class="ca-sparks"><i></i><i></i><i></i><i></i></div>`,
   oven: ing => `<svg viewBox="0 0 300 200" class="ca-svg">${COUNTER}
     <rect x="52" y="48" width="196" height="128" rx="14" fill="#9aa8b4"/><rect x="52" y="48" width="196" height="26" rx="14" fill="#7d8c99"/>
     <circle cx="86" cy="61" r="7" fill="#e8eef2"/><circle cx="114" cy="61" r="7" fill="#e8eef2"/><circle cx="214" cy="61" r="7" fill="#ff8a3d"/>

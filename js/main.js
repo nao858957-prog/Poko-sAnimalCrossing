@@ -568,6 +568,7 @@ function renderShop() {
     shopHead(box, '🌱 たね（にしの はたけで そだてよう）');
     for (const id of CROP_IDS) {
       const c = CROPS[id], have = S.farm.seeds[id] || 0;
+      if (c.season && !c.season.includes(currentEvent()) && !have) continue;
       shopRow(box, c.emoji, `${c.name}の たね`, `🌼 ${c.seed}　${c.note}${have ? `　もっている ×${have}` : ''}`, 'かう', () => buySeed(c), S.flowers < c.seed);
     }
     const tip = document.createElement('p'); tip.className = 'fine2'; tip.textContent = 'つりざおを かうと、ため池・みずうみ・うみの そばで「つり」が できるよ。さかなは ここで うれるよ。'; box.appendChild(tip);
@@ -593,8 +594,12 @@ function renderShop() {
       }
     }
   } else {
-    for (const c of CLOTHES) {
+    const seasonOn = SEASON_FIRE.includes(currentEvent());
+    let seasonHead = false;
+    for (const c of [...CLOTHES.filter(x => !x.season), ...CLOTHES.filter(x => x.season)]) {
       if (c.quest && !S.owned.includes(c.id)) continue;
+      if (c.season && !seasonOn && !S.owned.includes(c.id)) continue;
+      if (c.season && !seasonHead) { seasonHead = true; shopHead(box, '🍁 あき・ふゆの コーデ'); }
       const d = document.createElement('div'); d.className = 'item';
       const own = S.owned.includes(c.id), worn = S.avatar[SLOT_KEY[c.slot]] === c.id;
       d.innerHTML = `<span class="e">${c.emoji}</span><div class="n">${c.name}<small>${own ? 'もっている' : '🌼 ' + c.price}</small></div>`;
@@ -884,7 +889,10 @@ function updateNpcs(dt) {
       P.wait -= dt;
       if (!P.target && P.wait <= 0 && !P.still) {
         const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : (WANDER_R[id] || 3.5));
-        P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
+        if (place === 'out' && FIRE_GUESTS.includes(id) && P.root.position.x < 300 && fireTime()) {
+          const k = FIRE_GUESTS.indexOf(id), ga = k / FIRE_GUESTS.length * Math.PI * 2 + Math.random() * 0.4, gr = 2.4 + Math.random() * 0.9;
+          P.target = new THREE.Vector2(world.campfire.x + Math.cos(ga) * gr, world.campfire.z + Math.sin(ga) * gr);
+        } else P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
       if (P.target) {
         const dx = P.target.x - pos.x, dz = P.target.y - pos.z, d = Math.hypot(dx, dz);
@@ -2333,12 +2341,12 @@ function frame(now) {
     if (S) {
       const h = gameHour();
       applySky(h);
-      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); }
+      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], fireTime() ? '🍠 やきいもタイム' : '', mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); }
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
     $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
-    { const cx = cookCtxNow(); $('btnCook').classList.toggle('hidden', !cx); if (cx) $('btnCook').textContent = cx === 'sei' ? '🍳 セイママと りょうり' : '🍳 りょうりする'; }
+    { const cx = cookCtxNow(); $('btnCook').classList.toggle('hidden', !cx); if (cx) $('btnCook').textContent = cx === 'sei' ? '🍳 セイママと りょうり' : cx === 'fire' ? '🔥 たきびで りょうり' : '🍳 りょうりする'; }
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
       S.playSec += dt;
@@ -2399,13 +2407,22 @@ requestAnimationFrame(frame);
 // ---------- りょうり ----------
 // どこで つくるか: 'home' = じぶんの おうち(おいた どうぐ) / 'sei' = セイママの だいどころ(いっしょに。はじめて つくる りょうりは ざいりょうを だしてくれる)
 let cookCtx = null;
+const SEASON_FIRE = ['autumn', 'snow', 'newyear'];
+const fireOn = () => !!(world.campfire && world.campfire.on);
+const nearFire = () => place === 'out' && fireOn() && Math.hypot(player.root.position.x - world.campfire.x, player.root.position.z - world.campfire.z) < 4.6;
+// やきいもタイム: あき・ふゆの ゆうがた、ひろばの たきびに みんなが あつまる
+const FIRE_TIME = [16.5, 18];
+const fireTime = () => fireOn() && gameHour() >= FIRE_TIME[0] && gameHour() < FIRE_TIME[1];
+const FIRE_GUESTS = ['poko', 'mei', 'sei', 'rin', 'pa', 'ku', 'nami', 'kuro'];
 function cookCtxNow() {
-  if (!S || !S.created || mode !== 'play' || sleeping || place !== 'in') return null;
+  if (!S || !S.created || mode !== 'play' || sleeping) return null;
+  if (place === 'out') return nearFire() ? 'fire' : null;
+  if (place !== 'in') return null;
   if (inKind === 'home') return homeTools(S).size ? 'home' : null;
   if (inKind === 'sei') { const P = npcs.sei; return P && P.root.visible && !P.schedPose ? 'sei' : null; }
   return null;
 }
-const cookTools = () => (cookCtx === 'sei' ? new Set(['burner', 'kitchen', 'oven']) : homeTools(S));
+const cookTools = () => (cookCtx === 'sei' ? new Set(['burner', 'kitchen', 'oven']) : cookCtx === 'fire' ? new Set(['fire']) : homeTools(S));
 function openCook(ctx) {
   if (mode !== 'play') return;
   cookCtx = ctx || cookCtxNow(); if (!cookCtx) return;
@@ -2434,6 +2451,8 @@ function renderCook() {
     const r = RECIPE_BY_ID[id]; if (!r) continue;
     const first = !c.made[id];
     if (cookCtx === 'sei' && !first) continue;
+    if (r.season && !r.season.includes(currentEvent()) && first) continue;
+    if (cookCtx === 'fire' && !toolOk(r.need, tools)) continue;
     const toolIs = toolOk(r.need, tools), miss = missingIng(S, r), free = cookCtx === 'sei';
     const ing = Object.entries(r.ing).map(([i, n]) => { const g = ingName(i), have = ingCount(S, i), ok = free || have >= n; return `<span style="color:${ok ? '#3e8c30' : '#d04a3a'}">${g.emoji}${g.name.replace(/「.*」/, '')} ${free ? '×' + n : have + '/' + n}</span>`; }).join('　');
     const reason = !toolIs ? `🔒 ${NEED_LABEL[r.need]}が ひつよう` : (!free && miss.length) ? 'ざいりょうが たりないよ' : '';
@@ -2466,12 +2485,23 @@ function finishDish(r, free) {
   if (res.first) addDiary(`${r.name}を はじめて つくった。${free ? 'セイママの だいどころで いっしょに。' : ''}`);
   if (res.levelUp) setTimeout(() => { toast(`🍳 りょうりレベルが ${res.levelUp} に なったよ！<br>「${COOK_LV[res.levelUp - 1].name}」`, 3600); sfx('catch'); }, 1800);
   questEvent('cook', r.id);
+  if (cookCtx === 'fire' && fireTime() && (r.id === 'yakiimo' || r.id === 'yakiguri')) fireShare(r);
   save(); $('cook').classList.remove('hidden'); renderCook();
+}
+// やきいもタイム: たきびの まわりの みんなで わけっこ (なかよし +2、いる ともだちの ぶん)
+function fireShare(r) {
+  const c = ensureCook(S); if ((c.dishes[r.id] || 0) <= 0) return;
+  const near = ORDER.filter(i => npcs[i].root.visible && !npcs[i].schedPose && npcs[i].root.position.x < 300 && Math.hypot(npcs[i].root.position.x - world.campfire.x, npcs[i].root.position.z - world.campfire.z) < 6.5);
+  if (!near.length) return;
+  c.dishes[r.id]--;
+  for (const id of near) { S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 2); const p = npcs[id].root.position; tmp.set(p.x, 2.2, p.z); spawnFx(world.group, 'heart', tmp, 0.9); }
+  setTimeout(() => toast(`${r.emoji} ${near.map(i => CHARS[i].name).join('・')}と わけっこ！「ほくほく〜」<br><small>なかよし ♥ +2</small>`, 3600), 2600);
+  addDiary(`たきびで ${r.name}を ${near.map(i => CHARS[i].name).join('・')}と わけっこした。`);
 }
 function eatDish(r) {
   const c = ensureCook(S); if ((c.dishes[r.id] || 0) <= 0) return;
   c.dishes[r.id]--; sfx('pick');
-  const near = ORDER.filter(i => npcs[i].root.visible && !npcs[i].schedPose && Math.hypot(npcs[i].root.position.x - player.root.position.x, npcs[i].root.position.z - player.root.position.z) < 9 && npcs[i].root.position.x > 300);
+  const near = ORDER.filter(i => npcs[i].root.visible && !npcs[i].schedPose && Math.hypot(npcs[i].root.position.x - player.root.position.x, npcs[i].root.position.z - player.root.position.z) < 9 && (place === 'in' ? npcs[i].root.position.x > 300 : npcs[i].root.position.x < 300));
   let msg = `${r.emoji} ${r.name}を たべたよ。${r.line}`;
   if (near.length) {
     for (const id of near) { S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 2); const p = npcs[id].root.position; tmp.set(p.x, 2.2, p.z); spawnFx(world.group, 'heart', tmp, 0.9); }
@@ -2502,4 +2532,4 @@ function teachTalk(id) {
 }
 
 // テスト用フック
-window.__poko = { openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { world, fireTime, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

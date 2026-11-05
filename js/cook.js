@@ -28,10 +28,11 @@ export const TOOLS = {
   burner: { name: 'キャンプ用シングルバーナー', emoji: '🔥', stage: 1, how: 'ゆでる・おゆを そそぐ' },
   kitchen: { name: 'ミニキッチン', emoji: '🍳', stage: 2, how: 'ゆでる・いためる・やく' },
   oven: { name: 'オーブン', emoji: '♨️', stage: 3, how: 'オーブンで やく' },
+  fire: { name: 'たきび', emoji: '🔥', stage: 0, how: 'やきいも・やきぐり' },
 };
 // need → それを まかなえる どうぐ
-export const NEED_TOOLS = { burner: ['burner', 'kitchen'], kitchen: ['kitchen'], oven: ['oven'] };
-export const NEED_LABEL = { burner: 'バーナー（テントから）', kitchen: 'ミニキッチン（こじんまりの おうちから）', oven: 'オーブン（おおきな おうち）' };
+export const NEED_TOOLS = { burner: ['burner', 'kitchen'], kitchen: ['kitchen'], oven: ['oven'], fire: ['fire', 'oven'] };
+export const NEED_LABEL = { burner: 'バーナー（テントから）', kitchen: 'ミニキッチン（こじんまりの おうちから）', oven: 'オーブン（おおきな おうち）', fire: 'たきび（あき・ふゆの ひろば）か オーブン' };
 
 // りょうりレベル (つくった りょうりの かず で あがる)
 export const COOK_LV = [
@@ -70,22 +71,31 @@ export const RECIPES = [
     tl: 'まぜすぎない ことが ひみつ。…ほ、ほんとは ポコに たべさせたくて おぼえたのよ。' },
   { id: 'cookie', emoji: '🍪', name: 'クッキー', ing: { flour: 1, butter: 1, sugar: 1 }, need: 'oven', lv: 3, teach: { who: 'mei', f: 4 }, line: 'さくさく あまい。おちゃが ほしくなるね', how: 'オーブンで やく',
     tl: 'バターと おさとうを よく まぜて、やくの。…おちゃの じかんに みんなで たべたいわ。' },
+  // ---- あき・ふゆの りょうり ----
+  { id: 'yakiimo', emoji: '🍠', name: 'やきいも', ing: { sweetpotato: 1 }, need: 'fire', lv: 1, teach: null, season: ['autumn', 'snow', 'newyear'], line: 'ほっくほく！ あまくて あつあつ〜！ ふーふー', how: 'たきびで やく' },
+  { id: 'yakiguri', emoji: '🌰', name: 'やきぐり', ing: { chestnut: 3 }, need: 'fire', lv: 1, teach: null, season: ['autumn', 'snow', 'newyear'], line: 'ぱちっ！ ほくほく あまい。あきの あじ〜', how: 'たきびで やく' },
+  { id: 'kurigohan', emoji: '🍚', name: 'くりごはん', ing: { chestnut: 3, rice: 1, salt: 1 }, need: 'burner', lv: 2, teach: { who: 'sei', f: 2 }, season: ['autumn', 'snow', 'newyear'], line: 'くりが ほくほく！ おこめが つやつやだね', how: 'ゆでる',
+    tl: 'くりは かわを むくのが たいへんなの。でも、あきの いちばんの ごちそうよ。いっしょに むきましょうね。' },
+  { id: 'daigaku', emoji: '🍠', name: 'だいがくいも', ing: { sweetpotato: 1, sugar: 1 }, need: 'kitchen', lv: 2, teach: { who: 'mei', f: 2 }, season: ['autumn', 'snow', 'newyear'], line: 'かりっ、とろっ！ あまくて やめられないね', how: 'いためる',
+    tl: 'さつまいもを あげて、おさとうで からめるの。…ポコが ほおばってる かおが すきだから、おぼえたのよ。' },
+  { id: 'momiji', emoji: '🍁', name: 'もみじの てんぷら', ing: { maple: 3, flour: 1, sugar: 1 }, need: 'kitchen', lv: 3, teach: { who: 'sei', f: 3 }, season: ['autumn'], line: 'さくさく うすあじ。もみじの かおりが するよ', how: 'あげる',
+    tl: 'もみじの てんぷらはね、むかしから つたわる あきの おやつなの。きれいな はを えらんで、ね。' },
 ];
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 
 // ともだち ごとの このみ (つくった りょうり)。のっていない りょうりは ふつうに「すき」
 export const COOK_PREFS = {
-  poko: { love: ['sasasoup', 'pancake', 'ramen', 'hotmilk'], dislike: [] },
-  mei: { love: ['pancake', 'cookie', 'tomatoegg'], dislike: ['sasasoup'] },
-  sei: { love: ['tomatosoup', 'herbtea', 'onigiri', 'eggporridge'], dislike: [] },
+  poko: { love: ['sasasoup', 'pancake', 'ramen', 'hotmilk', 'yakiimo'], dislike: [] },
+  mei: { love: ['pancake', 'cookie', 'tomatoegg', 'daigaku'], dislike: ['sasasoup'] },
+  sei: { love: ['tomatosoup', 'herbtea', 'onigiri', 'eggporridge', 'kurigohan', 'momiji'], dislike: [] },
   rin: { love: ['herbtea', 'cookie'], dislike: [] },
-  pa: { love: ['boilcarrot', 'sasasoup'], dislike: ['pancake'] },
+  pa: { love: ['boilcarrot', 'sasasoup', 'yakiguri'], dislike: ['pancake'] },
   ku: { love: ['hotmilk', 'potage'], dislike: [] },
-  haru: { love: ['cookie', 'boilcarrot'], dislike: [] },
-  nami: { love: ['ramen', 'onigiri'], dislike: [] },
+  haru: { love: ['cookie', 'boilcarrot', 'yakiguri'], dislike: [] },
+  nami: { love: ['ramen', 'onigiri', 'yakiimo'], dislike: [] },
   kuro: { love: ['herbtea', 'tamagoyaki'], dislike: [] },
   pon: { love: ['ramen', 'onigiri'], dislike: [] },
-  chao: { love: ['tomatosoup', 'tomatoegg'], dislike: [] },
+  chao: { love: ['tomatosoup', 'tomatoegg', 'yakiimo'], dislike: [] },
 };
 
 // ---- ロジック (S は セーブデータ) ----
@@ -93,7 +103,7 @@ export const freshCook = () => ({ xp: 0, recipes: ['boilcarrot', 'ramen'], made:
 export function ensureCook(S) {
   if (!S.cook || typeof S.cook !== 'object') S.cook = freshCook();
   const c = S.cook; c.xp = c.xp || 0; c.recipes = Array.isArray(c.recipes) ? c.recipes : []; c.made = c.made || {}; c.pantry = c.pantry || {}; c.dishes = c.dishes || {};
-  for (const id of ['boilcarrot', 'ramen']) if (!c.recipes.includes(id)) c.recipes.push(id);
+  for (const id of ['boilcarrot', 'ramen', 'yakiimo', 'yakiguri']) if (!c.recipes.includes(id)) c.recipes.push(id);
   return c;
 }
 // おうちに おいてある どうぐ (おいた かぐの なかで その おうちで つかえる もの)

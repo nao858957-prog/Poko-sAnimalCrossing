@@ -3,6 +3,7 @@ export const CROPS = {
   carrot: { id: 'carrot', emoji: '🥕', name: 'ニンジン', seed: 2, price: 4, grow: 6 * 60e3, yield: 2, note: 'はやく そだつ。6ぷんくらい' },
   tomato: { id: 'tomato', emoji: '🍅', name: 'トマト', seed: 5, price: 9, grow: 14 * 60e3, yield: 2, note: 'あまくて にんき。14ふんくらい' },
   strawberry: { id: 'strawberry', emoji: '🍓', name: 'いちご', seed: 8, price: 14, grow: 22 * 60e3, yield: 2, note: 'ケーキに ぴったり。22ふんくらい' },
+  sweetpotato: { id: 'sweetpotato', emoji: '🍠', name: 'さつまいも', seed: 6, price: 12, grow: 20 * 60e3, yield: 2, note: 'あきの あじ。やきいもに ぴったり。20ぷんくらい', season: ['autumn', 'snow', 'newyear'] },
   pumpkin: { id: 'pumpkin', emoji: '🎃', name: 'かぼちゃ', seed: 15, price: 40, grow: 40 * 60e3, yield: 1, note: 'おおきな ごちそう。40ぷんくらい' },
 };
 export const CROP_IDS = Object.keys(CROPS);
