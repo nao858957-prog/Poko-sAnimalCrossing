@@ -16,6 +16,9 @@ export const ITEMS = {
   tomato: { emoji: '🍅', name: 'トマト' },
   strawberry: { emoji: '🍓', name: 'いちご' },
   pumpkin: { emoji: '🎃', name: 'かぼちゃ' },
+  sweetpotato: { emoji: '🍠', name: 'さつまいも' },
+  maple: { emoji: '🍁', name: 'もみじ' },
+  chestnut: { emoji: '🌰', name: 'くり' },
 };
 export const PLACES = {
   beach: { name: 'うみべ', x: 0, z: 41 },

@@ -447,13 +447,14 @@ function autoEvent() {
   if (m === 7 && day <= 10) return 'tanabata';
   if (m === 8 && day >= 12 && day <= 16) return 'obon';
   if (m === 12 || m === 1 || m === 2) return 'snow';
+  if ((m === 9 && day >= 20) || m === 10 || m === 11) return 'autumn';
   return 'none';
 }
 function currentEvent() {
   const e = S.settings.event || 'auto';
   return e === 'auto' ? autoEvent() : e;
 }
-const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月' };
+const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月', autumn: 'もみじの きせつ' };
 function applyEvent() {
   world.setSeason(currentEvent());
 }

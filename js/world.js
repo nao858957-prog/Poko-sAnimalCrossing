@@ -44,6 +44,11 @@ export function buildWorld() {
   const obstacles = [];
   const flowers = [];
   const snowCaps = [];
+  const foliage = [];   // こうようで いろが かわる は (秋)
+  const autMats = {};
+  const AUTUMN = ['#e8643a', '#f08a2e', '#e2b72e', '#c9472f', '#d9a02a', '#b8cf3e'];
+  const fol = (m, au) => ({ m, baseMat: m.material, au });
+  const autumnOf = (x, z) => AUTUMN[Math.floor(Math.abs(Math.sin(x * 12.9898 + z * 78.233) * 43758.5453) % 1 * AUTUMN.length)];
   const r = rng(7);
 
   // 地面
@@ -83,8 +88,9 @@ export function buildWorld() {
     const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.4, 1.8, 8), trunkM);
     tr.position.y = 0.9; t.add(tr);
     const col = ['#58b84a', '#6cc455', '#4aa84a'][Math.floor(rr() * 3)];
-    add(t, sph(1.5, col, 1, 0.95, 1), 0, 2.7, 0);
-    add(t, sph(1.05, col, 1, 0.9, 1), 0.7, 3.4, 0.2);
+    const au = autumnOf(x, z);
+    foliage.push(fol(add(t, sph(1.5, col, 1, 0.95, 1), 0, 2.7, 0), autumnOf(x, z)));
+    foliage.push(fol(add(t, sph(1.05, col, 1, 0.9, 1), 0.7, 3.4, 0.2), autumnOf(x + 1, z)));
     const cap = sph(1.2, '#f4f8fc', 1.0, 0.5, 1.0); add(t, cap, 0, 3.7, 0); cap.visible = false; snowCaps.push(cap);
     if (fruit) for (let i = 0; i < 4; i++) add(t, sph(0.16, '#ff7a5c'), Math.cos(i * 1.7) * 1.2, 2.5 + (i % 2) * 0.5, Math.sin(i * 1.7) * 1.2);
     g.add(t);
@@ -295,11 +301,15 @@ export function buildWorld() {
     stone: () => { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.28), new THREE.MeshLambertMaterial({ color: '#7ad7ff', emissive: '#2a6a9a' })); m.position.y = 0.4; const g2 = new THREE.Group(); g2.add(m); return g2; },
     feather: () => { const m = new THREE.Group(); const f = sph(0.4, '#5ab8ff', 0.25, 1, 0.08); f.rotation.z = 0.5; add(m, f, 0, 0.5, 0); return m; },
     mushroom: () => { const m = new THREE.Group(); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.35, 8), mat('#fff4e0')); st.position.y = 0.18; m.add(st); add(m, sph(0.28, '#b58cff', 1, 0.7, 1), 0, 0.42, 0); const gl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: '#d9c4ff', transparent: true, opacity: 0.35 })); gl.position.y = 0.42; gl.scale.set(1.4, 1.1, 1.4); m.add(gl); return m; },
+    maple: () => { const m = new THREE.Group(); for (let i = 0; i < 3; i++) { const l = sph(0.2, ['#e8453a', '#f08a2e', '#d9a02a'][i], 1.1, 0.1, 1); l.rotation.y = i * 1.9; l.rotation.z = (i - 1) * 0.3; add(m, l, (i - 1) * 0.17, 0.12 + i * 0.02, (i % 2) * 0.1); } return m; },
+    chestnut: () => { const m = new THREE.Group(); add(m, sph(0.24, '#7a4a22', 1, 0.85, 1), 0, 0.22, 0); add(m, sph(0.17, '#c98a48', 1, 0.3, 1), 0, 0.12, 0.05); return m; },
     herb: () => { const m = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = sph(0.1, '#7fe05a', 0.35, 1.8, 0.35); b.rotation.z = (i - 1.5) * 0.35; add(m, b, (i - 1.5) * 0.1, 0.25, 0); } return m; },
   };
+  const SEASONAL = { maple: 'autumn', chestnut: 'autumn' };
   function itemSpot(kind, x, z) {
     const m = ITEM_DEF[kind](); m.position.set(x, 0, z); g.add(m);
-    items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6 });
+    items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6, season: SEASONAL[kind] || null, off: !!SEASONAL[kind] });
+    if (SEASONAL[kind]) m.visible = false;
   }
   const free = (x, z, pad = 0.8) => !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
   function scatter(kind, n, cx, cz, rx, rz, tries = 80) {
@@ -345,7 +355,7 @@ export function buildWorld() {
   const moss = new THREE.Mesh(new THREE.CircleGeometry(6, 36), mat('#69b358')); moss.rotation.x = -Math.PI / 2; moss.position.y = 0.011; tg.add(moss);
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(2.1, 2.5, 7, 20), mat('#7a5230')); trunk.position.y = 3.5; tg.add(trunk);
   for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2 + 0.3; const rt = add(tg, sph(0.7, '#6a4528', 2.4, 0.5, 0.9), Math.cos(a) * 2.7, 0.2, Math.sin(a) * 2.7); rt.rotation.y = -a; }
-  for (const [x, y, z, rr, c] of [[0, 8.4, 0, 3.7, '#4aa84a'], [-2.6, 7.7, 1.1, 2.7, '#58b84a'], [2.7, 7.8, -0.7, 2.8, '#6cc455'], [1, 9.9, 1.4, 2.5, '#58b84a'], [-1.4, 9.5, -1.8, 2.4, '#4aa84a'], [-3.6, 8.7, -1.5, 2.1, '#6cc455']]) add(tg, sph(rr, c, 1, 0.85, 1), x, y, z);
+  for (const [x, y, z, rr, c] of [[0, 8.4, 0, 3.7, '#4aa84a'], [-2.6, 7.7, 1.1, 2.7, '#58b84a'], [2.7, 7.8, -0.7, 2.8, '#6cc455'], [1, 9.9, 1.4, 2.5, '#58b84a'], [-1.4, 9.5, -1.8, 2.4, '#4aa84a'], [-3.6, 8.7, -1.5, 2.1, '#6cc455']]) foliage.push(fol(add(tg, sph(rr, c, 1, 0.85, 1), x, y, z), autumnOf(x * 3, y)));
   for (let i = 0; i < 16; i++) { const a = r2() * 6.28, h = 7 + r2() * 3.6; add(tg, sph(0.16, i % 3 ? '#ffe0ea' : '#ffffff'), Math.cos(a) * (2.4 + r2() * 2), h, Math.sin(a) * (2.4 + r2() * 2) + 0.8); }
   { // みなみの ほらあな (かざり。なかには はいれない)
     const sh = new THREE.Shape(); sh.moveTo(-0.85, 0); sh.lineTo(-0.85, 1.2); sh.absarc(0, 1.2, 0.85, Math.PI, 0, true); sh.lineTo(0.85, 0); sh.closePath();
@@ -555,6 +565,13 @@ export function buildWorld() {
   const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute('position', new THREE.BufferAttribute(snowArr, 3));
   const snowPts = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 5, sizeAttenuation: false, transparent: true, opacity: 0.9, depthWrite: false }));
   snowPts.visible = false; snowPts.frustumCulled = false; g.add(snowPts);
+  // おちば (あき)
+  const NL = 220, leafArr = new Float32Array(NL * 3), leafCol = new Float32Array(NL * 3), LC = ['#e8453a', '#f08a2e', '#e2b72e', '#c9472f', '#d9a02a'].map(c => new THREE.Color(c));
+  for (let i = 0; i < NL; i++) { leafArr[i * 3] = -22 + (r() - 0.5) * 130; leafArr[i * 3 + 1] = r() * 16; leafArr[i * 3 + 2] = (r() - 0.5) * 70; const c = LC[i % LC.length]; leafCol[i * 3] = c.r; leafCol[i * 3 + 1] = c.g; leafCol[i * 3 + 2] = c.b; }
+  const leafGeo = new THREE.BufferGeometry(); leafGeo.setAttribute('position', new THREE.BufferAttribute(leafArr, 3)); leafGeo.setAttribute('color', new THREE.BufferAttribute(leafCol, 3));
+  const leafTex = (() => { try { const cv = document.createElement('canvas'); cv.width = cv.height = 32; const c = cv.getContext('2d'); c.fillStyle = '#fff'; c.beginPath(); c.moveTo(16, 2); c.bezierCurveTo(30, 8, 30, 24, 16, 30); c.bezierCurveTo(2, 24, 2, 8, 16, 2); c.fill(); c.strokeStyle = '#0006'; c.lineWidth = 2; c.beginPath(); c.moveTo(16, 6); c.lineTo(16, 28); c.stroke(); return new THREE.CanvasTexture(cv); } catch (e) { return null; } })();
+  const leafPts = new THREE.Points(leafGeo, new THREE.PointsMaterial({ size: 11, sizeAttenuation: false, vertexColors: true, map: leafTex, alphaTest: 0.4, transparent: true, depthWrite: false }));
+  leafPts.visible = false; leafPts.frustumCulled = false; g.add(leafPts);
   let curEvent = 'none', curNight = 0;
   function setSeason(ev) {
     curEvent = ev;
@@ -567,6 +584,11 @@ export function buildWorld() {
     grassMat.color.set(snowy ? '#eef5fb' : '#8fd36e');
     patchMats[0].color.set(snowy ? '#dfe9f3' : '#82c862'); patchMats[1].color.set(snowy ? '#f6fafe' : '#9adc78');
     sandMat.color.set(snowy ? '#f3efe6' : '#f4e2b0');
+    const aut = ev === 'autumn';
+    leafPts.visible = aut;
+    for (const f of foliage) f.m.material = aut ? (autMats[f.au] || (autMats[f.au] = new THREE.MeshLambertMaterial({ color: f.au }))) : f.baseMat;
+    if (aut) { grassMat.color.set('#b4cf68'); patchMats[0].color.set('#a6c45a'); patchMats[1].color.set('#c2d776'); sandMat.color.set('#f0dcaa'); }
+    for (const it of items) if (it.season) { it.off = it.season !== ev; if (it.off) it.mesh.visible = false; else if (it.back <= 0) it.mesh.visible = true; }
   }
 
   // くも
@@ -629,6 +651,7 @@ export function buildWorld() {
     foamMat.opacity = 0.45 + Math.sin(t * 1.4) * 0.15;
     chimes.forEach((c, i) => { c.rotation.z = Math.sin(t * 2 + i * 1.3) * 0.12; });
     for (const it of items) {
+      if (it.off) { it.mesh.visible = false; continue; }
       if (it.back > 0) { it.back -= dt; if (it.back <= 0) it.mesh.visible = true; }
       if (it.mesh.visible) { it.mesh.position.y = Math.sin(t * 2 + it.ph) * 0.06 + 0.05; it.mesh.rotation.y = t * 0.8 + it.ph; }
     }
@@ -638,6 +661,15 @@ export function buildWorld() {
         let y = a.getY(i) - dt * (1.2 + (i % 5) * 0.2);
         if (y < 0) y += 22;
         a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(t + i) * dt * 0.3);
+      }
+      a.needsUpdate = true;
+    }
+    if (leafPts.visible) {
+      const a = leafGeo.attributes.position;
+      for (let i = 0; i < NL; i++) {
+        let y = a.getY(i) - dt * (0.9 + (i % 4) * 0.25);
+        if (y < 0) y += 16;
+        a.setY(i, y); a.setX(i, a.getX(i) + Math.sin(t * 0.8 + i * 1.7) * dt * 1.1);
       }
       a.needsUpdate = true;
     }
@@ -663,6 +695,8 @@ export function buildWorld() {
     o.material.polygonOffsetFactor = -2 - o.position.y * 200;
     o.material.polygonOffsetUnits = -2 - o.position.y * 200;
   });
+  scatter('maple', 16, 0, 0, 30, 24, 300); scatter('maple', 8, -64, 2, 14, 14, 160); scatter('maple', 4, -82, 6, 8, 8, 80);
+  scatter('chestnut', 8, 0, -28, 20, 4, 160); scatter('chestnut', 4, -26, -24, 5, 4, 80); scatter('chestnut', 5, -64, 2, 14, 14, 120);
   return { group: g, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
