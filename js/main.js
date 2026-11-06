@@ -7,7 +7,7 @@ import { Theater, SCENES } from './theater.js';
 import { cookSfx, initAudio, setBgm, setBgmMode, setVoice, sfx, speak, stopSpeak, duck, setSound, isAudioRunning } from './audio.js';
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
-import { fanOf, fanLine } from './fans.js';
+import { fanOf, fanLine, fanGreeting, fanTopic } from './fans.js';
 import { playCookAct } from './cookact.js';
 import { INGR, RECIPES, RECIPE_BY_ID, TOOLS, NEED_LABEL, COOK_LV, cookLevel, cookNext, ensureCook, freshCook, homeTools, toolOk, missingIng, cookDish, teachStatus, ingName, ingCount } from './cook.js';
 import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
@@ -1658,8 +1658,11 @@ function openChat(id) {
     const fan = fanOf(S.avatar.name), t = todayKey();
     if (fan) {
       if (!S.fanSeen || S.fanSeen.date !== t) S.fanSeen = { date: t };
-      const fl = fanLine(fan, id, S.avatar.name);
-      if (fl && !S.fanSeen[id]) { S.fanSeen[id] = true; setTimeout(() => { if (chatNpc === id) npcSay(id, fl); }, d); d += 2600; }
+      if (!S.fanSeen[id]) {
+        if (!S.fanMem) S.fanMem = {};
+        const fl = fanGreeting(fan, id, S.avatar.name, S.fanMem);
+        if (fl) { S.fanSeen[id] = true; save(); setTimeout(() => { if (chatNpc === id) npcSay(id, fl); }, d); d += 2600; }
+      }
     }
   }
   if (place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) && mealAt(gameHour()) && npcs[id].still) {
@@ -1744,6 +1747,7 @@ function send(text) {
   const typing = addMsg(id, 'npc', '…', 'typing');
   const ctx = ctxFor(id);
   let r = reply(id, text, ctx);
+  { const fan = fanOf(S.avatar.name), ft = fan && fanTopic(fan, id, text, S.avatar.name); if (ft) r = { text: ft, key: 'fan' }; }   // コメントを くれる ひとだけの おはなし
   if (/(おねがい|ミッション|たのみ|お願い|依頼|てつだ|手伝)/.test(text)) r = { text: '__quest__', key: 'quest' };
   if (r.key === 'story' || r.key === 'story-locked') {
     const rr = story(id, ctx);
@@ -2533,4 +2537,4 @@ function teachTalk(id) {
 }
 
 // テスト用フック
-window.__poko = { world, fireTime, npcPos: id => { const q = npcs[id].root; return [q.visible, q.position.x, q.position.z]; }, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { world, fireTime, openChat, npcPos: id => { const q = npcs[id].root; return [q.visible, q.position.x, q.position.z]; }, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
