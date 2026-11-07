@@ -8,6 +8,7 @@ import { cookSfx, initAudio, setBgm, setBgmMode, setVoice, sfx, speak, stopSpeak
 import { FOODS, CLOTHES } from './shop.js';
 import { QUESTS, DAILY, ITEMS, PLACES } from './missions.js';
 import { fanOf, fanLine, fanGreeting, fanTopic } from './fans.js';
+import { VIDEOS, VIDEO_BY_ID, CHANNEL_URL, videoUrl, thumbUrl, VIDEO_RX, VIDEO_CHIP, VIDEO_TALK, pickVideo } from './videos.js';
 import { playCookAct } from './cookact.js';
 import { INGR, RECIPES, RECIPE_BY_ID, TOOLS, NEED_LABEL, COOK_LV, cookLevel, cookNext, ensureCook, freshCook, homeTools, toolOk, missingIng, cookDish, teachStatus, ingName, ingCount } from './cook.js';
 import { MEALS, MEAL_BY_ID, mealAt, whereIs, hhmm, MEAL_LINES, MEAL_BONUS } from './schedule.js';
@@ -1100,6 +1101,7 @@ function renderChips(id) {
   const chipList = chipsFor(id);
   if (hasQuestTalk(id)) chipList.unshift(['q', 'おねがい ある？']);
   if (id === 'sei' || id === 'mei') chipList.unshift(['cooktalk', COOK_CHIP]);
+  chipList.push(['video', VIDEO_CHIP]);
   for (const [key, label] of chipList) {
     const b = document.createElement('button');
     b.textContent = label;
@@ -1661,7 +1663,7 @@ function openChat(id) {
       if (!S.fanSeen[id]) {
         if (!S.fanMem) S.fanMem = {};
         const fl = fanGreeting(fan, id, S.avatar.name, S.fanMem);
-        if (fl) { S.fanSeen[id] = true; save(); setTimeout(() => { if (chatNpc === id) npcSay(id, fl); }, d); d += 2600; }
+        if (fl) { S.fanSeen[id] = true; save(); setTimeout(() => { if (chatNpc === id) { npcSay(id, fl.text); if (fl.vid) addVideoCard(fl.vid); } }, d); d += 2600; }
       }
     }
   }
@@ -1747,7 +1749,8 @@ function send(text) {
   const typing = addMsg(id, 'npc', '…', 'typing');
   const ctx = ctxFor(id);
   let r = reply(id, text, ctx);
-  { const fan = fanOf(S.avatar.name), ft = fan && fanTopic(fan, id, text, S.avatar.name); if (ft) r = { text: ft, key: 'fan' }; }   // コメントを くれる ひとだけの おはなし
+  { const fan = fanOf(S.avatar.name), ft = fan && fanTopic(fan, id, text, S.avatar.name); if (ft) r = { text: ft.text, key: 'fan', vid: ft.vid }; }
+  if (!r.vid && VIDEO_RX.test(text) && r.key !== 'quest') r = { text: fillN(VIDEO_TALK[id] || VIDEO_TALK.poko, id), key: 'video', vid: pickVideo().id };   // コメントを くれる ひとだけの おはなし
   if (/(おねがい|ミッション|たのみ|お願い|依頼|てつだ|手伝)/.test(text)) r = { text: '__quest__', key: 'quest' };
   if (r.key === 'story' || r.key === 'story-locked') {
     const rr = story(id, ctx);
@@ -1759,6 +1762,7 @@ function send(text) {
     if (chatNpc !== id) { waiting = false; return; }
     if (r.key === 'quest') { waiting = false; questTalk(id, true); renderChips(id); return; }
     addMsg(id, 'npc', r.text); logPush(id, 'npc', r.text);
+    if (r.vid) addVideoCard(r.vid);
     speak(r.text, CHARS[id].voice); sfx('recv');
     npcs[id].hop = 0.7;
     gainChat(id, r.key === 'fb' ? 1 : r.key === 'gate' ? 0 : 2, r.text.length);
@@ -1978,7 +1982,28 @@ function openMenu() {
   $('menu').classList.remove('hidden');
 }
 $('btnMenu').onclick = () => { initAudio(); sfx('tap'); openMenu(); };
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer', 'invite'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+// どうがの カード (サムネイル + タイトル)。タップで YouTube が ひらく
+function videoCard(v, big) {
+  const a = document.createElement('a');
+  a.className = 'vcard' + (big ? ' big' : ''); a.href = videoUrl(v.id); a.target = '_blank'; a.rel = 'noopener noreferrer';
+  a.innerHTML = `<img src="${thumbUrl(v.id)}" alt="" loading="lazy" referrerpolicy="no-referrer"><div class="vc-t"><b>${v.title.replace(/[<>&]/g, '')}</b><small>${v.date.replace(/-/g, '/')}${v.note ? '　' + v.note : ''}</small><span class="vc-go">▶ YouTubeで みる</span></div>`;
+  a.addEventListener('click', () => { sfx('tap'); track('video-click'); track('video-' + v.id); });
+  return a;
+}
+function addVideoCard(vid) {
+  const v = VIDEO_BY_ID[vid]; if (!v) return;
+  const d = document.createElement('div'); d.className = 'msg vid'; d.appendChild(videoCard(v, false));
+  $('chatLog').appendChild(d); $('chatLog').scrollTop = 1e6;
+}
+function renderVideos() {
+  const box = $('vidList'); box.innerHTML = '';
+  for (const v of VIDEOS) box.appendChild(videoCard(v, true));
+  const ch = document.createElement('a'); ch.className = 'big vch'; ch.href = CHANNEL_URL; ch.target = '_blank'; ch.rel = 'noopener noreferrer';
+  ch.textContent = '📺 ほかの どうがも みる・チャンネルとうろく';
+  ch.addEventListener('click', () => { sfx('tap'); track('video-channel'); });
+  box.appendChild(ch);
+}
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer', 'invite', 'videos'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -1991,6 +2016,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'dex') { renderDex(); showPanel('dex'); }
   else if (act === 'diary') { renderDiary(); showPanel('diary'); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
+  else if (act === 'videos') { renderVideos(); showPanel('videos'); track('video-menu'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'transfer') { openTransfer(); showPanel('transfer'); }
   else if (act === 'invite') { renderInvite(); showPanel('invite'); }

@@ -464,3 +464,21 @@ html, body, #c { touch-action: none; }
 @keyframes caFoil { from { transform: translateY(-4.2rem) rotate(-30deg); opacity: 0; } 60% { opacity: 1; } to { transform: none; opacity: 1; } }
 @keyframes caPoke { from { transform: rotate(0); } to { transform: rotate(-9deg) translateX(-6px); } }
 @keyframes caSpark { 0% { transform: translate(0, 0); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(var(--dx, 10px), -4.6rem); opacity: 0; } }
+
+/* どうがの カード・メニュー */
+.vcard { display: flex; gap: .6rem; align-items: center; text-decoration: none; color: var(--ink); background: #fff; border: 3px solid #f0d9a8; border-radius: 1.1rem; padding: .4rem; }
+.vcard img { width: 7.2rem; aspect-ratio: 16 / 9; object-fit: cover; border-radius: .7rem; background: #e8dcc0; flex: none; }
+.vc-t { display: flex; flex-direction: column; gap: .15rem; min-width: 0; }
+.vc-t b { font-size: .9rem; line-height: 1.35; font-weight: 800; }
+.vc-t small { font-size: .72rem; opacity: .75; }
+.vc-go { align-self: flex-start; background: #ff4a4a; color: #fff; border-radius: 99px; padding: .15rem .7rem; font-size: .78rem; font-weight: 800; }
+.msg.vid { align-self: stretch; max-width: 100%; padding: 0; background: none; border: 0; }
+.msg.vid .vcard { border-color: #ffb4b4; }
+#vidList { display: flex; flex-direction: column; gap: .5rem; overflow-y: auto; max-height: 52dvh; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+a.big.vch, #btnYt { display: block; text-align: center; text-decoration: none; }
+#btnYt { background: #fff; color: #c8312c; border: 4px solid #ffb4b4; border-radius: 99px; padding: .9rem 1rem; font-size: 1.05rem; font-weight: 800; }
+a.big.vch { background: #ff4a4a; color: #fff; border: 4px solid #fff; border-radius: 99px; padding: .8rem 1rem; font-size: 1rem; font-weight: 800; box-shadow: 0 4px 0 #c8312c; }
+#vidList > * { flex: 0 0 auto; }
+#videos .panel { overflow: hidden; }
+#videos .panel > * { flex-shrink: 0; }
+#vidList { flex: 1 1 auto !important; min-height: 0; }
