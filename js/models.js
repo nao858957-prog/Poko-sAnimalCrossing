@@ -538,7 +538,7 @@ export function makeAvatar(a) {
     const LC = ['#e8453a', '#f08a2e', '#e2b72e', '#c9472f', '#f08a2e', '#e8453a', '#e2b72e'];
     for (let i = 0; i < 7; i++) {
       const an = i / 7 * Math.PI * 2 + 0.3, gp = new THREE.Group(); gp.position.set(Math.cos(an) * 0.64, 0.72, Math.sin(an) * 0.64 - 0.02); gp.rotation.y = Math.PI / 2 - an;
-      const lf = sph(0.15, LC[i], 1, 0.3, 1.05); lf.position.set(0, 0.04, 0.05); lf.rotation.x = -0.5; gp.add(lf);
+      const lf = sph(0.14, LC[i], 1, 0.62, 1); lf.position.set(0, 0.05, 0.04); lf.rotation.x = -0.25; gp.add(lf);
       head.add(gp);
     }
   } else if (H === 'beret') {
