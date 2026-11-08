@@ -2,6 +2,7 @@
 //   あたらしい どうがが でたら VIDEOS の いちばん うえに 1ぎょう たすだけ！ (id は URLの v= のあと)
 export const CHANNEL_URL = 'https://www.youtube.com/@pokoslittledays';
 export const VIDEOS = [
+  { id: 'Eb9ro0WGSP4', date: '2026-11-07', title: '【まさかの自分ごとイン】どんぐり玉入れでカゴにダイブしたパンダのポコ', note: 'どんぐり たまいれ と やきいも' },
   { id: 'f1DL6ApH2H0', date: '2026-11-03', title: 'ちょっと見るだけのはずが…もみじの坂をころころ', note: 'ころころ ころがる ポコ' },
   { id: 'GxIwey2a_48', date: '2026-10-31', title: '柿に届かなかったポコ、最後は柿を抱いて寝落ち', note: 'おじさんすわりで もぐもぐ' },
   { id: '5W7opYoD2kU', date: '2026-10-27', title: 'もみじの切り株で、お顔をかくして眠るポコ｜パンダの日', note: 'まんまる ねむり' },
