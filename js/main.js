@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS } from './models.js';
+import { makeAnimal, makeAvatar, animate, faceDir, makeLabel, spawnFx, updateFx, AVATAR_OPTS, addSantaGear, setSanta } from './models.js';
 import { STAGES, STYLES, STYLE_BY_ID, FURN, FURN_BY_ID, HomeRoom, HOME_LINES } from './home.js';
 import { buildWorld, buildInterior, ISLAND_R, HOMES, LAND, HOME_PLOT, FARM, landDepth, clampLand, shoreNormal } from './world.js';
 import { CHARS, ORDER, openLine, reply, level, chipsFor, story, giftLine, lvupLine, CHIPS, timePart, TIERS, MAX_PTS, toNext, fillFor, giftReaction } from './dialogue.js';
@@ -117,6 +117,7 @@ function spawnNpcs() {
     const lab = makeLabel(CHARS[id].name, CHARS[id].color);
     lab.position.set(0, (P.headY + P.hr) * P.scale + 0.8, 0);
     P.root.add(lab);
+    addSantaGear(P);
     P.root.traverse(o => { o.userData.npc = id; });
     world.group.add(P.root);
     npcs[id] = P;
@@ -459,6 +460,7 @@ function currentEvent() {
 const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月', autumn: 'もみじの きせつ', xmas: 'クリスマス' };
 function applyEvent() {
   world.setSeason(currentEvent());
+  for (const id of ORDER) if (npcs[id]) setSanta(npcs[id], currentEvent() === 'xmas');   // サンタの かっこう
   if (S && S.created) syncTree();
 }
 

@@ -785,6 +785,23 @@ export function updateFx(dt) {
   }
 }
 
+
+// サンタの ぼうし と まっかな えりまき (クリスマスの あいだ ポコたちが きる)
+export function addSantaGear(P) {
+  const hr = P.hr, br = P.br || 0.5;
+  const hat = new THREE.Group();
+  const cone = new THREE.Mesh(new THREE.ConeGeometry(hr * 0.66, hr * 1.1, 16), mat('#e8353a')); cone.position.set(0, hr * 1.05, -hr * 0.12); cone.rotation.x = -0.34; hat.add(cone);
+  const brim = new THREE.Mesh(new THREE.TorusGeometry(hr * 0.66, hr * 0.13, 8, 20), mat('#ffffff')); brim.rotation.x = Math.PI / 2 - 0.2; brim.position.set(0, hr * 0.56, -hr * 0.02); hat.add(brim);
+  add(hat, sph(hr * 0.19, '#ffffff'), 0, hr * 1.5, -hr * 0.58);
+  hat.visible = false; P.head.add(hat); P.santaHat = hat;
+  const sc = new THREE.Group();
+  const t = new THREE.Mesh(new THREE.TorusGeometry(br * 0.72, br * 0.13, 8, 22), mat('#e8353a')); t.rotation.x = Math.PI / 2; t.position.set(0, P.cy + br * 0.72, 0.03); sc.add(t);
+  const tail = new THREE.Mesh(new THREE.BoxGeometry(br * 0.3, br * 0.7, br * 0.1), mat('#e8353a')); tail.position.set(br * 0.28, P.cy + br * 0.38, br * 0.7); tail.rotation.z = 0.12; sc.add(tail);
+  const tip = new THREE.Mesh(new THREE.BoxGeometry(br * 0.3, br * 0.1, br * 0.11), mat('#ffffff')); tip.position.set(br * 0.31, P.cy + br * 0.06, br * 0.7); tip.rotation.z = 0.12; sc.add(tip);
+  sc.visible = false; P.body.add(sc); P.santaScarf = sc;
+}
+export function setSanta(P, on) { if (P.santaHat) P.santaHat.visible = on; if (P.santaScarf) P.santaScarf.visible = on; }
+
 // ニット帽 (初雪のポコの赤い帽子)
 export function addHat(P, color) {
   const hr = P.hr;
