@@ -447,6 +447,7 @@ function autoEvent() {
   if (m === 1 && day <= 7) return 'newyear';
   if (m === 7 && day <= 10) return 'tanabata';
   if (m === 8 && day >= 12 && day <= 16) return 'obon';
+  if ((m === 11 && day >= 25) || (m === 12 && day <= 26)) return 'xmas';
   if (m === 12 || m === 1 || m === 2) return 'snow';
   if ((m === 9 && day >= 20) || m === 10 || m === 11) return 'autumn';
   return 'none';
@@ -455,7 +456,7 @@ function currentEvent() {
   const e = S.settings.event || 'auto';
   return e === 'auto' ? autoEvent() : e;
 }
-const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月', autumn: 'もみじの きせつ' };
+const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月', autumn: 'もみじの きせつ', xmas: 'クリスマス' };
 function applyEvent() {
   world.setSeason(currentEvent());
 }
@@ -595,12 +596,13 @@ function renderShop() {
       }
     }
   } else {
-    const seasonOn = SEASON_FIRE.includes(currentEvent());
-    let seasonHead = false;
-    for (const c of [...CLOTHES.filter(x => !x.season), ...CLOTHES.filter(x => x.season)]) {
+    const evNow = currentEvent(), seasonOn = SEASON_FIRE.includes(evNow), xmasOn = evNow === 'xmas';
+    let seasonHead = false, xmasHead = false;
+    for (const c of [...CLOTHES.filter(x => !x.season), ...CLOTHES.filter(x => x.season === true), ...CLOTHES.filter(x => x.season === 'xmas')]) {
       if (c.quest && !S.owned.includes(c.id)) continue;
-      if (c.season && !seasonOn && !S.owned.includes(c.id)) continue;
-      if (c.season && !seasonHead) { seasonHead = true; shopHead(box, '🍁 あき・ふゆの コーデ'); }
+      if (c.season && !(c.season === 'xmas' ? xmasOn : seasonOn) && !S.owned.includes(c.id)) continue;
+      if (c.season === 'xmas') { if (!xmasHead) { xmasHead = true; shopHead(box, '🎄 クリスマスの コーデ'); } }
+      else if (c.season && !seasonHead) { seasonHead = true; shopHead(box, '🍁 あき・ふゆの コーデ'); }
       const d = document.createElement('div'); d.className = 'item';
       const own = S.owned.includes(c.id), worn = S.avatar[SLOT_KEY[c.slot]] === c.id;
       d.innerHTML = `<span class="e">${c.emoji}</span><div class="n">${c.name}<small>${own ? 'もっている' : '🌼 ' + c.price}</small></div>`;
@@ -890,9 +892,10 @@ function updateNpcs(dt) {
       P.wait -= dt;
       if (!P.target && P.wait <= 0 && !P.still) {
         const a = Math.random() * 6.28, r = Math.random() * (place === 'in' && inKind === 'home' && P.root.position.x > 300 ? 2.0 : place === 'in' && inKind === 'sei' && HOUSE_NPC.includes(id) ? 1.2 : id === 'pon' ? 1.0 : id === 'sei' ? 1.5 : (WANDER_R[id] || 3.5));
-        if (place === 'out' && FIRE_GUESTS.includes(id) && P.root.position.x < 300 && fireTime()) {
-          const k = FIRE_GUESTS.indexOf(id), ga = k / FIRE_GUESTS.length * Math.PI * 2 + Math.random() * 0.4, gr = 2.4 + Math.random() * 0.9;
-          P.target = new THREE.Vector2(world.campfire.x + Math.cos(ga) * gr, world.campfire.z + Math.sin(ga) * gr);
+        if (place === 'out' && FIRE_GUESTS.includes(id) && P.root.position.x < 300 && (xmasTime() || fireTime())) {
+          const sp = xmasTime() ? world.xmasTree : world.campfire;
+          const k = FIRE_GUESTS.indexOf(id), ga = k / FIRE_GUESTS.length * Math.PI * 2 + Math.random() * 0.4, gr = 2.6 + Math.random() * 0.9;
+          P.target = new THREE.Vector2(sp.x + Math.cos(ga) * gr, sp.z + Math.sin(ga) * gr);
         } else P.target = new THREE.Vector2(P.home.x + Math.cos(a) * r, P.home.y + Math.sin(a) * r);
       }
       if (P.target) {
@@ -1290,8 +1293,12 @@ function showDailyNotice() {
   const calling = ORDER.filter(id => questsOf(id, 'available').length || dailyPossible(id)).map(id => CHARS[id].name);
   const ready = QS().filter(q => qStatus(q) === 'ready').length;
   const tips = ['ともだちに プレゼントを すると、このみに あうと とっても よろこぶよ。', 'おしゃべりは 1にち すこしずつ。まいにち あいにくると、ゆっくり なかよくなれるよ。', 'よるの とうだいは、とくべつな ふんいき。ほしを みに いってみよう。', 'おみせで 「もちかえる」と、ともだちへの プレゼントに できるよ。', 'つかれたら 「ねる」で ひとやすみ。ポコが となりに きてくれるかも。'];
+  const nowD = new Date(), xday = nowD.getMonth() === 11 && (nowD.getDate() === 24 || nowD.getDate() === 25);
+  let xgift = '';
+  if (xday && currentEvent() === 'xmas' && S.xmasGift !== t) { S.xmasGift = t; S.flowers += 30; $('flowerCount').textContent = '🌼 ' + S.flowers; xgift = '<p>🎁 <b>メリークリスマス！</b> ポコたちから おはなの プレゼント <b>🌼 +30</b></p>'; addDiary('クリスマス。ポコたちから おはなの プレゼントを もらった。'); }
   $('toast').classList.add('hidden');
   $('dailyBody').innerHTML = `<p class="dt">📅 ${fmtDate(t)}${ev ? '　<b>' + ev + '</b>' : ''}</p><p>あそび はじめて <b>${S.days}日め</b>。</p>` +
+    xgift +
     (calling.length ? `<p>❗ ${calling.slice(0, 5).join('・')}${calling.length > 5 ? ' ほか' : ''} が あなたを まっているよ。</p>` : '') +
     (ready ? `<p>？ ほうこくできる おねがいが ${ready}けん あるよ。</p>` : '') +
     `<p class="tip">💡 ${tips[(S.days + new Date().getDate()) % tips.length]}</p>`;
@@ -2372,7 +2379,7 @@ function frame(now) {
     if (S) {
       const h = gameHour();
       applySky(h);
-      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], fireTime() ? '🍠 やきいもタイム' : '', mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); }
+      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], xmasTime() ? '🎄 ツリータイム' : fireTime() ? '🍠 やきいもタイム' : '', mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); checkTree(); }
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
@@ -2438,13 +2445,25 @@ requestAnimationFrame(frame);
 // ---------- りょうり ----------
 // どこで つくるか: 'home' = じぶんの おうち(おいた どうぐ) / 'sei' = セイママの だいどころ(いっしょに。はじめて つくる りょうりは ざいりょうを だしてくれる)
 let cookCtx = null;
-const SEASON_FIRE = ['autumn', 'snow', 'newyear'];
+const SEASON_FIRE = ['autumn', 'snow', 'newyear', 'xmas'];
 const fireOn = () => !!(world.campfire && world.campfire.on);
 const nearFire = () => place === 'out' && fireOn() && Math.hypot(player.root.position.x - world.campfire.x, player.root.position.z - world.campfire.z) < 4.6;
 // やきいもタイム: あき・ふゆの ゆうがた、ひろばの たきびに みんなが あつまる
 const FIRE_TIME = [16.5, 18];
 const fireTime = () => fireOn() && gameHour() >= FIRE_TIME[0] && gameHour() < FIRE_TIME[1];
 const FIRE_GUESTS = ['poko', 'mei', 'sei', 'pa', 'ku', 'nami', 'kuro'];
+// ツリータイム: クリスマスの ゆうがた、ひろばの ツリーに みんなが あつまる。ちかくで みると なかよし +2 (1にち 1かい)
+const xmasTime = () => !!(world.xmasTree && world.xmasTree.on) && gameHour() >= FIRE_TIME[0] && gameHour() < FIRE_TIME[1];
+function checkTree() {
+  if (!xmasTime() || place !== 'out' || mode !== 'play') return;
+  const T = world.xmasTree, pp = player.root.position;
+  if (Math.hypot(pp.x - T.x, pp.z - T.z) > 6) return;
+  if (!S.treeDay || S.treeDay.date !== todayKey()) S.treeDay = { date: todayKey() };
+  const got = ORDER.filter(i => npcs[i].root.visible && !npcs[i].schedPose && !S.treeDay[i] && Math.hypot(npcs[i].root.position.x - T.x, npcs[i].root.position.z - T.z) < 6.5);
+  if (!got.length) return;
+  for (const id of got) { S.treeDay[id] = 1; S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + 2); const q = npcs[id].root.position; tmp.set(q.x, 2.2, q.z); spawnFx(world.group, 'heart', tmp, 0.9); }
+  sfx('heart'); toast(`🎄 ${got.map(i => CHARS[i].name).join('・')}と ツリーを みたよ<br><small>なかよし ♥ +2</small>`, 3400); save();
+}
 function cookCtxNow() {
   if (!S || !S.created || mode !== 'play' || sleeping) return null;
   if (place === 'out') return nearFire() ? 'fire' : null;

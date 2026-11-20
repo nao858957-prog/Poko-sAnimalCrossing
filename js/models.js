@@ -553,6 +553,18 @@ export function makeAvatar(a) {
     k.scale.set(0.7, 0.58, 0.7); k.position.set(0, 0.66, -0.02); k.rotation.x = -0.1; head.add(k);
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.69, 0.09, 8, 22), mat('#c9d4e0')); band.rotation.x = Math.PI / 2 - 0.1; band.position.set(0, 0.66, -0.02); head.add(band);
     add(head, sph(0.19, '#ffffff'), 0, 1.3, -0.08);
+  } else if (H === 'santahat') {
+    const k = new THREE.Mesh(new THREE.ConeGeometry(0.66, 0.95, 16), mat('#e8353a')); k.position.set(0, 0.98, -0.12); k.rotation.x = -0.32; head.add(k);
+    const br = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.11, 8, 22), mat('#ffffff')); br.rotation.x = Math.PI / 2 - 0.12; br.position.set(0, 0.68, -0.02); head.add(br);
+    add(head, sph(0.17, '#ffffff'), 0, 1.38, -0.55);
+  } else if (H === 'reindeer') {
+    const hb = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.045, 6, 24, Math.PI), mat('#8a5a2a')); hb.position.set(0, 0.2, -0.02); head.add(hb);
+    for (const sd of [-1, 1]) {
+      const an = new THREE.Group(); an.position.set(sd * 0.42, 0.88, -0.05); an.rotation.z = -sd * 0.35; head.add(an);
+      const m1 = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.55, 6), mat('#8a5a2a')); m1.position.y = 0.27; an.add(m1);
+      for (const [yy, rz] of [[0.2, 0.9], [0.42, 0.9]]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.26, 6), mat('#8a5a2a')); b.position.set(sd * 0.08, yy + 0.06, 0); b.rotation.z = -sd * rz; an.add(b); }
+    }
+    add(head, sph(0.085, '#ff3a3a'), 0, 0.2, 0.62);
   } else if (H === 'ribbon') {
     for (const sd of [-1, 1]) { const w = sph(0.22, '#ff7aa8', 1.4, 0.9, 0.5); add(head, w, sd * 0.26, 0.98, 0.1); w.rotation.z = sd * 0.5; }
     add(head, sph(0.1, '#e8457a'), 0, 0.98, 0.14);
@@ -613,6 +625,15 @@ export function makeAvatar(a) {
     const pc = new THREE.Mesh(new THREE.CylinderGeometry(0.43, 0.6, 0.55, 18, 1, true), new THREE.MeshLambertMaterial({ color: '#d9a02a', side: THREE.DoubleSide })); pc.position.set(0, cy + 0.14, 0.02); body.add(pc);
     const fr = new THREE.Mesh(new THREE.TorusGeometry(0.6, 0.04, 6, 24), mat('#8a4a1f')); fr.rotation.x = Math.PI / 2; fr.position.set(0, cy - 0.135, 0.02); body.add(fr);
     const st = new THREE.Mesh(new THREE.TorusGeometry(0.52, 0.03, 6, 24), mat('#b8672a')); st.rotation.x = Math.PI / 2; st.position.set(0, cy + 0.02, 0.02); body.add(st);
+  } else if (a.body === 'santacoat') {
+    for (const sd of [-1, 1]) {
+      const pn = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.86, 0.07), mat('#d9303a')); pn.position.set(sd * 0.25, cy - 0.04, 0.43); pn.rotation.y = sd * 0.4; body.add(pn);
+      const tr = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.88, 0.085), mat('#ffffff')); tr.position.set(sd * 0.09, cy - 0.04, 0.47); tr.rotation.y = sd * 0.08; body.add(tr);
+    }
+    const hem = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.1, 0.09), mat('#ffffff')); hem.position.set(0, cy - 0.46, 0.46); body.add(hem);
+    const belt = new THREE.Mesh(new THREE.BoxGeometry(0.88, 0.1, 0.08), mat('#2a2a30')); belt.position.set(0, cy - 0.2, 0.46); body.add(belt);
+    add(body, sph(0.08, '#ffd84d', 1, 1, 0.5), 0, cy - 0.2, 0.52);
+    const col = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.07, 6, 20), mat('#ffffff')); col.rotation.x = Math.PI / 2; col.position.set(0, cy + 0.36, 0.02); body.add(col);
   } else if (a.body === 'cape') {
     const cp = new THREE.Mesh(new THREE.BoxGeometry(0.95, 1.0, 0.05), mat('#5a4a9a')); cp.position.set(0, cy - 0.05, -0.5); cp.rotation.x = 0.1; body.add(cp);
     add(body, sph(0.12, '#ffd21f', 1, 1, 0.3), 0, cy + 0.1, -0.54);

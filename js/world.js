@@ -302,10 +302,11 @@ export function buildWorld() {
     feather: () => { const m = new THREE.Group(); const f = sph(0.4, '#5ab8ff', 0.25, 1, 0.08); f.rotation.z = 0.5; add(m, f, 0, 0.5, 0); return m; },
     mushroom: () => { const m = new THREE.Group(); const st = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.1, 0.35, 8), mat('#fff4e0')); st.position.y = 0.18; m.add(st); add(m, sph(0.28, '#b58cff', 1, 0.7, 1), 0, 0.42, 0); const gl = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: '#d9c4ff', transparent: true, opacity: 0.35 })); gl.position.y = 0.42; gl.scale.set(1.4, 1.1, 1.4); m.add(gl); return m; },
     maple: () => { const m = new THREE.Group(); for (let i = 0; i < 3; i++) { const l = sph(0.2, ['#e8453a', '#f08a2e', '#d9a02a'][i], 1.1, 0.1, 1); l.rotation.y = i * 1.9; l.rotation.z = (i - 1) * 0.3; add(m, l, (i - 1) * 0.17, 0.12 + i * 0.02, (i % 2) * 0.1); } return m; },
+    pinecone: () => { const m = new THREE.Group(); add(m, sph(0.2, '#7a4a22', 0.85, 1.25, 0.85), 0, 0.26, 0); for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28; add(m, sph(0.07, '#a8743a', 1.2, 0.6, 1), Math.cos(a) * 0.15, 0.14 + (i % 3) * 0.12, Math.sin(a) * 0.15); } return m; },
     chestnut: () => { const m = new THREE.Group(); add(m, sph(0.24, '#7a4a22', 1, 0.85, 1), 0, 0.22, 0); add(m, sph(0.17, '#c98a48', 1, 0.3, 1), 0, 0.12, 0.05); return m; },
     herb: () => { const m = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = sph(0.1, '#7fe05a', 0.35, 1.8, 0.35); b.rotation.z = (i - 1.5) * 0.35; add(m, b, (i - 1.5) * 0.1, 0.25, 0); } return m; },
   };
-  const SEASONAL = { maple: 'autumn', chestnut: 'autumn' };
+  const SEASONAL = { maple: 'autumn', chestnut: 'autumn', pinecone: 'xmas' };
   function itemSpot(kind, x, z) {
     const m = ITEM_DEF[kind](); m.position.set(x, 0, z); g.add(m);
     items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6, season: SEASONAL[kind] || null, off: !!SEASONAL[kind] });
@@ -580,7 +581,7 @@ export function buildWorld() {
     decor.tanabata.visible = ev === 'tanabata';
     decor.obon.visible = ev === 'obon';
     decor.newyear.visible = ev === 'newyear';
-    const snowy = ev === 'snow' || ev === 'newyear';
+    const snowy = ev === 'snow' || ev === 'newyear' || ev === 'xmas';
     snowPts.visible = snowy; snowRoof.visible = snowy;
     for (const c of snowCaps) c.visible = snowy;
     grassMat.color.set(snowy ? '#eef5fb' : '#8fd36e');
@@ -588,7 +589,8 @@ export function buildWorld() {
     sandMat.color.set(snowy ? '#f3efe6' : '#f4e2b0');
     const aut = ev === 'autumn';
     leafPts.visible = aut;
-    fireG.visible = aut || ev === 'snow' || ev === 'newyear';
+    fireG.visible = aut || ev === 'snow' || ev === 'newyear' || ev === 'xmas';
+    xmasG.visible = ev === 'xmas';
     for (const f of foliage) f.m.material = aut ? (autMats[f.au] || (autMats[f.au] = new THREE.MeshLambertMaterial({ color: f.au }))) : f.baseMat;
     if (aut) { grassMat.color.set('#b4cf68'); patchMats[0].color.set('#a6c45a'); patchMats[1].color.set('#c2d776'); sandMat.color.set('#f0dcaa'); }
     for (const it of items) if (it.season) { it.off = it.season !== ev; if (it.off) it.mesh.visible = false; else if (it.back <= 0) it.mesh.visible = true; }
@@ -676,6 +678,12 @@ export function buildWorld() {
       }
       a.needsUpdate = true;
     }
+    if (xmasG.visible) {
+      const k = 0.62 + 0.38 * Math.min(1, curNight);
+      for (const b of bulbs) b.m.m.color.copy(b.m.base).multiplyScalar(k * (0.78 + 0.22 * Math.sin(t * 3.2 + b.ph)));
+      xGlow.material.opacity = 0.05 + 0.2 * Math.min(1, curNight) + Math.sin(t * 2) * 0.02;
+      xStar.rotation.y = t * 1.2; xStar.scale.setScalar(1 + Math.sin(t * 4) * 0.08);
+    }
     if (fireG.visible) {
       for (const f of flames) { const k = 0.82 + Math.sin(t * 9 + f.ph) * 0.14 + Math.sin(t * 15 + f.ph * 2) * 0.07; f.m.scale.set(1 + Math.sin(t * 7 + f.ph) * 0.08, k, 1 + Math.cos(t * 8 + f.ph) * 0.08); f.m.position.y = 0.25 + f.h * k / 2; }
       fireG.userData.glow.material.opacity = 0.24 + Math.sin(t * 6) * 0.05;
@@ -719,9 +727,51 @@ export function buildWorld() {
     for (const [lx, lz, lc] of [[-1.5, -1.2, '#e8453a'], [1.3, -1.5, '#f08a2e'], [-0.4, 1.6, '#d9a02a'], [1.6, 1.0, '#e8453a']]) for (let k = 0; k < 3; k++) add(fireG, sph(0.16, lc, 1.2, 0.1, 1), lx + (k - 1) * 0.22, 0.04, lz + (k % 2) * 0.15).rotation.y = k * 1.3;
   }
   obstacles.push({ x: CF[0], z: CF[1], r: 1.0 }, { x: CF[0] - 2.0, z: CF[1] + 0.3, r: 0.4 }, { x: CF[0] + 2.0, z: CF[1] + 0.3, r: 0.4 });
+  // ---- クリスマス (ツリー・イルミネーション・ゆきだるま・プレゼント) ----
+  const XT = [[5.5, 5.5], [6, 1.5], [5, 8], [-6, 1], [-5, 8]].find(([x, z]) => free(x, z, 2.0) && !onPath(x, z, 1.4)) || [5.5, 5.5];
+  const xmasG = new THREE.Group(); xmasG.visible = false; g.add(xmasG);
+  const xTree = new THREE.Group(); xTree.position.set(XT[0], 0, XT[1]); xTree.scale.setScalar(1.3); xmasG.add(xTree);
+  const xGlow = new THREE.Mesh(new THREE.CircleGeometry(3.4, 28), new THREE.MeshBasicMaterial({ color: '#ffd98a', transparent: true, opacity: 0, depthWrite: false })); xGlow.rotation.x = -Math.PI / 2; xGlow.position.set(XT[0], 0.05, XT[1]); xmasG.add(xGlow);
+  const bulbs = [];     // {m, base, ph}: またたく ひかり
+  const bulbMat = ['#ff5a5a', '#ffd84d', '#6ad0ff', '#8fe08a', '#ff9ad0'].map(c => ({ m: new THREE.MeshBasicMaterial({ color: c }), base: new THREE.Color(c) }));
+  let xStar = null;
+  {
+    const tr = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.36, 0.9, 8), mat('#6b4524')); tr.position.y = 0.45; xTree.add(tr);
+    for (const [y, rr, h] of [[1.3, 1.7, 1.5], [2.3, 1.35, 1.4], [3.2, 1.0, 1.3], [4.0, 0.65, 1.1]]) {
+      const cn = new THREE.Mesh(new THREE.ConeGeometry(rr, h, 14), mat('#3caa5c')); cn.position.y = y; xTree.add(cn);
+      const sn = new THREE.Mesh(new THREE.ConeGeometry(rr * 0.82, h * 0.35, 14), mat('#f4f8fc')); sn.position.y = y + h * 0.27; xTree.add(sn);
+      const n = Math.round(rr * 7);
+      for (let i = 0; i < n; i++) {
+        const a = i / n * Math.PI * 2 + y, rad = rr * 0.62;
+        const b = new THREE.Mesh(new THREE.SphereGeometry(0.15, 8, 6), bulbMat[(i + Math.round(y * 2)) % 5].m); b.position.set(Math.cos(a) * rad, y - h * 0.22, Math.sin(a) * rad); xTree.add(b); bulbs.push({ m: bulbMat[(i + Math.round(y * 2)) % 5], ph: i * 1.3 + y });
+        if (i % 3 === 0) add(xTree, sph(0.15, ['#e8453a', '#ffd84d', '#4f86c6'][i % 3 === 0 ? (i / 3) % 3 : 0], 1, 1, 1), Math.cos(a + 0.5) * rad * 1.05, y - h * 0.05, Math.sin(a + 0.5) * rad * 1.05);
+      }
+    }
+    xStar = new THREE.Mesh(new THREE.OctahedronGeometry(0.34), new THREE.MeshBasicMaterial({ color: '#ffe066' })); xStar.scale.set(1, 1.3, 0.5); xStar.position.y = 4.95; xTree.add(xStar);
+    for (const [gx, gz, c1, c2, sz] of [[-1.1, 0.7, '#e8453a', '#ffd84d', 0.55], [0.9, 1.0, '#4f86c6', '#ffffff', 0.5], [1.4, -0.4, '#8fe08a', '#e8453a', 0.45], [-0.5, -1.2, '#b58cff', '#ffd84d', 0.5]]) {
+      box3(xTree, sz, sz, sz, c1, gx, sz / 2, gz); box3(xTree, sz + 0.02, 0.09, sz * 0.25, c2, gx, sz / 2 + 0.01, gz); box3(xTree, sz * 0.25, 0.09, sz + 0.02, c2, gx, sz + 0.0, gz);
+    }
+  }
+  obstacles.push({ x: XT[0], z: XT[1], r: 1.4 });
+  // みちの イルミネーション (ちいさな でんきゅう)
+  for (const sx of [-1, 1]) for (let z = -11, i = 0; z < 39; z += 1.6, i++) {
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.13, 8, 6), bulbMat[(i + (sx > 0 ? 2 : 0)) % 5].m); b.position.set(sx * 1.95, 0.16, z); xmasG.add(b); bulbs.push({ m: bulbMat[(i + (sx > 0 ? 2 : 0)) % 5], ph: i * 0.9 + sx });
+  }
+  // ゆきだるま
+  [[-3.6, -8.6], [4.4, -6.8], [3.2, 13.4], [-3.8, 19]].filter(([x, z]) => free(x, z, 1.0) && !onPath(x, z, 0.6)).slice(0, 3).forEach(([x, z], k) => {
+    const sm = new THREE.Group(); sm.position.set(x, 0, z); sm.rotation.y = 0.5 + k; xmasG.add(sm);
+    add(sm, sph(0.55, '#ffffff'), 0, 0.5, 0); add(sm, sph(0.4, '#ffffff'), 0, 1.25, 0);
+    add(sm, sph(0.05, '#222'), -0.12, 1.32, 0.34); add(sm, sph(0.05, '#222'), 0.12, 1.32, 0.34);
+    const nose = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.3, 6), mat('#ff8a2a')); nose.rotation.x = Math.PI / 2; nose.position.set(0, 1.24, 0.44); sm.add(nose);
+    const hat = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.26, 0.3, 10), mat(k % 2 ? '#4f86c6' : '#e8453a')); hat.position.y = 1.7; sm.add(hat);
+    const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.38, 0.38, 0.05, 12), mat(k % 2 ? '#4f86c6' : '#e8453a')); rim.position.y = 1.56; sm.add(rim);
+    const sc = new THREE.Mesh(new THREE.TorusGeometry(0.3, 0.07, 6, 14), mat('#e8453a')); sc.rotation.x = Math.PI / 2; sc.position.y = 1.0; sm.add(sc);
+    obstacles.push({ x, z, r: 0.5 });
+  });
   scatter('maple', 16, 0, 0, 30, 24, 300); scatter('maple', 8, -64, 2, 14, 14, 160); scatter('maple', 4, -82, 6, 8, 8, 80);
   scatter('chestnut', 8, 0, -28, 20, 4, 160); scatter('chestnut', 4, -26, -24, 5, 4, 80); scatter('chestnut', 5, -64, 2, 14, 14, 120);
-  return { group: g, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  scatter('pinecone', 14, 0, 0, 30, 24, 300); scatter('pinecone', 6, -64, 2, 14, 14, 160); scatter('pinecone', 4, XT[0], XT[1], 7, 6, 80);
+  return { group: g, xmasTree: { x: XT[0], z: XT[1], get on() { return xmasG.visible; } }, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

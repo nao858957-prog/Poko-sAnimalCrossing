@@ -80,14 +80,21 @@ export const RECIPES = [
     tl: 'さつまいもを あげて、おさとうで からめるの。…ポコが ほおばってる かおが すきだから、おぼえたのよ。' },
   { id: 'momiji', emoji: '🍁', name: 'もみじの てんぷら', ing: { maple: 3, flour: 1, sugar: 1 }, need: 'kitchen', lv: 3, teach: { who: 'sei', f: 3 }, season: ['autumn'], line: 'さくさく うすあじ。もみじの かおりが するよ', how: 'あげる',
     tl: 'もみじの てんぷらはね、むかしから つたわる あきの おやつなの。きれいな はを えらんで、ね。' },
+  // ---- クリスマス ----
+  { id: 'hotchoco', emoji: '🍫', name: 'ホットチョコ', ing: { milk: 1, sugar: 1 }, need: 'burner', lv: 1, teach: { who: 'mei', f: 1 }, season: ['xmas', 'snow', 'newyear'], line: 'あまくて とろ〜り。からだの なかから ぽかぽか！', how: 'あたためる',
+    tl: 'ミルクを あたためて、おさとうと…ひみつの いっぱいを いれるの。クリスマスの よるに ぴったりよ。' },
+  { id: 'stew', emoji: '🍲', name: 'クリームシチュー', ing: { carrot: 1, milk: 1, flour: 1 }, need: 'burner', lv: 2, teach: { who: 'sei', f: 2 }, season: ['xmas', 'snow', 'newyear'], line: 'とろとろ あったかい。ニンジンも あまいね', how: 'ゆでる',
+    tl: 'こむぎこを バターで いためて、ミルクで のばすの。ことこと にこんで、ね。さむい ひの ごちそうよ。' },
+  { id: 'xmascake', emoji: '🎂', name: 'クリスマスケーキ', ing: { flour: 1, egg: 1, sugar: 1, strawberry: 1 }, need: 'oven', lv: 3, teach: { who: 'mei', f: 3 }, season: ['xmas'], line: 'ふわふわ スポンジに あかい いちご！ しあわせの あじ', how: 'オーブンで やく',
+    tl: 'いちごは さいごに のせるの。…ポコが つまみぐい しないように、みはってて ほしいわ。' },
 ];
 export const RECIPE_BY_ID = Object.fromEntries(RECIPES.map(r => [r.id, r]));
 
 // ともだち ごとの このみ (つくった りょうり)。のっていない りょうりは ふつうに「すき」
 export const COOK_PREFS = {
-  poko: { love: ['sasasoup', 'pancake', 'ramen', 'hotmilk', 'yakiimo'], dislike: [] },
-  mei: { love: ['pancake', 'cookie', 'tomatoegg', 'daigaku'], dislike: ['sasasoup'] },
-  sei: { love: ['tomatosoup', 'herbtea', 'onigiri', 'eggporridge', 'kurigohan', 'momiji'], dislike: [] },
+  poko: { love: ['sasasoup', 'pancake', 'ramen', 'hotmilk', 'yakiimo', 'hotchoco', 'xmascake'], dislike: [] },
+  mei: { love: ['pancake', 'cookie', 'tomatoegg', 'daigaku', 'xmascake'], dislike: ['sasasoup'] },
+  sei: { love: ['tomatosoup', 'herbtea', 'onigiri', 'eggporridge', 'kurigohan', 'momiji', 'stew'], dislike: [] },
   rin: { love: ['herbtea', 'cookie'], dislike: [] },
   pa: { love: ['boilcarrot', 'sasasoup', 'yakiguri'], dislike: ['pancake'] },
   ku: { love: ['hotmilk', 'potage'], dislike: [] },

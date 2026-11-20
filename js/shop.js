@@ -28,6 +28,10 @@ export const CLOTHES = [
   { id: 'fluffy', slot: 'neck', emoji: '☁️', name: 'もこもこ えりまき', price: 22, season: true },
   { id: 'cardigan', slot: 'body', emoji: '🧥', name: 'くりいろ カーディガン', price: 28, season: true },
   { id: 'poncho', slot: 'body', emoji: '🍂', name: 'からしいろの ポンチョ', price: 30, season: true },
+  // クリスマス (12/26 まで おみせに ならぶ)
+  { id: 'santahat', slot: 'hat', emoji: '🎅', name: 'サンタの ぼうし', price: 18, season: 'xmas' },
+  { id: 'reindeer', slot: 'hat', emoji: '🦌', name: 'トナカイの かちゅーしゃ', price: 20, season: 'xmas' },
+  { id: 'santacoat', slot: 'body', emoji: '🎁', name: 'サンタの コート', price: 32, season: 'xmas' },
   // ともだちから もらえる とくべつなもの (おみせでは うっていません)
   { id: 'daisy', slot: 'hat', emoji: '🌼', name: 'メイの しろい おはな', price: 0, quest: true },
   { id: 'leaf', slot: 'hat', emoji: '🍃', name: 'ポンの ばけじゅつの はっぱ', price: 0, quest: true },
