@@ -447,7 +447,7 @@ function autoEvent() {
   if (m === 1 && day <= 7) return 'newyear';
   if (m === 7 && day <= 10) return 'tanabata';
   if (m === 8 && day >= 12 && day <= 16) return 'obon';
-  if ((m === 11 && day >= 25) || (m === 12 && day <= 26)) return 'xmas';
+  if ((m === 11 && day >= 20) || (m === 12 && day <= 26)) return 'xmas';
   if (m === 12 || m === 1 || m === 2) return 'snow';
   if ((m === 9 && day >= 20) || m === 10 || m === 11) return 'autumn';
   return 'none';
