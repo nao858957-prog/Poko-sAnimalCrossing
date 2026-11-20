@@ -482,3 +482,13 @@ a.big.vch { background: #ff4a4a; color: #fff; border: 4px solid #fff; border-rad
 #videos .panel { overflow: hidden; }
 #videos .panel > * { flex-shrink: 0; }
 #vidList { flex: 1 1 auto !important; min-height: 0; }
+
+/* ツリーの かざりつけ */
+#btnTree { position: absolute; right: .6rem; top: calc(env(safe-area-inset-top) + 9.3rem); background: #3caa5c; color: #fff; border-color: #fff; box-shadow: 0 3px 0 #2a8044, 0 4px 8px #0002; }
+@media (max-height: 520px) and (orientation: landscape) { #btnTree { top: calc(env(safe-area-inset-top) + 8.2rem); } }
+#treePanel .panel { overflow: hidden; }
+#treePanel .panel > * { flex-shrink: 0; }
+#treeList { flex: 1 1 auto !important; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; }
+#treeInfo { text-align: center; font-size: .95rem; }
+.tr-bar { height: .6rem; background: #f0d9a8; border-radius: 99px; overflow: hidden; margin: .35rem 0; }
+.tr-bar i { display: block; height: 100%; background: linear-gradient(90deg, #e8353a, #ffd84d, #3caa5c); border-radius: 99px; }

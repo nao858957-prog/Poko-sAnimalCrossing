@@ -565,6 +565,10 @@ export function makeAvatar(a) {
       for (const [yy, rz] of [[0.2, 0.9], [0.42, 0.9]]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.035, 0.26, 6), mat('#8a5a2a')); b.position.set(sd * 0.08, yy + 0.06, 0); b.rotation.z = -sd * rz; an.add(b); }
     }
     add(head, sph(0.085, '#ff3a3a'), 0, 0.2, 0.62);
+  } else if (H === 'startiara') {
+    const hb = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.04, 6, 24, Math.PI), mat('#ffd84d')); hb.rotation.x = 0.1; hb.position.set(0, 0.52, -0.04); head.add(hb);
+    const st = new THREE.Mesh(new THREE.OctahedronGeometry(0.2), new THREE.MeshLambertMaterial({ color: '#ffe066', emissive: '#aa8800' })); st.scale.set(1, 1.3, 0.5); st.position.set(0, 1.18, 0.05); head.add(st);
+    for (const sd of [-1, 1]) { const s2 = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), new THREE.MeshLambertMaterial({ color: '#fff2a0', emissive: '#aa8800' })); s2.scale.set(1, 1.3, 0.5); s2.position.set(sd * 0.36, 1.02, 0.02); head.add(s2); }
   } else if (H === 'ribbon') {
     for (const sd of [-1, 1]) { const w = sph(0.22, '#ff7aa8', 1.4, 0.9, 0.5); add(head, w, sd * 0.26, 0.98, 0.1); w.rotation.z = sd * 0.5; }
     add(head, sph(0.1, '#e8457a'), 0, 0.98, 0.14);

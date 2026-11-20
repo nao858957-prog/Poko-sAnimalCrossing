@@ -459,6 +459,7 @@ function currentEvent() {
 const EVENT_NAMES = { none: '', tanabata: '七夕', obon: 'お盆', snow: '初雪', newyear: 'お正月', autumn: 'もみじの きせつ', xmas: 'クリスマス' };
 function applyEvent() {
   world.setSeason(currentEvent());
+  if (S && S.created) syncTree();
 }
 
 // ---------- ねる（ポコが となりに きて いっしょに ごろん）----------
@@ -2384,6 +2385,7 @@ function frame(now) {
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
     $('btnDeco').classList.toggle('hidden', !(mode === 'play' && !sleeping && place === 'in' && inKind === 'home'));
+    $('btnTree').classList.toggle('hidden', !(mode === 'play' && !sleeping && nearTree()));
     { const cx = cookCtxNow(); $('btnCook').classList.toggle('hidden', !cx); if (cx) $('btnCook').textContent = cx === 'sei' ? '🍳 セイママと りょうり' : cx === 'fire' ? '🔥 たきびで りょうり' : '🍳 りょうりする'; }
     if (player && (mode === 'play' || mode === 'chat' || mode === 'fish')) {
       if (mode === 'play') updatePlayer(dt); else if (mode === 'fish') updateFishing(dt); else animate(player, dt, { t: clock, walk: false, wave: false });
@@ -2448,6 +2450,71 @@ let cookCtx = null;
 const SEASON_FIRE = ['autumn', 'snow', 'newyear', 'xmas'];
 const fireOn = () => !!(world.campfire && world.campfire.on);
 const nearFire = () => place === 'out' && fireOn() && Math.hypot(player.root.position.x - world.campfire.x, player.root.position.z - world.campfire.z) < 4.6;
+// ---- ツリーの かざりつけ ----
+const ORNS = [
+  { id: 0, emoji: '🔴', name: 'あかい ボール', cost: { f: 3 } },
+  { id: 1, emoji: '🌲', name: 'まつぼっくりの かざり', cost: { pinecone: 1 } },
+  { id: 2, emoji: '🔔', name: 'ベル', cost: { f: 5 } },
+  { id: 3, emoji: '🎀', name: 'リボン', cost: { f: 4 } },
+  { id: 4, emoji: '🍬', name: 'キャンディ', cost: { f: 4 } },
+  { id: 5, emoji: '❄️', name: 'ゆきの けっしょう', cost: { f: 6 } },
+  { id: 6, emoji: '🎁', name: 'ちいさな プレゼント', cost: { f: 8 } },
+];
+const TREE_MAX = 30;
+const TREE_REWARDS = [
+  { n: 6, text: 'ツリーが にぎやかに なったよ！ おはな 🌼+15', f: 15 },
+  { n: 12, text: 'みんなが ツリーを みにきたよ！ みんなと なかよし ♥+3', friends: 3 },
+  { n: 20, text: 'ツリーの てっぺんの ほしが おおきく かがやいた！ ほしの かみかざり を もらったよ ⭐', hat: 'startiara' },
+];
+function ensureTree() {
+  const y = new Date().getFullYear();
+  if (!S.tree || S.tree.year !== y) S.tree = { year: y, orn: [], got: {} };
+  if (!S.tree.got) S.tree.got = {};
+  return S.tree;
+}
+const nearTree = () => !!(world.xmasTree && world.xmasTree.on) && place === 'out' && Math.hypot(player.root.position.x - world.xmasTree.x, player.root.position.z - world.xmasTree.z) < 4.8;
+function openTree() {
+  if (mode !== 'play' || !nearTree()) return;
+  mode = 'menu'; $('treePanel').classList.remove('hidden'); renderTree(); sfx('open'); track('tree-open');
+}
+function closeTree() { $('treePanel').classList.add('hidden'); if (mode === 'menu') mode = 'play'; }
+$('treeBack').onclick = () => { sfx('tap'); closeTree(); };
+$('btnTree').onclick = () => { initAudio(); openTree(); };
+function syncTree() { if (world.xmasTree) world.xmasTree.setOrn(ensureTree().orn); }
+const canPay = c => (c.f ? S.flowers >= c.f : true) && (c.pinecone ? (S.inv.pinecone || 0) >= c.pinecone : true);
+const costText = c => [c.f ? `🌼 ${c.f}` : '', c.pinecone ? `🌲 ${c.pinecone}こ` : ''].filter(Boolean).join(' ');
+function renderTree() {
+  const T = ensureTree(), n = T.orn.length, box = $('treeList'), next = TREE_REWARDS.find(r => n < r.n);
+  $('treeInfo').innerHTML = `かざり <b>${n}</b> / ${TREE_MAX}<div class="tr-bar"><i style="width:${Math.round(n / TREE_MAX * 100)}%"></i></div>` +
+    (next ? `<small>あと ${next.n - n}こで ごほうび！</small>` : '<small>ぜんぶの ごほうびを もらったよ！ ✨</small>') + `<br><small>🌼 ${S.flowers}　🌲 まつぼっくり ${S.inv.pinecone || 0}こ</small>`;
+  box.innerHTML = '';
+  for (const o of ORNS) {
+    const full = n >= TREE_MAX, ok = canPay(o.cost) && !full;
+    const d = document.createElement('div'); d.className = 'qcard';
+    d.innerHTML = `<div class="ck-e">${o.emoji}</div><div><b>${o.name}</b><small>${costText(o.cost)}${full ? '　もう いっぱい' : ''}</small></div>`;
+    const b = document.createElement('button'); b.textContent = 'かざる'; b.className = 'ck-btn' + (ok ? '' : ' dis'); b.onclick = () => addOrn(o);
+    d.appendChild(b); box.appendChild(d);
+  }
+  const p = document.createElement('p'); p.className = 'fine2'; p.textContent = 'まつぼっくりは しまの あちこちに おちているよ。かざりが ふえると ごほうびが もらえるよ（6こ・12こ・20こ）'; box.appendChild(p);
+}
+function addOrn(o) {
+  const T = ensureTree(); if (T.orn.length >= TREE_MAX) { toast('ツリーは もう いっぱいだよ', 1800); return; }
+  if (!canPay(o.cost)) { toast(o.cost.pinecone && (S.inv.pinecone || 0) < o.cost.pinecone ? 'まつぼっくりが たりないよ。しまで ひろってこよう' : 'おはなが たりないよ', 2200); sfx('tap'); return; }
+  if (o.cost.f) { S.flowers -= o.cost.f; $('flowerCount').textContent = '🌼 ' + S.flowers; }
+  if (o.cost.pinecone) S.inv.pinecone = Math.max(0, (S.inv.pinecone || 0) - o.cost.pinecone);
+  T.orn.push(o.id); syncTree(); sfx('pick'); track('tree-orn');
+  tmp.set(world.xmasTree.x, 3.4, world.xmasTree.z); spawnFx(world.group, 'star', tmp, 1.2);
+  const r = TREE_REWARDS.find(x => T.orn.length === x.n && !T.got[x.n]);
+  if (r) {
+    T.got[r.n] = 1;
+    if (r.f) { S.flowers += r.f; $('flowerCount').textContent = '🌼 ' + S.flowers; }
+    if (r.friends) for (const id of ORDER) S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + r.friends);
+    if (r.hat && !S.owned.includes(r.hat)) S.owned.push(r.hat);
+    setTimeout(() => { sfx('catch'); toast(`🎄 ${r.text}`, 4200); }, 500);
+    addDiary(`クリスマスツリーに かざりを ${r.n}こ つけた。`);
+  } else toast(`${o.emoji} ${o.name}を かざったよ（${T.orn.length}/${TREE_MAX}）`, 1800);
+  save(); renderTree();
+}
 // やきいもタイム: あき・ふゆの ゆうがた、ひろばの たきびに みんなが あつまる
 const FIRE_TIME = [16.5, 18];
 const fireTime = () => fireOn() && gameHour() >= FIRE_TIME[0] && gameHour() < FIRE_TIME[1];
@@ -2582,4 +2649,4 @@ function teachTalk(id) {
 }
 
 // テスト用フック
-window.__poko = { world, fireTime, openChat, hideMarks: () => ORDER.forEach(id => { const P = npcs[id]; if (P.marks) for (const s of Object.values(P.marks)) s.visible = false; }), npcSet: (id, x, z, ry = 0) => { const q = npcs[id]; q.root.visible = true; q.root.position.set(x, 0, z); q.root.rotation.y = ry; q.schedPose = null; q.still = true; q.leaving = false; q.target = null; q.wait = 999; }, npcPos: id => { const q = npcs[id].root; return [q.visible, q.position.x, q.position.z]; }, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };
+window.__poko = { world, fireTime, openChat, openTree, hideMarks: () => ORDER.forEach(id => { const P = npcs[id]; if (P.marks) for (const s of Object.values(P.marks)) s.visible = false; }), npcSet: (id, x, z, ry = 0) => { const q = npcs[id]; q.root.visible = true; q.root.position.set(x, 0, z); q.root.rotation.y = ry; q.schedPose = null; q.still = true; q.leaving = false; q.target = null; q.wait = 999; }, npcPos: id => { const q = npcs[id].root; return [q.visible, q.position.x, q.position.z]; }, openShop, shopTabSet: t => { shopTab = t; renderShop(); }, cookCtxNow, openCook, ensureCook, RECIPES, refreshMarkers, enterHouse, exitHouse, syncNpcs, checkMeal, interior, qList: () => QS().map(q => [q.id, q.giver, qStatus(q)]), completeQ: id => completeQuest(QS().find(q => q.id === id)), placeAt: (id, x, z, r = 0) => { const it = { id, x, z, r }; if (!room.canPlace(it, -1)) return false; S.home.items.push(it); decoSel = S.home.items.length - 1; refreshRoom(); sfx('pick'); renderDeco(); return true; }, openSeedPick, farmNearIdx, chaoAI, sowPlot, waterPlot, harvestPlot, removeBug, refreshFarm, room, enterHome, exitHome, openDeco, closeDeco, placeNew, moveSel, buildStage, buyFurn, renderShop, applyHome, isAudioRunning, portraits, openShop, closeShop, startSleep, wakeUp, get sleeping() { return sleeping; }, get mode() { return mode; }, get S() { return S; }, npcs, player: () => player, openChat, playScene, SCENES, theater, camera, renderer, world };

@@ -682,7 +682,7 @@ export function buildWorld() {
       const k = 0.62 + 0.38 * Math.min(1, curNight);
       for (const b of bulbs) b.m.m.color.copy(b.m.base).multiplyScalar(k * (0.78 + 0.22 * Math.sin(t * 3.2 + b.ph)));
       xGlow.material.opacity = 0.05 + 0.2 * Math.min(1, curNight) + Math.sin(t * 2) * 0.02;
-      xStar.rotation.y = t * 1.2; xStar.scale.setScalar(1 + Math.sin(t * 4) * 0.08);
+      xStar.rotation.y = t * 1.2; xStar.scale.setScalar((xStar.userData.big ? 1.5 : 1) * (1 + Math.sin(t * 4) * 0.08));
     }
     if (fireG.visible) {
       for (const f of flames) { const k = 0.82 + Math.sin(t * 9 + f.ph) * 0.14 + Math.sin(t * 15 + f.ph * 2) * 0.07; f.m.scale.set(1 + Math.sin(t * 7 + f.ph) * 0.08, k, 1 + Math.cos(t * 8 + f.ph) * 0.08); f.m.position.y = 0.25 + f.h * k / 2; }
@@ -752,6 +752,27 @@ export function buildWorld() {
       box3(xTree, sz, sz, sz, c1, gx, sz / 2, gz); box3(xTree, sz + 0.02, 0.09, sz * 0.25, c2, gx, sz / 2 + 0.01, gz); box3(xTree, sz * 0.25, 0.09, sz + 0.02, c2, gx, sz + 0.0, gz);
     }
   }
+  // ---- ツリーの かざり (プレイヤーが ふやせる) ----
+  const ORN_SLOTS = [];
+  { let ga = 0; for (const [y, rr, h, n] of [[1.3, 1.7, 1.5, 10], [2.3, 1.35, 1.4, 9], [3.2, 1.0, 1.3, 7], [4.0, 0.65, 1.1, 4]]) for (let i = 0; i < n; i++) {
+    const t = (i + 0.5) / n, yy = y - h / 2 + 0.12 + t * h * 0.6, a = (ga += 2.399) , r0 = rr * (1 - (yy - (y - h / 2)) / h) * 1.04 + 0.06;
+    ORN_SLOTS.push([Math.cos(a) * r0, yy, Math.sin(a) * r0]); } }
+  const ornG = new THREE.Group(); xTree.add(ornG);
+  const ORN_MK = [
+    () => sph(0.17, '#e8353a'),                                    // 0 あかい ボール
+    () => { const m = new THREE.Group(); add(m, sph(0.14, '#7a4a22', 0.85, 1.25, 0.85)); return m; },   // 1 まつぼっくり
+    () => { const m = new THREE.Group(); const c = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.2, 8), mat('#ffd84d')); c.position.y = 0.04; m.add(c); add(m, sph(0.05, '#fff2a0'), 0, -0.08, 0); return m; },   // 2 ベル
+    () => { const m = new THREE.Group(); add(m, sph(0.1, '#ff7aa8', 1.5, 0.9, 0.5), -0.1, 0, 0); add(m, sph(0.1, '#ff7aa8', 1.5, 0.9, 0.5), 0.1, 0, 0); add(m, sph(0.05, '#e8457a')); return m; },   // 3 リボン
+    () => { const m = new THREE.Group(); const t = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.035, 6, 12, Math.PI * 1.4), mat('#ffffff')); m.add(t); const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.036, 6, 12, Math.PI * 0.45), mat('#e8353a')); t2.rotation.z = 1.2; m.add(t2); return m; },   // 4 キャンディ
+    () => { const m = new THREE.Mesh(new THREE.OctahedronGeometry(0.15), new THREE.MeshLambertMaterial({ color: '#dff4ff', emissive: '#4a7a9a' })); m.scale.set(1, 1, 0.5); return m; },   // 5 ゆきの けっしょう
+    () => { const m = new THREE.Group(); const b = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, 0.2), mat('#4f86c6')); m.add(b); const r1 = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.04, 0.05), mat('#ffd84d')); m.add(r1); return m; },   // 6 プレゼント
+  ];
+  function setOrn(list) {
+    while (ornG.children.length) ornG.remove(ornG.children[0]);
+    list.slice(0, ORN_SLOTS.length).forEach((tp, i) => { const m = (ORN_MK[tp] || ORN_MK[0])(); m.position.set(...ORN_SLOTS[i]); m.rotation.y = i * 1.7; ornG.add(m); });
+    // おおきな ほしの かがやき (20こ いじょうで)
+    if (xStar) xStar.userData.big = list.length >= 20;
+  }
   obstacles.push({ x: XT[0], z: XT[1], r: 1.4 });
   // みちの イルミネーション (ちいさな でんきゅう)
   for (const sx of [-1, 1]) for (let z = -11, i = 0; z < 39; z += 1.6, i++) {
@@ -771,7 +792,7 @@ export function buildWorld() {
   scatter('maple', 16, 0, 0, 30, 24, 300); scatter('maple', 8, -64, 2, 14, 14, 160); scatter('maple', 4, -82, 6, 8, 8, 80);
   scatter('chestnut', 8, 0, -28, 20, 4, 160); scatter('chestnut', 4, -26, -24, 5, 4, 80); scatter('chestnut', 5, -64, 2, 14, 14, 120);
   scatter('pinecone', 14, 0, 0, 30, 24, 300); scatter('pinecone', 6, -64, 2, 14, 14, 160); scatter('pinecone', 4, XT[0], XT[1], 7, 6, 80);
-  return { group: g, xmasTree: { x: XT[0], z: XT[1], get on() { return xmasG.visible; } }, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, xmasTree: { x: XT[0], z: XT[1], setOrn, get on() { return xmasG.visible; } }, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

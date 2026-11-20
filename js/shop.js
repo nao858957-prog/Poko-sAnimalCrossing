@@ -35,5 +35,6 @@ export const CLOTHES = [
   // ともだちから もらえる とくべつなもの (おみせでは うっていません)
   { id: 'daisy', slot: 'hat', emoji: '🌼', name: 'メイの しろい おはな', price: 0, quest: true },
   { id: 'leaf', slot: 'hat', emoji: '🍃', name: 'ポンの ばけじゅつの はっぱ', price: 0, quest: true },
+  { id: 'startiara', slot: 'hat', emoji: '⭐', name: 'ツリーの ほしの かみかざり', price: 0, quest: true },
   { id: 'bell', slot: 'neck', emoji: '🔔', name: 'クロの すず', price: 0, quest: true },
 ];
