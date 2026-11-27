@@ -80,6 +80,8 @@ export const RECIPES = [
     tl: 'さつまいもを あげて、おさとうで からめるの。…ポコが ほおばってる かおが すきだから、おぼえたのよ。' },
   { id: 'momiji', emoji: '🍁', name: 'もみじの てんぷら', ing: { maple: 3, flour: 1, sugar: 1 }, need: 'kitchen', lv: 3, teach: { who: 'sei', f: 3 }, season: ['autumn'], line: 'さくさく うすあじ。もみじの かおりが するよ', how: 'あげる',
     tl: 'もみじの てんぷらはね、むかしから つたわる あきの おやつなの。きれいな はを えらんで、ね。' },
+  { id: 'pawcookie', emoji: '🐾', name: 'にくきゅうクッキー', ing: { flour: 1, butter: 1, sugar: 1, honey: 1 }, need: 'oven', lv: 3, teach: { who: 'mei', f: 3 }, line: 'ぷにぷに かたちの クッキー！ かわいくて たべられない…けど たべちゃう', how: 'オーブンで やく',
+    tl: 'クッキーの まんなかに、ゆびで ぎゅっと まるを 4つ。にくきゅうの かたちに なるのよ。…ポコの てを おもいだして つくるの。' },
   // ---- クリスマス ----
   { id: 'hotchoco', emoji: '🍫', name: 'ホットチョコ', ing: { milk: 1, sugar: 1 }, need: 'burner', lv: 1, teach: { who: 'mei', f: 1 }, season: ['xmas', 'snow', 'newyear'], line: 'あまくて とろ〜り。からだの なかから ぽかぽか！', how: 'あたためる',
     tl: 'ミルクを あたためて、おさとうと…ひみつの いっぱいを いれるの。クリスマスの よるに ぴったりよ。' },

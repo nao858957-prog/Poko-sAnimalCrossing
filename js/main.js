@@ -453,6 +453,20 @@ function autoEvent() {
   if ((m === 9 && day >= 20) || m === 10 || m === 11) return 'autumn';
   return 'none';
 }
+// とくべつな ひ (11/29 いい にくきゅうの ひ・12/22 とうじ・12/24-25 イブ・12/28-31 おおみそか)。せっていで ためせる
+function autoSpecial() {
+  const d = new Date(), m = d.getMonth() + 1, day = d.getDate();
+  if (m === 11 && day === 29) return 'nikukyu';
+  if (m === 12 && day === 22) return 'toji';
+  if (m === 12 && (day === 24 || day === 25)) return 'eve';
+  if (m === 12 && day >= 28) return 'yearend';
+  return 'none';
+}
+function specialDay() {
+  const e = (S && S.settings.special) || 'auto';
+  return e === 'auto' ? autoSpecial() : e === 'none' ? 'none' : e;
+}
+const SPECIAL_NAMES = { nikukyu: '🐾 いい にくきゅうの ひ', toji: '🍊 とうじ', eve: '🎄 クリスマス イブ', yearend: '🔔 おおみそか' };
 function currentEvent() {
   const e = S.settings.event || 'auto';
   return e === 'auto' ? autoEvent() : e;
@@ -1085,7 +1099,7 @@ function chooseChatSide(id) {
 function ctxFor(id) {
   const pts = S.friend[id] || 0;
   const ev = currentEvent();
-  return { name: S.avatar.name || 'あなた', hour: gameHour(), lv: level(pts), first: !S.firstDone[id], storyIdx: S.storyIdx[id] || 0, inside: place === 'in' && inKind === 'sei', event: ev === 'none' ? null : ev };
+  return { name: S.avatar.name || 'あなた', hour: gameHour(), lv: level(pts), first: !S.firstDone[id], storyIdx: S.storyIdx[id] || 0, inside: place === 'in' && inKind === 'sei', event: ev === 'none' ? null : ev, special: specialDay() === 'none' ? null : specialDay() };
 }
 function addMsg(id, from, text, cls = '') {
   const d = document.createElement('div');
@@ -1107,6 +1121,7 @@ function renderChips(id) {
   const chipList = chipsFor(id);
   if (hasQuestTalk(id)) chipList.unshift(['q', 'おねがい ある？']);
   if (id === 'sei' || id === 'mei') chipList.unshift(['cooktalk', COOK_CHIP]);
+  if (specialDay() === 'nikukyu' && id !== 'chao') chipList.unshift(['niku', '🐾 にくきゅう さわらせて']);
   chipList.push(['video', VIDEO_CHIP]);
   for (const [key, label] of chipList) {
     const b = document.createElement('button');
@@ -1288,6 +1303,38 @@ function renderDiary() {
     const p = document.createElement('p'); p.className = 'dline'; p.textContent = '・' + e.t; box.appendChild(p);
   }
 }
+
+// ---------- いい にくきゅうの ひ: あしあと ----------
+const PAW_N = 70, pawPool = [], pawLast = {};
+let pawIdx = 0, pawSide = 1;
+{
+  const cv = document.createElement('canvas'); cv.width = cv.height = 64; const g = cv.getContext('2d');
+  g.fillStyle = '#6b4a3a'; g.beginPath(); g.ellipse(32, 41, 15, 12, 0, 0, 7); g.fill();
+  for (const [x, y] of [[13, 24], [25, 14], [39, 14], [51, 24]]) { g.beginPath(); g.ellipse(x, y, 6, 8, (x - 32) * 0.02, 0, 7); g.fill(); }
+  const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
+  const geo = new THREE.PlaneGeometry(0.62, 0.62); geo.rotateX(-Math.PI / 2);
+  for (let i = 0; i < PAW_N; i++) {
+    const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0, depthWrite: false }));
+    m.visible = false; m.renderOrder = 2; m.userData.life = 0; world.group.add(m); pawPool.push(m);
+  }
+}
+function pawStep(key, x, z, ry, moving) {
+  const l = pawLast[key] || (pawLast[key] = { x, z });
+  if (!moving) { l.x = x; l.z = z; return; }
+  if (Math.hypot(x - l.x, z - l.z) < 1.15) return;
+  l.x = x; l.z = z;
+  const m = pawPool[pawIdx++ % PAW_N]; pawSide = -pawSide;
+  m.position.set(x + Math.cos(ry) * 0.28 * pawSide, 0.07, z - Math.sin(ry) * 0.28 * pawSide);
+  m.rotation.y = ry; m.userData.life = 14; m.visible = true;
+}
+function updatePaws(dt) {
+  const on = specialDay() === 'nikukyu' && place === 'out';
+  for (const m of pawPool) if (m.visible) { m.userData.life -= dt; const f = m.userData.life; if (f <= 0) { m.visible = false; m.material.opacity = 0; } else m.material.opacity = Math.min(0.75, f / 14 * 1.2); }
+  if (!on || !S) return;
+  if (player && mode === 'play') { const q = player.root.position; pawStep('me', q.x, q.z, player.root.rotation.y, true); }
+  for (const id of ORDER) { const n = npcs[id]; if (!n || !n.root.visible || id === 'chao') continue; const q = n.root.position; pawStep(id, q.x, q.z, n.root.rotation.y, !!n.target && !n.still); }
+}
+
 function showDailyNotice() {
   const t = todayStr();
   if (S.lastDay === t) return;
@@ -1299,9 +1346,11 @@ function showDailyNotice() {
   const nowD = new Date(), xday = nowD.getMonth() === 11 && (nowD.getDate() === 24 || nowD.getDate() === 25);
   let xgift = '';
   if (xday && currentEvent() === 'xmas' && S.xmasGift !== t) { S.xmasGift = t; S.flowers += 30; $('flowerCount').textContent = '🌼 ' + S.flowers; xgift = '<p>🎁 <b>メリークリスマス！</b> ポコたちから おはなの プレゼント <b>🌼 +30</b></p>'; addDiary('クリスマス。ポコたちから おはなの プレゼントを もらった。'); }
+  let ngift = '';
+  if (specialDay() === 'nikukyu' && S.nikuGift !== t) { S.nikuGift = t; S.flowers += 20; $('flowerCount').textContent = '🌼 ' + S.flowers; ngift = '<p>🐾 <b>きょうは「いい にくきゅうの ひ」！</b> ポコたちに「にくきゅう さわらせて」と はなしかけてみよう。おはな <b>🌼 +20</b></p>'; addDiary('11月29日、いい にくきゅうの ひ。みんなの にくきゅうを さわらせてもらった。'); }
   $('toast').classList.add('hidden');
   $('dailyBody').innerHTML = `<p class="dt">📅 ${fmtDate(t)}${ev ? '　<b>' + ev + '</b>' : ''}</p><p>あそび はじめて <b>${S.days}日め</b>。</p>` +
-    xgift +
+    xgift + ngift +
     (calling.length ? `<p>❗ ${calling.slice(0, 5).join('・')}${calling.length > 5 ? ' ほか' : ''} が あなたを まっているよ。</p>` : '') +
     (ready ? `<p>？ ほうこくできる おねがいが ${ready}けん あるよ。</p>` : '') +
     `<p class="tip">💡 ${tips[(S.days + new Date().getDate()) % tips.length]}</p>`;
@@ -1762,6 +1811,8 @@ function send(text) {
   { const fan = fanOf(S.avatar.name), ft = fan && fanTopic(fan, id, text, S.avatar.name); if (ft) r = { text: ft.text, key: 'fan', vid: ft.vid }; }
   if (!r.vid && VIDEO_RX.test(text) && r.key !== 'quest') r = { text: fillN(VIDEO_TALK[id] || VIDEO_TALK.poko, id), key: 'video', vid: pickVideo().id };   // コメントを くれる ひとだけの おはなし
   if (/(おねがい|ミッション|たのみ|お願い|依頼|てつだ|手伝)/.test(text)) r = { text: '__quest__', key: 'quest' };
+  let nikuBonus = false;
+  if (specialDay() === 'nikukyu' && /(にくきゅう|肉球)/.test(text) && r.key !== 'quest') { const t = todayStr(); S.nikuDay = S.nikuDay && S.nikuDay.date === t ? S.nikuDay : { date: t }; if (!S.nikuDay[id]) { S.nikuDay[id] = 1; nikuBonus = true; } }
   if (r.key === 'story' || r.key === 'story-locked') {
     const rr = story(id, ctx);
     r = rr;
@@ -1776,6 +1827,7 @@ function send(text) {
     speak(r.text, CHARS[id].voice); sfx('recv');
     npcs[id].hop = 0.7;
     gainChat(id, r.key === 'fb' ? 1 : r.key === 'gate' ? 0 : 2, r.text.length);
+    if (nikuBonus) { gain(id, 3, r.text.length); for (let i = 0; i < 4; i++) setTimeout(() => { tmp.copy(npcs[id].root.position); tmp.y += 2.6; tmp.x += (Math.random() - 0.5) * 1.4; spawnFx(world.group, 'heart', tmp, 0.9); }, i * 180); addMsg(id, 'sys', '🐾 にくきゅう タッチ！ なかよし度 +3（1にち1かい）'); }
     if (r.key === 'shop') setTimeout(() => { if (mode === 'chat') { closeChat(); openShop(); } }, 1400);
     if (Math.random() < 0.4) renderChips(id);
     waiting = false;
@@ -2096,6 +2148,7 @@ function renderSettings() {
   seg('setTime', S.settings.time, v => { S.settings.time = v; save(); });
   seg('setStats', S.settings.stats === false ? 0 : 1, v => { S.settings.stats = v === '1'; setAnalyticsEnabled(S.settings.stats); save(); });
   seg('setEvent', S.settings.event || 'auto', v => { S.settings.event = v; applyEvent(); save(); });
+  seg('setSpecial', S.settings.special || 'auto', v => { S.settings.special = v; save(); });
 }
 function applySettings() {
   document.documentElement.style.setProperty('--fs', S.settings.size);
@@ -2382,7 +2435,7 @@ function frame(now) {
     if (S) {
       const h = gameHour();
       applySky(h);
-      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], xmasTime() ? '🎄 ツリータイム' : fireTime() ? '🍠 やきいもタイム' : '', mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); checkTree(); }
+      if (Math.floor(clock * 2) !== Math.floor((clock - dt) * 2)) { $('clock').textContent = clockText(h); const ev = [EVENT_NAMES[currentEvent()], SPECIAL_NAMES[specialDay()] || '', xmasTime() ? '🎄 ツリータイム' : fireTime() ? '🍠 やきいもタイム' : '', mealAt(h) ? mealAt(h).emoji + mealAt(h).name : ''].filter(Boolean).join('　'); $('evtChip').textContent = ev; $('evtChip').classList.toggle('hidden', !ev); checkTree(); }
     }
     world.update(dt, clock);
     if (place === 'in' && inKind === 'sei') interior.update(clock);
@@ -2398,6 +2451,7 @@ function frame(now) {
     schedT += dt; if (schedT > 1) { schedT = 0; syncNpcs(!schedInit); schedInit = true; checkMeal(); }
     updateChao(dt);
     updateNpcs(dt);
+    updatePaws(dt);
     if (S && S.created) updateFarmBtn(dt);
     if (mode === 'deco') updateDeco();
     if (rot.l) yaw -= dt * 1.8;
