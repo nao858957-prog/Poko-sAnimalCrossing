@@ -829,6 +829,7 @@ function updatePlayer(dt) {
   if (place === 'out') {
     for (const it of world.items) {
       if (it.mesh.visible && Math.hypot(pos.x - it.x, pos.z - it.z) < 1.2) {
+        if (it.kind === 'xgift') { openGiftBox(it); continue; }
         it.mesh.visible = false; it.back = 150;
         S.inv[it.kind] = (S.inv[it.kind] || 0) + 1;
         sfx('pick'); tmp.set(it.x, 1.2, it.z); spawnFx(world.group, 'star', tmp, 0.7);
@@ -1347,7 +1348,11 @@ function showDailyNotice() {
   let xgift = '';
   if (xday && currentEvent() === 'xmas' && S.xmasGift !== t) { S.xmasGift = t; S.flowers += 30; $('flowerCount').textContent = '🌼 ' + S.flowers; xgift = '<p>🎁 <b>メリークリスマス！</b> ポコたちから おはなの プレゼント <b>🌼 +30</b></p>'; addDiary('クリスマス。ポコたちから おはなの プレゼントを もらった。'); }
   let ngift = '';
-  if (specialDay() === 'nikukyu' && S.nikuGift !== t) { S.nikuGift = t; S.flowers += 20; $('flowerCount').textContent = '🌼 ' + S.flowers; ngift = '<p>🐾 <b>きょうは「いい にくきゅうの ひ」！</b> ポコたちに「にくきゅう さわらせて」と はなしかけてみよう。おはな <b>🌼 +20</b></p>'; addDiary('11月29日、いい にくきゅうの ひ。みんなの にくきゅうを さわらせてもらった。'); }
+  const SG = { nikukyu: { f: 20, text: '🐾 <b>きょうは「いい にくきゅうの ひ」！</b> ポコたちに「にくきゅう さわらせて」と はなしかけてみよう。', diary: '11月29日、いい にくきゅうの ひ。みんなの にくきゅうを さわらせてもらった。' },
+    toji: { f: 15, ing: ['pumpkin', 2], text: '🍊 <b>きょうは とうじ！</b> ポコたちから かぼちゃの おくりもの。かぼちゃを たべて ゆずゆに はいろう。', diary: '冬至。ポコたちから かぼちゃを もらった。' },
+    yearend: { f: 20, ing: ['flour', 2], text: '🔔 <b>もうすぐ おおみそか。</b> ポコたちから としこしそばの ざいりょうを もらったよ。', diary: '年の瀬。ポコたちから おそばの こなを もらった。' } };
+  const sp = specialDay(), sg = SG[sp];
+  if (sg && S.spGift !== sp + t) { S.spGift = sp + t; grantAdvent({ f: sg.f, ing: sg.ing }); ngift = `<p>${sg.text}<br>${advText({ f: sg.f, ing: sg.ing })}</p>`; addDiary(sg.diary); }
   $('toast').classList.add('hidden');
   $('dailyBody').innerHTML = `<p class="dt">📅 ${fmtDate(t)}${ev ? '　<b>' + ev + '</b>' : ''}</p><p>あそび はじめて <b>${S.days}日め</b>。</p>` +
     xgift + ngift +
@@ -2065,7 +2070,7 @@ function renderVideos() {
   ch.addEventListener('click', () => { sfx('tap'); track('video-channel'); });
   box.appendChild(ch);
 }
-function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer', 'invite', 'videos'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
+function showPanel(id) { ['menu', 'notebook', 'settings', 'theaterList', 'quests', 'map', 'diary', 'dex', 'transfer', 'invite', 'videos', 'advent'].forEach(p => $(p).classList.toggle('hidden', p !== id)); }
 document.body.addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
@@ -2078,6 +2083,7 @@ document.body.addEventListener('click', e => {
   else if (act === 'dex') { renderDex(); showPanel('dex'); }
   else if (act === 'diary') { renderDiary(); showPanel('diary'); }
   else if (act === 'notebook') { renderNotebook(); showPanel('notebook'); }
+  else if (act === 'advent') { renderAdvent(); showPanel('advent'); track('advent-open'); }
   else if (act === 'videos') { renderVideos(); showPanel('videos'); track('video-menu'); }
   else if (act === 'settings') { renderSettings(); showPanel('settings'); }
   else if (act === 'transfer') { openTransfer(); showPanel('transfer'); }
@@ -2452,6 +2458,7 @@ function frame(now) {
     updateChao(dt);
     updateNpcs(dt);
     updatePaws(dt);
+    updateSeasonUi(dt);
     if (S && S.created) updateFarmBtn(dt);
     if (mode === 'deco') updateDeco();
     if (rot.l) yaw -= dt * 1.8;
@@ -2570,6 +2577,80 @@ function addOrn(o) {
     addDiary(`クリスマスツリーに かざりを ${r.n}こ つけた。`);
   } else toast(`${o.emoji} ${o.name}を かざったよ（${T.orn.length}/${TREE_MAX}）`, 1800);
   save(); renderTree();
+}
+
+// ---------- 12月: アドベントカレンダー / イブの プレゼントばこ ----------
+const advDay = () => { const d = new Date(), m = d.getMonth() + 1; return m === 12 ? Math.min(25, d.getDate()) : m === 11 ? 0 : 25; };
+const adventOn = () => { const m = new Date().getMonth() + 1; return m === 12 || (m === 11 && new Date().getDate() >= 25); };
+const giveIng = (id, n) => { if (INGR[id]) { const c = ensureCook(S); c.pantry[id] = (c.pantry[id] || 0) + n; } else S.inv[id] = (S.inv[id] || 0) + n; };
+const ingLabel = (id, n) => { const d = ingName(id); return `${d.emoji} ${d.name} ×${n}`; };
+// 1〜25: ごほうび (f=おはな, ing, dish, orn=ツリーの かざり, hat, friends)
+const ADVENT = {
+  1: { f: 15 }, 2: { ing: ['sugar', 2] }, 3: { ing: ['pinecone', 3] }, 4: { f: 20 }, 5: { orn: 1 }, 6: { ing: ['milk', 2] }, 7: { ing: ['pinecone', 3] }, 8: { friends: 1 },
+  9: { f: 25 }, 10: { hat: 'santahat' }, 11: { orn: 1 }, 12: { dish: 'hotchoco' }, 13: { f: 25 }, 14: { ing: ['butter', 2] }, 15: { ing: ['pinecone', 4] }, 16: { friends: 1 },
+  17: { f: 30 }, 18: { dish: 'stew' }, 19: { orn: 1 }, 20: { ing: ['honey', 2] }, 21: { f: 30 }, 22: { ing: ['pumpkin', 2] }, 23: { friends: 2 }, 24: { dish: 'xmascake' }, 25: { f: 50, hat: 'reindeer' },
+};
+function advText(r) {
+  const out = [];
+  if (r.f) out.push(`🌼 ${r.f}`); if (r.ing) out.push(ingLabel(r.ing[0], r.ing[1]));
+  if (r.dish) out.push(`${RECIPE_BY_ID[r.dish].emoji} ${RECIPE_BY_ID[r.dish].name}`);
+  if (r.orn) out.push('🎄 ツリーの かざり'); if (r.hat) out.push(({ santahat: '🎅 サンタの ぼうし', reindeer: '🦌 トナカイの かちゅーしゃ' })[r.hat]);
+  if (r.friends) out.push(`♥ みんなと なかよし +${r.friends}`);
+  return out.join('　');
+}
+function grantAdvent(r) {
+  if (r.f) { S.flowers += r.f; $('flowerCount').textContent = '🌼 ' + S.flowers; }
+  if (r.ing) giveIng(r.ing[0], r.ing[1]);
+  if (r.dish) { const c = ensureCook(S); c.dishes[r.dish] = (c.dishes[r.dish] || 0) + 1; }
+  if (r.orn) { const T = ensureTree(); if (T.orn.length < TREE_MAX) { T.orn.push(Math.floor(Math.random() * ORNS.length)); syncTree(); } else S.flowers += 8; }
+  if (r.hat && !S.owned.includes(r.hat)) S.owned.push(r.hat);
+  if (r.friends) for (const id of ORDER) S.friend[id] = Math.min(MAX_PTS, (S.friend[id] || 0) + r.friends);
+}
+function ensureAdvent() { const y = new Date().getFullYear(); if (!S.advent || S.advent.year !== y) S.advent = { year: y, opened: {} }; return S.advent; }
+function renderAdvent() {
+  const A = ensureAdvent(), day = advDay(), box = $('advGrid'), n = Object.keys(A.opened).length;
+  $('advInfo').innerHTML = day ? `きょうは 12月 <b>${Math.min(day, 25)}</b>日。あけた とびら <b>${n}</b> / 25<br><small>まいにち ひとつ。あけそびれた とびらも あとから あけられるよ</small>` : '<small>12がつ 1にちから とびらが あくよ。たのしみに まっててね 🎁</small>';
+  box.innerHTML = '';
+  for (let i = 1; i <= 25; i++) {
+    const b = document.createElement('button'), open = !!A.opened[i], can = i <= day && !open;
+    b.className = 'adv-door' + (open ? ' open' : '') + (can ? ' can' : '') + (i === day ? ' today' : '');
+    b.innerHTML = open ? `<span>${['🎁', '⭐', '🍬', '🔔', '🌲', '🍪'][i % 6]}</span><small>${i}</small>` : `<b>${i}</b>`;
+    b.disabled = !can && !open;
+    b.onclick = () => { if (open) { toast(`${i}ばんの とびら: ${advText(ADVENT[i])}`, 2600); return; } openDoor(i); };
+    box.appendChild(b);
+  }
+}
+function openDoor(i) {
+  const A = ensureAdvent(); if (A.opened[i] || i > advDay()) return;
+  A.opened[i] = 1; const r = ADVENT[i]; grantAdvent(r);
+  sfx('catch'); track('advent-door'); addDiary(`アドベントカレンダーの ${i}ばんの とびらを あけた。`);
+  toast(`🎁 ${i}ばんの とびら<br><b>${advText(r)}</b>`, 3400);
+  if (i === 25 || Object.keys(A.opened).length === 25) addDiary('アドベントカレンダーを ぜんぶ あけた！');
+  save(); renderAdvent();
+}
+function openGiftBox(it) {
+  const t = todayStr(); if (!S.giftDay || S.giftDay.date !== t) S.giftDay = { date: t, got: [] };
+  const idx = world.items.filter(i => i.kind === 'xgift').indexOf(it);
+  if (S.giftDay.got.includes(idx)) { it.off = true; return; }
+  S.giftDay.got.push(idx); it.off = true; it.mesh.visible = false;
+  const roll = Math.random(); let r;
+  if (roll < 0.4) r = { f: 10 + Math.floor(Math.random() * 11) };
+  else if (roll < 0.65) r = { ing: [['sugar', 'butter', 'honey', 'egg', 'milk', 'flour'][Math.floor(Math.random() * 6)], 2] };
+  else if (roll < 0.85) r = { ing: ['pinecone', 2] };
+  else r = { orn: 1 };
+  grantAdvent(r); sfx('catch'); tmp.set(it.x, 1.4, it.z); spawnFx(world.group, 'star', tmp, 1.0);
+  toast(`🎁 プレゼントばこを みつけた！<br><b>${advText(r)}</b><br><small>きょうの みつけた かず ${S.giftDay.got.length} / 6</small>`, 3200);
+  if (S.giftDay.got.length === 6) { addDiary('イブの プレゼントばこを ぜんぶ みつけた。'); }
+  save();
+}
+let uiT = 0, giftKey = '';
+function updateSeasonUi(dt) {
+  if (!S || !S.created) return;
+  uiT += dt; if (uiT < 0.5) return; uiT = 0;
+  const b = document.querySelector('[data-act="advent"]'); if (b) b.classList.toggle('hidden', !adventOn());
+  const on = specialDay() === 'eve', t = todayStr(), got = S.giftDay && S.giftDay.date === t ? S.giftDay.got : [];
+  const key = on + '|' + t + '|' + got.length;
+  if (key !== giftKey) { giftKey = key; world.setGifts(on, got); }
 }
 // やきいもタイム: あき・ふゆの ゆうがた、ひろばの たきびに みんなが あつまる
 const FIRE_TIME = [16.5, 18];

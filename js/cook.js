@@ -82,6 +82,10 @@ export const RECIPES = [
     tl: 'もみじの てんぷらはね、むかしから つたわる あきの おやつなの。きれいな はを えらんで、ね。' },
   { id: 'pawcookie', emoji: '🐾', name: 'にくきゅうクッキー', ing: { flour: 1, butter: 1, sugar: 1, honey: 1 }, need: 'oven', lv: 3, teach: { who: 'mei', f: 3 }, line: 'ぷにぷに かたちの クッキー！ かわいくて たべられない…けど たべちゃう', how: 'オーブンで やく',
     tl: 'クッキーの まんなかに、ゆびで ぎゅっと まるを 4つ。にくきゅうの かたちに なるのよ。…ポコの てを おもいだして つくるの。' },
+  { id: 'kabochani', emoji: '🎃', name: 'かぼちゃの いとこに', ing: { pumpkin: 2, sugar: 1 }, need: 'burner', lv: 2, teach: { who: 'sei', f: 2 }, season: ['xmas', 'snow', 'newyear'], line: 'ほくほく あまい…。とうじの ごちそうだね', how: 'ゆでる',
+    tl: 'かぼちゃを おさとうで ことこと。とうじに たべると、かぜを ひかないって いわれているのよ。' },
+  { id: 'toshikoshi', emoji: '🍜', name: 'としこしそば', ing: { flour: 2, salt: 1 }, need: 'burner', lv: 3, teach: { who: 'sei', f: 3 }, season: ['xmas', 'snow', 'newyear'], line: 'つるつる ながーい。らいねんも いい としに なりますように', how: 'ゆでる',
+    tl: 'おそばは ながく のびるから、ながいきの おまじない。おおみそかに みんなで たべましょうね。' },
   // ---- クリスマス ----
   { id: 'hotchoco', emoji: '🍫', name: 'ホットチョコ', ing: { milk: 1, sugar: 1 }, need: 'burner', lv: 1, teach: { who: 'mei', f: 1 }, season: ['xmas', 'snow', 'newyear'], line: 'あまくて とろ〜り。からだの なかから ぽかぽか！', how: 'あたためる',
     tl: 'ミルクを あたためて、おさとうと…ひみつの いっぱいを いれるの。クリスマスの よるに ぴったりよ。' },

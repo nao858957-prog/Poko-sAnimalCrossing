@@ -295,6 +295,7 @@ export function buildWorld() {
 
   // ---- あつめもの (おねがいミッション用) ----
   const items = [];
+  let giftN = 0;
   const ITEM_DEF = {
     shell: () => { const m = new THREE.Group(); add(m, sph(0.26, '#ffd0d8', 1.2, 0.7, 1), 0, 0.15, 0); add(m, sph(0.14, '#ffffff', 1, 0.5, 1), 0, 0.28, 0.05); return m; },
     sasa: () => { const m = new THREE.Group(); for (let i = 0; i < 3; i++) { const c = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 1.0, 6), mat('#8fc860')); c.position.set((i - 1) * 0.13, 0.5, 0); c.rotation.z = (i - 1) * 0.12; m.add(c); } add(m, sph(0.3, '#6cc455', 0.9, 0.3, 0.5), 0, 1.0, 0); return m; },
@@ -304,13 +305,14 @@ export function buildWorld() {
     maple: () => { const m = new THREE.Group(); for (let i = 0; i < 3; i++) { const l = sph(0.2, ['#e8453a', '#f08a2e', '#d9a02a'][i], 1.1, 0.1, 1); l.rotation.y = i * 1.9; l.rotation.z = (i - 1) * 0.3; add(m, l, (i - 1) * 0.17, 0.12 + i * 0.02, (i % 2) * 0.1); } return m; },
     pinecone: () => { const m = new THREE.Group(); add(m, sph(0.2, '#7a4a22', 0.85, 1.25, 0.85), 0, 0.26, 0); for (let i = 0; i < 6; i++) { const a = i / 6 * 6.28; add(m, sph(0.07, '#a8743a', 1.2, 0.6, 1), Math.cos(a) * 0.15, 0.14 + (i % 3) * 0.12, Math.sin(a) * 0.15); } return m; },
     chestnut: () => { const m = new THREE.Group(); add(m, sph(0.24, '#7a4a22', 1, 0.85, 1), 0, 0.22, 0); add(m, sph(0.17, '#c98a48', 1, 0.3, 1), 0, 0.12, 0.05); return m; },
+    xgift: () => { const m = new THREE.Group(); const cols = ['#e8453a', '#2f9e5a', '#f2c230', '#4a8fe0']; const c = cols[(giftN++) % 4]; add(m, new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.45, 0.55), mat(c)), 0, 0.25, 0); add(m, new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.47, 0.14), mat('#fff6d8')), 0, 0.25, 0); add(m, new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.47, 0.58), mat('#fff6d8')), 0, 0.25, 0); add(m, sph(0.13, '#fff6d8', 1.3, 0.7, 0.8), 0, 0.55, 0); return m; },
     herb: () => { const m = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = sph(0.1, '#7fe05a', 0.35, 1.8, 0.35); b.rotation.z = (i - 1.5) * 0.35; add(m, b, (i - 1.5) * 0.1, 0.25, 0); } return m; },
   };
   const SEASONAL = { maple: 'autumn', chestnut: 'autumn', pinecone: 'xmas' };
   function itemSpot(kind, x, z) {
     const m = ITEM_DEF[kind](); m.position.set(x, 0, z); g.add(m);
-    items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6, season: SEASONAL[kind] || null, off: !!SEASONAL[kind] });
-    if (SEASONAL[kind]) m.visible = false;
+    items.push({ kind, mesh: m, x, z, back: 0, ph: r() * 6, season: SEASONAL[kind] || null, off: !!SEASONAL[kind] || kind === 'xgift' });
+    if (SEASONAL[kind] || kind === 'xgift') m.visible = false;
   }
   const free = (x, z, pad = 0.8) => !obstacles.some(o => Math.hypot(o.x - x, o.z - z) < o.r + pad);
   function scatter(kind, n, cx, cz, rx, rz, tries = 80) {
@@ -596,6 +598,12 @@ export function buildWorld() {
     for (const it of items) if (it.season) { it.off = it.season !== ev; if (it.off) it.mesh.visible = false; else if (it.back <= 0) it.mesh.visible = true; }
   }
 
+  // イブの プレゼントばこ: on で ひょうじ。got = もう ひろった ばんごう
+  function setGifts(on, got = []) {
+    let k = 0;
+    for (const it of items) if (it.kind === 'xgift') { it.off = !on || got.includes(k); it.back = 0; it.mesh.visible = !it.off; k++; }
+  }
+
   // くも
   const clouds = [];
   for (let i = 0; i < 7; i++) {
@@ -791,8 +799,13 @@ export function buildWorld() {
   });
   scatter('maple', 16, 0, 0, 30, 24, 300); scatter('maple', 8, -64, 2, 14, 14, 160); scatter('maple', 4, -82, 6, 8, 8, 80);
   scatter('chestnut', 8, 0, -28, 20, 4, 160); scatter('chestnut', 4, -26, -24, 5, 4, 80); scatter('chestnut', 5, -64, 2, 14, 14, 120);
+  { // イブの プレゼントばこ (ほかの ぱいちに えいきょうしないよう べつの らんすう)
+    let seed = 7919; const gr = () => { seed = (seed * 16807) % 2147483647; return seed / 2147483647; };
+    let k = 0, t = 0;
+    while (k < 6 && t++ < 500) { const x = (gr() - 0.5) * 48, z = 8 + (gr() - 0.5) * 36; if (landDepth(x, z) > 3 && free(x, z) && !onPath(x, z, 0.8)) { itemSpot('xgift', x, z); k++; } }
+  }
   scatter('pinecone', 14, 0, 0, 30, 24, 300); scatter('pinecone', 6, -64, 2, 14, 14, 160); scatter('pinecone', 4, XT[0], XT[1], 7, 6, 80);
-  return { group: g, xmasTree: { x: XT[0], z: XT[1], setOrn, get on() { return xmasG.visible; } }, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
+  return { group: g, xmasTree: { x: XT[0], z: XT[1], setOrn, get on() { return xmasG.visible; } }, campfire: { x: CF[0], z: CF[1], get on() { return fireG.visible; } }, obstacles, flowers, update, applyTime, setSeason, setGifts, items, landmarks: LM, setHome, homeDoorPos, farm: { plots: farmPlots, setPlot: setFarmPlot, label: farmLabel }, get homeStage() { return homeStage; }, homeLabelBuild, homeLabelMine, door: { x: 0, z: -12.9 }, shopDoor: { x: -10.4, z: 12.4 }, shopLabel };
 }
 
 // シアター用の舞台

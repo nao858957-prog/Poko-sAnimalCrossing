@@ -34,8 +34,8 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E🐼%3C/text%3E%3C/svg%3E">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="style.css?v=202611271348">
-<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202611271348", "./js/audio.js": "./js/audio.js?v=202611271348", "./js/cookact.js": "./js/cookact.js?v=202611271348", "./js/videos.js": "./js/videos.js?v=202611271348", "./js/cook.js": "./js/cook.js?v=202611271348", "./js/bgm.js": "./js/bgm.js?v=202611271348", "./js/bgm-score.js": "./js/bgm-score.js?v=202611271348", "./js/fans.js": "./js/fans.js?v=202611271348", "./js/schedule.js": "./js/schedule.js?v=202611271348", "./js/config.js": "./js/config.js?v=202611271348", "./js/dialogue.js": "./js/dialogue.js?v=202611271348", "./js/fish.js": "./js/fish.js?v=202611271348", "./js/home.js": "./js/home.js?v=202611271348", "./js/missions.js": "./js/missions.js?v=202611271348", "./js/models.js": "./js/models.js?v=202611271348", "./js/shop.js": "./js/shop.js?v=202611271348", "./js/theater.js": "./js/theater.js?v=202611271348", "./js/world.js": "./js/world.js?v=202611271348", "./js/farm.js": "./js/farm.js?v=202611271348", "./js/intents.js": "./js/intents.js?v=202611271348", "./js/transfer.js": "./js/transfer.js?v=202611271348"}}</script>
+<link rel="stylesheet" href="style.css?v=202611271352">
+<script type="importmap">{"imports": {"three": "./vendor/three.module.js", "./js/analytics.js": "./js/analytics.js?v=202611271352", "./js/audio.js": "./js/audio.js?v=202611271352", "./js/cookact.js": "./js/cookact.js?v=202611271352", "./js/videos.js": "./js/videos.js?v=202611271352", "./js/cook.js": "./js/cook.js?v=202611271352", "./js/bgm.js": "./js/bgm.js?v=202611271352", "./js/bgm-score.js": "./js/bgm-score.js?v=202611271352", "./js/fans.js": "./js/fans.js?v=202611271352", "./js/schedule.js": "./js/schedule.js?v=202611271352", "./js/config.js": "./js/config.js?v=202611271352", "./js/dialogue.js": "./js/dialogue.js?v=202611271352", "./js/fish.js": "./js/fish.js?v=202611271352", "./js/home.js": "./js/home.js?v=202611271352", "./js/missions.js": "./js/missions.js?v=202611271352", "./js/models.js": "./js/models.js?v=202611271352", "./js/shop.js": "./js/shop.js?v=202611271352", "./js/theater.js": "./js/theater.js?v=202611271352", "./js/world.js": "./js/world.js?v=202611271352", "./js/farm.js": "./js/farm.js?v=202611271352", "./js/intents.js": "./js/intents.js?v=202611271352", "./js/transfer.js": "./js/transfer.js?v=202611271352"}}</script>
 </head>
 <body>
 <canvas id="c"></canvas>
@@ -125,6 +125,7 @@
     <button class="big" data-act="map">🗺 マップ</button>
     <button class="big" data-act="diary">📖 にっき</button>
     <button class="big" data-act="dex">🎣 さかなずかん</button>
+    <button class="big hidden" data-act="advent">🎁 アドベントカレンダー</button>
     <button class="big" data-act="theater">🎬 ポコたちの シアター</button>
     <button class="big" data-act="videos">📺 ポコたちの どうが</button>
     <button class="big" data-act="notebook">💕 ともだちノート</button>
@@ -151,6 +152,15 @@
     <h2>📜 おねがい ノート</h2>
     <div id="qInv" class="qinv"></div>
     <div id="qList"></div>
+    <button class="big" data-act="back">もどる</button>
+  </div>
+</section>
+
+<section id="advent" class="screen modal hidden">
+  <div class="panel">
+    <h2>🎁 アドベントカレンダー</h2>
+    <div id="advInfo" class="qinv"></div>
+    <div id="advGrid" class="adv-grid"></div>
     <button class="big" data-act="back">もどる</button>
   </div>
 </section>
@@ -306,6 +316,6 @@
   <div id="thEnd" class="hidden"><div class="panel"><h2>おしまい</h2><button id="thAgain" class="big primary">もういちど みる</button><button id="thBack" class="big">もどる</button></div></div>
 </section>
 
-<script type="module" src="js/main.js?v=202611271348"></script>
+<script type="module" src="js/main.js?v=202611271352"></script>
 </body>
 </html>
